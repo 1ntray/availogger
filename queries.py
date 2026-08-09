@@ -21,7 +21,7 @@ query FindUser($searchTerm: String $first: Int) {
 }
 """.strip(),
         "variables": {
-            "searchTerm": "Example"
+            "searchTerm": "Example",
             "first": 10,
         },
     },
