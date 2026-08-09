@@ -96,11 +96,11 @@ st.title("FlightLogger API Interface")
 
 st.header("Instructor availability")
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=432000)
 def load_availability_overview():
     return build_availability_table(
         run_query,
-        days=30,
+        days=60,
     )
 
 if st.button("Load availability"):
@@ -111,10 +111,9 @@ if st.button("Load availability"):
         availability_df
     )
 
-    st.dataframe(
-        styled_df,
+    st.html(
+        styled_df.to_html(),
         width="stretch",
-        height="content",
     )
 
 

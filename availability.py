@@ -190,42 +190,140 @@ def build_availability_table(
         ),
     ).T
 
-    df.index.name = "Instructor"
 
     return df
 
 
 
-def availability_style(value):
-    base = (
-        "border: 1.5px solid #000000;"
-        "color: transparent;"
-    )
 
+def availability_style(value):
     if value == "available":
-        return base + "background-color: #8fe388;"
+        return "background-color: #8fe388; color: transparent;"
 
     if value == "unavailable":
-        return base + "background-color: #e98b8b;"
+        return "background-color: #e98b8b; color: transparent;"
 
-    return base + "background-color: ##808080;"
+    return "background-color: #b8b8b8; color: transparent;"
+
+
+
+
+def availability_styles(df):
+    styles = pd.DataFrame(
+        "",
+        index=df.index,
+        columns=df.columns,
+    )
+
+    for row in range(len(df)):
+        # Alternate the undefined grey for each instructor
+        if row % 2 == 0:
+            undefined_colour = "#b8b8b8"
+        else:
+            undefined_colour = "#c4c4c4"
+
+        for col in range(len(df.columns)):
+            value = df.iat[row, col]
+
+            if value == "available":
+                colour = "#a8df8e"
+
+            elif value == "unavailable":
+                colour = "#d58f8f"
+
+            else:
+                colour = undefined_colour
+
+            styles.iat[row, col] = (
+                f"background-color: {colour}; "
+                "color: transparent;"
+            )
+
+    return styles
 
 
 
 def style_availability_table(df):
+    table_styles = [
+        {
+            "selector": "th",
+            "props": [
+                ("border", "1px solid #777777"),
+                ("background-color", "#e8e8e8"),
+                ("color", "#222222"),
+                ("font-weight", "600"),
+                ("padding", "2px"),
+                ("height", "26px"),
+                ("text-align", "center"),
+                ("font-size", "11px"),
+            ],
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("border", "1px solid #777777"),
+                ("padding", "0"),
+                ("height", "26px"),
+            ],
+        },
+        {
+            "selector": "th.row_heading",
+            "props": [
+                ("text-align", "left"),
+                ("padding-left", "5px"),
+                ("white-space", "nowrap"),
+                ("width", "85px"),
+                ("min-width", "85px"),
+                ("max-width", "85px"),
+                ("overflow", "hidden"),
+            ],
+        },
+        {
+            "selector": "thead th:first-child",
+            "props": [
+                ("width", "85px"),
+                ("min-width", "85px"),
+                ("max-width", "85px"),
+            ],
+        },
+        {
+    "selector": "tbody tr:nth-child(odd) th.row_heading",
+    "props": [
+        ("background-color", "#e8e8e8"),
+    ],
+},
+{
+    "selector": "tbody tr:nth-child(even) th.row_heading",
+    "props": [
+        ("background-color", "#f2f2f2"),
+    ],
+},
+    ]
+
+    # Add a thick line at the beginning of every new week
+    for i in range(1, len(df.columns)):
+        current_week = df.columns[i][0]
+        previous_week = df.columns[i - 1][0]
+
+        if current_week != previous_week:
+            table_styles.append({
+                "selector": f"th.col{i}, td.col{i}",
+                "props": [
+                    ("border-left", "3px solid #222222 !important"),
+                ],
+            })
+
     return (
         df.style
-        .map(availability_style)
+        .apply(availability_styles, axis=None)
         .format(lambda value: "")
-        .set_table_styles([
-            {
-                "selector": "th",
-                "props": [
-                    ("border", "1.5px solid #888888"),
-                    ("background-color", "#f2f2f2"),
-                    ("font-weight", "600"),
-                ],
-            },
-        ])
+        .set_table_attributes(
+            'style="'
+            'width: 100%; '
+            'table-layout: fixed; '
+            'border-collapse: collapse; '
+            'border-spacing: 0;'
+            '"'
+        )
+        .set_table_styles(table_styles)
     )
-
