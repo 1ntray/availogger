@@ -1,8 +1,8 @@
 QUERY_PRESETS = {
     "Find user ID": {
         "query": """
-query FindUser($email: String $first: Int) {
-    users(email: $email first: $first) {
+query FindUser($searchTerm: String $first: Int) {
+    users(searchTerm: $searchTerm first: $first) {
     nodes {
       id
       firstName
@@ -21,7 +21,7 @@ query FindUser($email: String $first: Int) {
 }
 """.strip(),
         "variables": {
-            "email": "person@example.com",
+            "searchTerm": "Example"
             "first": 10,
         },
     },
