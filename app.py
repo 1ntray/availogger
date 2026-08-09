@@ -105,10 +105,7 @@ def load_availability_overview():
 
 if st.button("Load availability"):
     with st.spinner("Loading availability..."):
-        availability_df = build_availability_table(
-            run_query,
-            days=30,
-        )
+        availability_df = load_availability_overview()
 
     styled_df = style_availability_table(
         availability_df
