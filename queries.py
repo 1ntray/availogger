@@ -65,3 +65,60 @@ query UserAvailability(
         },
     },
 }
+
+USERS_BY_ROLE_QUERY = """
+query UsersByRole(
+  $roles: [UserRoleEnum!]
+  $first: Int
+  $after: String
+) {
+  users(
+    roles: $roles
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+      firstName
+      lastName
+      callSign
+    }
+
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+"""
+
+
+USER_AVAILABILITY_QUERY = """
+query UserAvailability(
+  $id: String
+  $from: DateTime
+  $to: DateTime
+  $first: Int
+  $after: String
+) {
+  user(id: $id) {
+    availabilities(
+      from: $from
+      to: $to
+      first: $first
+      after: $after
+    ) {
+      nodes {
+        startsAt
+        endsAt
+        unavailable
+      }
+
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+"""

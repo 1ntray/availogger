@@ -6,6 +6,11 @@ import streamlit as st
 
 from queries import QUERY_PRESETS
 
+from availability import (
+    build_availability_table,
+    style_availability_table,
+)
+
 
 API_URL = "https://api.flightlogger.net/graphql"
 DEFAULT_PRESET = "Find user ID"
@@ -87,6 +92,33 @@ st.set_page_config(
 initialise_state()
 
 st.title("FlightLogger API Interface")
+
+
+st.header("Instructor availability")
+
+@st.cache_data(ttl=300)
+def load_availability_overview():
+    return build_availability_table(
+        run_query,
+        days=30,
+    )
+
+if st.button("Load availability"):
+    with st.spinner("Loading availability..."):
+        availability_df = build_availability_table(
+            run_query,
+            days=30,
+        )
+
+    styled_df = style_availability_table(
+        availability_df
+    )
+
+    st.dataframe(
+        styled_df,
+        width="stretch",
+        height="content",
+    )
 
 st.subheader("Saved queries")
 
