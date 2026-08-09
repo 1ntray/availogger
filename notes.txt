@@ -1,0 +1,62 @@
+Tord ID: 100933
+Fredde ID: 97854
+Adrian ID: 12620
+Collett ID: 125430
+Bangstad ID: 112700
+Max ID: 12694
+Klux ID: 104843
+Erlend ID: 97845
+
+
+Availability:
+query GetUserAvailability(
+  $userId: String!
+  $from: DateTime
+  $to: DateTime
+  $first: Int
+) {
+  user(id: $userId) {
+    id
+    firstName
+    lastName
+
+    availabilities(
+      from: $from
+      to: $to
+      first: $first
+    ) {
+      nodes {
+        startsAt
+        endsAt
+        unavailable
+      }
+
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+Variables:
+{
+  "userId": "97845",
+  "from": "2026-08-07T00:00:00+02:00",
+  "to": "2026-10-27T23:59:59+02:00",
+  "first": 1000
+}
+
+
+
+Find ID:
+query GetUserBycallSign($callSign: String) {
+  users(callSign: $callSign) {
+    nodes {
+      id
+      firstName
+      lastName
+      callSign
+    }
+  }
+}
