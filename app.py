@@ -120,6 +120,7 @@ if st.button("Load availability"):
         height="content",
     )
 
+
 st.subheader("Saved queries")
 
 # Put a maximum of three preset buttons on each row.

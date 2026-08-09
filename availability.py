@@ -195,23 +195,20 @@ def build_availability_table(
     return df
 
 
+
 def availability_style(value):
-    if value == "available":
-        return (
-            "background-color: #c9efc3;"
-            "color: transparent;"
-        )
-
-    if value == "unavailable":
-        return (
-            "background-color: #f1cccc;"
-            "color: transparent;"
-        )
-
-    return (
-        "background-color: #e6e6e6;"
+    base = (
+        "border: 1.5px solid #000000;"
         "color: transparent;"
     )
+
+    if value == "available":
+        return base + "background-color: #8fe388;"
+
+    if value == "unavailable":
+        return base + "background-color: #e98b8b;"
+
+    return base + "background-color: ##808080;"
 
 
 
@@ -220,7 +217,15 @@ def style_availability_table(df):
         df.style
         .map(availability_style)
         .format(lambda value: "")
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("border", "1.5px solid #888888"),
+                    ("background-color", "#f2f2f2"),
+                    ("font-weight", "600"),
+                ],
+            },
+        ])
     )
-
-
 
