@@ -21,7 +21,7 @@ query FindUser($searchTerm: String $first: Int) {
 }
 """.strip(),
         "variables": {
-            "searchTerm": "Example",
+            "searchTerm": "",
             "first": 10,
         },
     },
@@ -58,7 +58,7 @@ query UserAvailability(
 }
 """.strip(),
         "variables": {
-            "id": "PASTE_USER_ID_HERE",
+            "id": "",
             "from": "2026-08-07T00:00:00+02:00",
             "to": "2026-08-14T23:59:59+02:00",
             "first": 100,
