@@ -2,6 +2,8 @@
 
 This feature branch requires **D1 + DB + an encryption secret**. `master` auto-deploys Pages. **Do not merge yet:** this work does not create production resources, apply remote migrations or verify a live deployment. The old shared secret remains externally configured, but is never a fallback in the new code.
 
+Current setup progress: the user created `studentportal-db`, and a read-only Cloudflare check confirmed UUID `a6a29063-bacf-454f-8423-5e956e769e5f`. That real ID is now configured as `DB` on the feature branch. The production migration and encryption secret remain pending. Preview D1/KV bindings are explicitly empty so previews cannot inherit the production resources.
+
 ## Implementation report
 
 Verified Access subject -> parameterized D1 user resolution -> mandatory onboarding -> validated personal credential -> AES-256-GCM encryption -> transactional credential/user-ID save. Availability decrypts only the current user's credential before the retained token-hashed cache.

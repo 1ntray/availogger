@@ -4,7 +4,7 @@ An operational portal for pilot students. Instructor Availability is the first i
 
 ## Deployment status — do not merge this phase yet
 
-Production `master` auto-deploys Pages. This feature branch requires **D1, its migration, the `DB` binding and `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`**. They have not been provisioned by this work. Root `wrangler.jsonc` deliberately contains no invented database ID.
+Production `master` auto-deploys Pages. This feature branch requires **D1, its migration, the `DB` binding and `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`**. The user created `studentportal-db`; its verified real ID is configured as `DB` on this feature branch. The production migration and encryption secret still need setup before merge. Preview deployments explicitly have no D1/KV bindings until a separate environment is provisioned.
 
 Complete [the manual setup and verification guide](docs/per-user-flightlogger.md) before merging. The old `FLIGHTLOGGER_API_TOKEN` remains externally configured for rollout/rollback, but the new code never reads it or falls back to it. Remove it manually only after onboarding, replacement and uncached production schedules work. The user's actual `.dev.vars` is not modified.
 
