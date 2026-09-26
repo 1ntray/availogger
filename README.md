@@ -18,7 +18,7 @@ student.luftfartsfag.no
 GitHub 1ntray/availogger -> CI + Pages Git integration (master)
 ```
 
-Wix hosting and the existing CNAME remain unchanged. The repository implements the Pages API and Access verification. Production migration is only complete after the configuration and verification steps below succeed. The old standalone Worker remains available during migration; **it is still public until you retire it**. No production resources are deleted by this change.
+Wix hosting and the existing CNAME remain unchanged. Production now uses Pages Functions behind Cloudflare Access. The user verified sign-in and availability, including previously uncached future months, after deleting the old standalone `availogger-api` Worker. The existing KV namespace remains in use. The standalone Worker deployment files and CORS routing layer have been removed from the repository.
 
 ### Source layout
 
@@ -26,9 +26,8 @@ Wix hosting and the existing CNAME remain unchanged. The repository implements t
 - `functions/api/`: Pages routes, Access middleware, availability, `/api/me`, and JSON 404 for unknown API routes.
 - `backend/availability.ts`: shared date validation, cache, response mapping and safe errors.
 - `backend/access.ts`: verified Access identity, reusable for future D1 user mapping.
-- `worker/src/flightlogger/`: existing client, fixed queries, pagination protection and Oslo calendar calculations. Pages imports these modules directly; there is no second FlightLogger implementation.
-- `worker/src/index.ts` and `worker/wrangler.jsonc`: temporary legacy Worker wrapper/config for rollback. Their CORS settings do not apply to Pages.
-- `test/`: Pages route and Access verification tests. Existing `worker/test/` tests also run from the root.
+- `backend/flightlogger/`: existing client, fixed queries, pagination protection and Oslo calendar calculations, moved without duplication from the retired Worker.
+- `test/`: Pages routes, Access verification, availability caching, FlightLogger client/calendar and frontend API error tests.
 - `wrangler.jsonc`: Pages configuration, existing KV ID, compatibility date and `frontend/dist` output.
 - `.github/workflows/ci.yml`: frontend and backend checks. Cloudflare's existing Git integration deploys Pages; there is no duplicate GitHub deployment workflow.
 
@@ -54,13 +53,19 @@ Use Node.js 22 or newer. From the repository root:
 ```bash
 npm ci
 npm --prefix frontend ci
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars and set your FlightLogger token.
+# Create .dev.vars in the repository root as shown below.
 npm run build
 npm run dev
 ```
 
-On PowerShell use `Copy-Item .dev.vars.example .dev.vars` instead of `cp`. Open `http://localhost:8788`. Wrangler serves the frontend and Pages Functions together. There is no requirement to log in to Cloudflare or create production resources for local development. Local KV is disk-backed under the root `.wrangler/state` and is ignored by Git; it is separate from remote KV despite using the same namespace identifier.
+Create the ignored root `.dev.vars` file with your own token:
+
+```dotenv
+FLIGHTLOGGER_API_TOKEN="replace-with-your-token"
+LOCAL_ACCESS_DEV=true
+```
+
+Open `http://localhost:8788`. Wrangler serves the frontend and Pages Functions together. There is no requirement to log in to Cloudflare or create production resources for local development. Local KV is disk-backed under the root `.wrangler/state` and is ignored by Git; it is separate from remote KV despite using the same namespace identifier. Old ignored files under `worker/`, if still present locally, are not read by Pages dev.
 
 `LOCAL_ACCESS_DEV=true` in the ignored root `.dev.vars` opts into a fixed local identity **only on loopback URLs** (`localhost`, `127.0.0.1`, `[::1]`). It does not accept fake identity headers. Public/custom/preview hostnames cannot use this bypass even if the variable is accidentally supplied. Never add this variable to Pages. Remove it and supply real Access configuration if testing actual JWT validation locally.
 
@@ -89,7 +94,7 @@ Keep the existing Pages Git integration with `1ntray/availogger` and production 
 | Root directory | repository root (blank or `/`) |
 | Build command | `npm ci && cd frontend && npm ci && npm run build` |
 | Build output directory | `frontend/dist` |
-| Node version | `22` (`NODE_VERSION` build variable if needed) |
+| Node version | `22` or newer |
 | Custom domain | `student.luftfartsfag.no` |
 
 The only build-command addition is the root `npm ci`, needed to install/lock `jose` and Pages tooling before Cloudflare bundles Functions. The frontend build and output directory are preserved. Use the current Pages build system (V2 or later). Root `wrangler.jsonc` becomes the source of truth for its listed settings when deployed; do not overwrite it with `wrangler pages download config` without reviewing the resulting diff. See [Pages configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
@@ -112,9 +117,9 @@ Under **Workers & Pages -> availogger -> Settings -> Variables and Secrets -> Ad
 | `CF_ACCESS_TEAM_DOMAIN` | Your actual team hostname, e.g. `your-team.cloudflareaccess.com` (HTTPS URL also accepted) |
 | `CF_ACCESS_AUD` | Application Audience (AUD) from the Access application covering the custom domain |
 
-Use **Encrypt**, then **Save**. The Access hostname/AUD are public configuration values; storing them as encrypted bindings lets the dashboard supply them without hard-coding account values or conflicting with Wrangler-managed plain vars. The FlightLogger token is a secret and must remain encrypted. A standalone Worker's secret is **not copied automatically** into Pages. Set it yourself from your secure source; do not print it or retrieve it into tracked files. See [Pages bindings and secrets](https://developers.cloudflare.com/pages/functions/bindings/).
+Use **Encrypt**, then **Save**. The Access hostname/AUD are public configuration values; storing them as encrypted bindings lets the dashboard supply them without hard-coding account values or conflicting with Wrangler-managed plain vars. The FlightLogger token is a secret and must remain encrypted. Set it yourself from your secure source; do not print it or retrieve it into tracked files. See [Pages bindings and secrets](https://developers.cloudflare.com/pages/functions/bindings/).
 
-Do not add `LOCAL_ACCESS_DEV` in production or preview. Do not put any secret in a `VITE_*` variable. Remove obsolete `VITE_API_BASE_URL` and `SITE_BASE_PATH` values from Pages/GitHub when convenient; the frontend ignores them. `ALLOWED_ORIGINS` is not needed in Pages. GitHub CI needs no Cloudflare credentials or FlightLogger secret. Existing Worker secrets remain untouched until migration is verified.
+Do not add `LOCAL_ACCESS_DEV` in production or preview. Do not put any secret in a `VITE_*` variable. `VITE_API_BASE_URL`, `SITE_BASE_PATH` and `ALLOWED_ORIGINS` are not needed. GitHub CI needs no Cloudflare credentials or FlightLogger secret.
 
 Previews should not receive the production FlightLogger secret unless needed and protected. If a separate Access preview application is used, configure its own AUD in the Preview environment. Missing preview configuration fails closed.
 
@@ -129,10 +134,10 @@ Previews should not receive the production FlightLogger secret unless needed and
 
 No application roles or D1 records are created. Future user records should key off the verified Access subject (and account/team context), not an arbitrary email header.
 
-## One-time deployment and production verification
+## Deployment and production verification
 
-1. Configure the Access application, intended-user policy, Pages runtime bindings, KV binding, and updated build command **before pushing the migration to `master`**. Until these are ready, the new API intentionally returns 401/503 instead of exposing schedules.
-2. Run the local checks above. Commit/push the migration. Pages Git integration publishes the frontend and Functions in one deployment. Confirm the Pages build bundles `functions/`; CI must also pass.
+1. Configure the Access application, intended-user policy, Pages runtime bindings, KV binding, and build command before the first deployment. Missing Access configuration intentionally returns 401/503 instead of exposing schedules.
+2. Run the local checks above, then commit/push changes to `master`. Pages Git integration publishes the frontend and Functions in one deployment. Confirm the Pages build bundles `functions/`; CI must also pass.
 3. Open `https://student.luftfartsfag.no/` in a private window. Confirm Access sign-in appears before the calendar and denies an unapproved account.
 4. After signing in, open `https://student.luftfartsfag.no/api/me`; check that it returns only your verified email/subject.
 5. Open `https://student.luftfartsfag.no/api/availability?from=2026-09-01&to=2026-10-31` (adjust to the current two months). Expect HTTP 200, `timeZone: "Europe/Oslo"`, an ISO `cachedAt`, and correctly sized instructor day arrays. Reload the same range and confirm `cachedAt` is unchanged while cached.
@@ -144,21 +149,21 @@ No application roles or D1 records are created. Future user records should key o
    ```
 
    Expect an Access login redirect or a 401 denial, never schedule JSON. Repeat against `https://availogger.pages.dev/api/availability?...` and any enabled preview URL. Check `/` on alternate hostnames too. A forged `Cf-Access-Authenticated-User-Email` must not grant access.
-8. If verification fails, keep the old Worker and use Pages' rollback to the preceding deployment while correcting configuration. Do not restore an unauthenticated path in the new Functions.
+8. If a future deployment fails verification, roll Pages back to a preceding verified deployment containing both the frontend and Functions. Old static-only deployments depended on the deleted Worker. Do not restore an unauthenticated path in the Functions.
 
-Production verification has to be performed after these manual account-specific settings are supplied. Passing local tests/builds alone does not mean the live migration is complete.
+Production verification requires the account-specific settings above. Passing local tests/builds alone does not verify a live deployment. The user confirmed the migrated production site loads cached and uncached schedules after the standalone Worker was deleted.
 
 ### If `/api/me` displays the calendar instead of JSON
 
 The deployment is serving Pages' SPA HTML fallback for the API URL. This means the Functions route is missing from that deployment; an Access policy change will not fix it. Check **Settings -> Build configuration**: the root directory must be the repository root, the build command must be `npm ci && cd frontend && npm ci && npm run build`, and the output must be `frontend/dist`. Keep `functions/` and `wrangler.jsonc` at the repository root. Confirm the deployed `master` commit includes the four `functions/api/` files and review its build log for Functions compilation. The reference ignore rule must be `/API/` (root only); `API/` can also ignore `functions/api/` on Windows and leave those files out of commits. After committing any missing routes or correcting the build settings, create a new production deployment and retry `/api/me` after signing in. An expired-session message in an older frontend can also mean that the API returned HTML rather than JSON.
 
-## Retire the old production path after verification
+## Legacy retirement and retained KV
 
-1. Confirm the new Pages deployment is stable and no frontend/network/configuration still references `availogger-api.lundell-simon-05.workers.dev`.
-2. In **Workers & Pages -> availogger-api -> Settings -> Domains & Routes**, disable its `workers.dev` route and any other routes. Test that the old URL cannot return schedule data. Do not delete the shared KV namespace.
-3. After the desired rollback window, delete the standalone `availogger-api` Worker in the dashboard, which also removes its old secret. Keep the Pages token and existing KV.
-4. In a follow-up code cleanup, remove legacy `worker/src/index.ts`, `worker/wrangler.jsonc`, `worker/package.json`, `worker/package-lock.json`, `worker/tsconfig.json`, and legacy `worker/test/routes.test.ts`. Preserve the reused FlightLogger modules and their client/calendar tests (move them first if reorganizing paths). Do not delete the whole `worker/` directory while Pages still imports it.
-5. `.github/workflows/deploy-pages.yml` has already been removed by this migration, so pushing it stops future GitHub Pages deployments. In GitHub **Settings -> Pages**, unpublish/disable the old GitHub Pages site if it still exists; deleting a workflow does not unpublish an existing site. The old static bundle may continue calling the legacy API until that API is disabled.
+The old `availogger-api` Worker has been deleted by the user after production verification. Its deployment configuration, package files, routing and CORS code are no longer part of this repository. FlightLogger modules and useful cache/calendar/client tests were moved into `backend/` and `test/`. The application has no workers.dev API dependency.
+
+Keep the separate KV namespace `availogger-api-availability-cache` (ID `ccce02514a2b44d2a7698529136751fd`). The name is historical; Pages continues to bind it as `AVAILABILITY_CACHE`. Deleting the standalone Worker does not require moving or deleting the shared namespace. Keep the Pages `FLIGHTLOGGER_API_TOKEN` secret too. There is no need to export the cache to retire the Worker; successful entries expire after 24 hours and are rebuilt on demand.
+
+The old `.github/workflows/deploy-pages.yml` was removed, so GitHub no longer deploys the frontend to GitHub Pages. In GitHub **Settings -> Pages**, unpublish/disable the old GitHub Pages site if it still exists; deleting a workflow does not unpublish an existing site. Cloudflare Pages Git integration and CI remain active.
 
 ## Availability semantics, cache and security
 
@@ -168,7 +173,7 @@ FlightLogger's documented availability filters select records beginning after `f
 
 Successful range results retain their original `cachedAt` in the 24-hour KV cache and up-to-60-second memory cache. Keys include the SHA-256 token hash; the original version/key format is preserved so Pages can reuse the existing entries. Browser responses are `no-store`. Reload view does not force an upstream fetch. KV is eventually consistent; different Cloudflare locations may briefly duplicate a cache miss. FlightLogger 429 handling and its retry delay remain intact.
 
-The FlightLogger token stays server-side. There are no mutations, arbitrary GraphQL queries, raw token/cache-key responses, custom password handling or application sessions. Access's allow policy is the authorization boundary; all approved users currently see the shared account's recorded instructor availability. Protect every hostname and retire the legacy Worker before considering the old public-data path closed.
+The FlightLogger token stays server-side. There are no mutations, arbitrary GraphQL queries, raw token/cache-key responses, custom password handling or application sessions. Access's allow policy is the authorization boundary; all approved users currently see the shared account's recorded instructor availability. Protect every hostname, including aliases and previews.
 
 ## Next phase
 

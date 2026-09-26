@@ -1,6 +1,6 @@
-import { FlightLoggerClient, FlightLoggerError } from '../worker/src/flightlogger/client';
-import { buildCalendar, inclusiveDayCount, queryWindow } from '../worker/src/flightlogger/calendar';
-import type { AvailabilityResult } from '../worker/src/flightlogger/types';
+import { FlightLoggerClient, FlightLoggerError } from './flightlogger/client';
+import { buildCalendar, inclusiveDayCount, queryWindow } from './flightlogger/calendar';
+import type { AvailabilityResult } from './flightlogger/types';
 import { json } from './response';
 
 export interface AvailabilityEnv {
@@ -8,7 +8,7 @@ export interface AvailabilityEnv {
   AVAILABILITY_CACHE: KVNamespace;
 }
 
-// Preserve the one-day policy during migration. Access can support a shorter TTL later.
+// Keep successful schedules for one day to limit upstream calls.
 // Reload view reads the cache; it does not bypass it.
 const AVAILABILITY_CACHE_TTL_SECONDS = 86_400;
 const AVAILABILITY_CACHE_TTL_MS = AVAILABILITY_CACHE_TTL_SECONDS * 1000;
@@ -61,7 +61,6 @@ function isDate(value: string | null): value is string {
 }
 
 // Authentication is applied by Pages /api middleware before this handler touches KV.
-// The old Worker uses this only during the documented migration/rollback window.
 export async function handleAvailability(request: Request, env: AvailabilityEnv): Promise<Response> {
   if (request.method !== 'GET') {
     const response = json({ error: 'Method not allowed.' }, 405);

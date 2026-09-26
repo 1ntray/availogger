@@ -93,7 +93,7 @@ export class FlightLoggerClient {
       });
       throw new FlightLoggerError('Could not connect to FlightLogger. Try again shortly.', 503);
     }
-    if (response.status === 401 || response.status === 403) throw new FlightLoggerError('FlightLogger authentication failed. Check the Worker secret.');
+    if (response.status === 401 || response.status === 403) throw new FlightLoggerError('FlightLogger authentication failed. Check the Pages secret.');
     if (response.status === 429) {
       const seconds = retryAfterSeconds(response.headers.get('Retry-After'));
       rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + seconds * 1000);

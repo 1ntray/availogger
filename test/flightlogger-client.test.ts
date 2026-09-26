@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FlightLoggerClient } from '../src/flightlogger/client';
+import { FlightLoggerClient } from '../backend/flightlogger/client';
 
 function result(data: unknown): Response {
   return new Response(JSON.stringify({ data }), { status: 200, headers: { 'Content-Type': 'application/json' } });

@@ -9,5 +9,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["backend", "functions", "test", "worker/src", "worker/test"]
+  "include": ["backend", "functions", "test"]
 }

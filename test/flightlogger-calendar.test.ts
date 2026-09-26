@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, buildCalendar, osloMidnight, queryWindow, statusForDay } from '../src/flightlogger/calendar';
+import { addDays, buildCalendar, osloMidnight, queryWindow, statusForDay } from '../backend/flightlogger/calendar';
 
 describe('Oslo calendar boundaries', () => {
   it('uses 23 and 25 hour days at DST changes', () => {
