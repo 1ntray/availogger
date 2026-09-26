@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 
-const env = { FLIGHTLOGGER_API_TOKEN: 'test-token', ALLOWED_ORIGINS: 'http://localhost:5173' };
+const values = new Map<string, string>();
+const cache = {
+  get: vi.fn(async (key: string) => values.has(key) ? JSON.parse(values.get(key)!) : null),
+  put: vi.fn(async (key: string, value: string) => { values.set(key, value); }),
+};
+const env = { FLIGHTLOGGER_API_TOKEN: 'test-token', ALLOWED_ORIGINS: 'http://localhost:5173', AVAILABILITY_CACHE: cache as unknown as KVNamespace };
 
 describe('Worker route boundaries', () => {
   it('accepts only configured browser origins', async () => {
@@ -37,6 +42,7 @@ describe('Worker route boundaries', () => {
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
       expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(cache.put).toHaveBeenCalledWith(expect.any(String), expect.any(String), { expirationTtl: 86400 });
     } finally {
       vi.unstubAllGlobals();
     }
@@ -51,6 +57,30 @@ describe('Worker route boundaries', () => {
       expect(response.status).toBe(429);
       expect(response.headers.get('Retry-After')).toBe('45');
       expect(await response.json()).toMatchObject({ error: expect.stringContaining('rate limiting') });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('uses the persisted daily cache after a Worker restart', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: { users: {
+      nodes: [{ id: '1', firstName: 'Ada', lastName: 'L', callSign: '', availabilities: {
+        nodes: [], pageInfo: { hasNextPage: false, endCursor: null },
+      } }], pageInfo: { hasNextPage: false, endCursor: null },
+    } } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const url = 'https://worker.example/api/availability?from=2031-02-01&to=2031-02-02';
+      vi.resetModules();
+      const firstWorker = (await import('../src/index')).default;
+      const first = await firstWorker.fetch(new Request(url), env);
+      vi.resetModules();
+      const restartedWorker = (await import('../src/index')).default;
+      const second = await restartedWorker.fetch(new Request(url), env);
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(await second.json()).toEqual(await first.json());
       expect(fetcher).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();

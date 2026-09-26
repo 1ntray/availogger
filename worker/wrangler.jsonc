@@ -6,7 +6,10 @@
   "secrets": {
     "required": ["FLIGHTLOGGER_API_TOKEN"]
   },
+  "kv_namespaces": [
+    { "binding": "AVAILABILITY_CACHE" }
+  ],
   "vars": {
-    "ALLOWED_ORIGINS": "http://localhost:5173"
+    "ALLOWED_ORIGINS": "https://1ntray.github.io,http://localhost:5173"
   }
 }

@@ -64,8 +64,8 @@ function App() {
 
     <section className="content">
       <div className="heading-row">
-        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p></div>
-        <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Refresh</button>
+        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo. Data may be up to 24 hours old.</p></div>
+        <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Reload view</button>
       </div>
 
       <div className="toolbar">

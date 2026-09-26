@@ -5,29 +5,50 @@ import type { AvailabilityResult } from './flightlogger/types';
 export interface Env {
   FLIGHTLOGGER_API_TOKEN: string;
   ALLOWED_ORIGINS: string;
+  AVAILABILITY_CACHE: KVNamespace;
 }
 
-const availabilityCache = new Map<string, { token: string; expiresAt: number; result: Promise<AvailabilityResult> }>();
-const CACHE_MS = 60_000;
+const DAY_SECONDS = 86_400;
+const DAY_MS = DAY_SECONDS * 1000;
+const HOT_CACHE_MS = 60_000;
+const CACHE_VERSION = 1;
+type CacheEntry = { version: number; cachedAt: number; result: AvailabilityResult };
+const hotCache = new Map<string, { expiresAt: number; result: AvailabilityResult }>();
+const inFlight = new Map<string, Promise<CacheEntry>>();
 
-async function availabilityForRange(from: string, to: string, token: string): Promise<AvailabilityResult> {
-  const key = `${from}:${to}`;
+async function availabilityForRange(from: string, to: string, env: Env): Promise<AvailabilityResult> {
+  // A token change must not reuse data fetched for a different FlightLogger account.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(env.FLIGHTLOGGER_API_TOKEN));
+  const tokenHash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  const key = `availability:v${CACHE_VERSION}:${tokenHash}:${from}:${to}`;
   const now = Date.now();
-  const cached = availabilityCache.get(key);
-  if (cached && cached.token === token && cached.expiresAt > now) return cached.result;
+  const hot = hotCache.get(key);
+  if (hot && hot.expiresAt > now) return hot.result;
+  const pending = inFlight.get(key);
+  if (pending) return (await pending).result;
 
-  const result = (async () => {
+  const task = (async (): Promise<CacheEntry> => {
+    const stored = await env.AVAILABILITY_CACHE.get<CacheEntry>(key, 'json');
+    if (stored?.version === CACHE_VERSION && typeof stored.cachedAt === 'number' &&
+        stored.cachedAt <= Date.now() && Date.now() - stored.cachedAt < DAY_MS &&
+        stored.result?.from === from && stored.result?.to === to &&
+        stored.result?.timeZone === 'Europe/Oslo' && Array.isArray(stored.result?.instructors)) {
+      return stored;
+    }
     const window = queryWindow(from, to);
-    const records = await new FlightLoggerClient(token).instructorsWithAvailability(window.from, window.to);
-    return buildCalendar(from, to, records);
+    const records = await new FlightLoggerClient(env.FLIGHTLOGGER_API_TOKEN).instructorsWithAvailability(window.from, window.to);
+    const entry: CacheEntry = { version: CACHE_VERSION, cachedAt: Date.now(), result: buildCalendar(from, to, records) };
+    await env.AVAILABILITY_CACHE.put(key, JSON.stringify(entry), { expirationTtl: DAY_SECONDS });
+    return entry;
   })();
-  availabilityCache.set(key, { token, expiresAt: now + CACHE_MS, result });
-  if (availabilityCache.size > 12) availabilityCache.delete(availabilityCache.keys().next().value!);
+  inFlight.set(key, task);
   try {
-    return await result;
-  } catch (error) {
-    if (availabilityCache.get(key)?.result === result) availabilityCache.delete(key);
-    throw error;
+    const entry = await task;
+    hotCache.set(key, { expiresAt: Math.min(entry.cachedAt + DAY_MS, Date.now() + HOT_CACHE_MS), result: entry.result });
+    if (hotCache.size > 12) hotCache.delete(hotCache.keys().next().value!);
+    return entry.result;
+  } finally {
+    inFlight.delete(key);
   }
 }
 
@@ -87,7 +108,7 @@ export default {
           from > to || inclusiveDayCount(from, to) > 62) {
         return json({ error: 'Use from and to as valid YYYY-MM-DD dates, with a range of 1–62 days.' }, 400, origin);
       }
-      return json(await availabilityForRange(from, to, env.FLIGHTLOGGER_API_TOKEN), 200, origin);
+      return json(await availabilityForRange(from, to, env), 200, origin);
     } catch (error) {
       if (error instanceof FlightLoggerError) {
         const response = json({ error: error.message }, error.status, origin);

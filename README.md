@@ -6,7 +6,7 @@ Availogger Phase 1 displays FlightLogger flight instructor availability in a two
 
 `GitHub Pages (React/Vite) → Cloudflare Worker (REST API) → FlightLogger GraphQL`
 
-The browser calls only `/api/instructors` and `/api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` on the Worker. The Worker owns the fixed GraphQL queries and converts FlightLogger records to daily app statuses. The API token exists only in Cloudflare's secret binding or a local, ignored `worker/.dev.vars` file. No database is used.
+The browser calls only `/api/instructors` and `/api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` on the Worker. The Worker owns the fixed GraphQL queries and converts FlightLogger records to daily app statuses. The API token exists only in Cloudflare's secret binding or a local, ignored `worker/.dev.vars` file. Cloudflare KV stores successful availability responses for one day; Wrangler uses local disk-backed KV during development.
 
 The `API/` directory in this workspace is the **separate, existing Streamlit reference repository**. It is ignored by the new root repository and is not part of the new application or Pages artifact. Do not copy its `.streamlit` secrets into the new repository.
 
@@ -37,6 +37,8 @@ npm run dev
 
 The frontend defaults to `http://localhost:8787` and the Worker permits `http://localhost:5173`. Open the Vite URL shown by `npm run dev`. On Windows PowerShell, use `Copy-Item .dev.vars.example .dev.vars` and `Copy-Item .env.example .env.local` in place of `cp`.
 
+Wrangler creates the local KV cache automatically in `worker/.wrangler/state`. It survives restarting the local Worker and is ignored by Git. Delete `worker/.wrangler/state` if you need to clear the local cache. Local KV data is separate from deployed KV data.
+
 The Worker expects a FlightLogger token authorized to read active users and their availabilities. Its GraphQL endpoint is `https://api.flightlogger.net/graphql` using `Authorization: Bearer <token>`. You can check the API without the frontend:
 
 ```bash
@@ -60,10 +62,10 @@ Run checks with `npm run build` in `frontend/` and `npm run check && npm test` i
    npx wrangler deploy
    ```
 
-   Enter the token at Wrangler's interactive prompt; never pass it on the command line. `secret put` may create and deploy the Worker before the final deploy command. Wrangler validates the declared required secret on deployment.
+   Enter the token at Wrangler's interactive prompt; never pass it on the command line. `secret put` may create and deploy the Worker before the final deploy command. Wrangler validates the declared required secret on deployment. The first deployment automatically provisions the `AVAILABILITY_CACHE` KV namespace and may write its public ID back into `worker/wrangler.jsonc`; keep that config change with your project.
 4. Copy the public Worker URL (`https://availogger-api.<your-subdomain>.workers.dev`) from Wrangler's output. Test `/api/instructors` and a short `/api/availability` range. Confirm the response contains expected instructors and statuses before publishing the frontend.
 
-The Worker name is set in `worker/wrangler.jsonc`. Change it there if it conflicts with another Worker. No Cloudflare database or storage setup is required.
+The Worker name is set in `worker/wrangler.jsonc`. Change it there if it conflicts with another Worker. No separate KV creation command is required with the included Wrangler version.
 
 ## Deploy the frontend to GitHub Pages
 
@@ -93,8 +95,8 @@ FlightLogger documents `FLIGHT_INSTRUCTOR`, `STUDENT`, and other user role enum 
 
 Dates are validated, the range is limited to 62 days, and the Worker stops before Cloudflare Free's 50 external subrequest limit. Large or unusually deep availability connections return an explicit error instead of incomplete data. The API's documented `from`/`to` filters select events whose start and end fall inside the query window. The Worker pads that window by 90 days on either side to catch common spanning periods; an event longer than that may still be omitted. If FlightLogger clarifies or adds true overlap filtering for availability, update this query. The calendar means **recorded availability**, not booking-free time.
 
-The API uses `Cache-Control: no-store` for browser responses. To reduce repeated FlightLogger calls, each Worker instance keeps successful date-range results in memory for up to one minute; the Refresh button may show data from that short cache. FlightLogger HTTP 429 responses are shown as rate limits with a retry delay, and the Worker pauses new upstream requests during that delay. This is a small Phase 1 safeguard, not a shared or durable quota manager. Add authentication and stronger rate limiting before wider use.
+The API uses `Cache-Control: no-store` for browser responses. Successful date-range results are stored in KV for 24 hours and also held in Worker memory for up to one minute. Cache keys include a hash of the FlightLogger token, so replacing the token does not reuse another account's schedule. The page's **Reload view** button reloads the current cached result; it does not force a FlightLogger call. KV data is shared across deployed Worker instances and stored on disk by local Wrangler. FlightLogger HTTP 429 responses are shown as rate limits with a retry delay, and the Worker pauses new upstream requests during that delay. KV is eventually consistent, so a newly cached range may still cause a small number of duplicate FlightLogger requests from different Cloudflare locations. Add authentication and stronger rate limiting before wider use.
 
 ## Phase 1 limits and future work
 
-There are no accounts, personal tokens, bookings, Duty Ops assignments, shift swaps, writes, notifications, or database. A future phase can add authentication and per-user server-side token storage, then private schedules and Duty Ops workflows behind authorized API routes.
+There are no accounts, personal tokens, bookings, Duty Ops assignments, shift swaps, schedule writes, notifications, or SQL database. A future phase can add authentication and per-user server-side token storage, then private schedules and Duty Ops workflows behind authorized API routes.
