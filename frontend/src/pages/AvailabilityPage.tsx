@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { loadAvailability } from '../api';
+import { loadAvailability, OnboardingRequiredError } from '../api';
+import { useCurrentUser } from '../app/CurrentUser';
 import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
 import { calendarView, dateKey, monthRange, osloDate } from '../dates';
 import type { AvailabilityResponse, AvailabilityStatus } from '../types';
@@ -29,6 +30,7 @@ function weekNumber(date: Date): number {
 }
 
 function AvailabilityPage() {
+  const { refresh } = useCurrentUser();
   const [monthOffset, setMonthOffset] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery] = useState('');
@@ -54,11 +56,12 @@ function AvailabilityPage() {
       .then(result => { setData(result); setNow(Date.now()); })
       .catch((cause: unknown) => {
         if (cause instanceof DOMException && cause.name === 'AbortError') return;
+        if (cause instanceof OnboardingRequiredError) { void refresh().catch(() => {}); return; }
         setError(cause instanceof Error ? cause.message : 'Could not load availability.');
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [range.from, range.to, refreshKey]);
+  }, [range.from, range.to, refreshKey, refresh]);
 
   const { dates, dayOffset } = useMemo(() => calendarView(data?.from || range.from, data?.to || range.to, today), [data, range, today]);
   const instructors = useMemo(() => (data?.instructors || []).filter(instructor =>

@@ -61,3 +61,24 @@ describe('FlightLogger pagination', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('personal credential validation and isolation', () => {
+  it.each([null, {}, { id: '' }, { id: 3 }])('rejects missing/invalid authenticated user %#', async user => {
+    await expect(new FlightLoggerClient('validation-test', async () => result({ user })).currentUser()).rejects.toMatchObject({ status: 422 });
+  });
+  it('isolates rate-limit cooldowns by credential across client instances', async () => {
+    const limited = vi.fn(async () => new Response('', { status: 429, headers: { 'Retry-After': '30' } }));
+    await expect(new FlightLoggerClient('limited-personal-key', limited).currentUser()).rejects.toMatchObject({ status: 429 });
+    await expect(new FlightLoggerClient('limited-personal-key', limited).currentUser()).rejects.toMatchObject({ status: 429 });
+    expect(limited).toHaveBeenCalledTimes(1);
+    expect(await new FlightLoggerClient('other-personal-key', async () => result({ user: { id: 'other' } })).currentUser()).toEqual({ id: 'other' });
+  });
+  it('never logs or returns credential material in upstream exceptions or GraphQL errors', async () => {
+    const logger = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(new FlightLoggerClient('sensitive-key', async () => { throw new Error('Bearer sensitive-key'); }).currentUser()).rejects.toThrow('Could not connect');
+      await expect(new FlightLoggerClient('sensitive-key', async () => Response.json({ errors: [{ message: 'sensitive-key', extensions: { code: 'sensitive-key' } }] })).currentUser()).rejects.toThrow('rejected');
+      expect(JSON.stringify(logger.mock.calls)).not.toContain('sensitive-key');
+    } finally { logger.mockRestore(); }
+  });
+});

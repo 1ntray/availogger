@@ -1,4 +1,10 @@
-export type CurrentUser = { email: string; subject: string };
+export type CurrentUser = {
+  email: string;
+  subject: string;
+  onboardingComplete: boolean;
+  hasFlightLoggerCredential: boolean;
+  flightLoggerUserId: string | null;
+};
 
 export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser> {
   let response: Response;
@@ -14,8 +20,13 @@ export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser>
   }
   if (!response.ok) throw new Error('Your account could not be loaded. Try again shortly.');
   if (typeof body !== 'object' || body === null || !('email' in body) || !('subject' in body) ||
-      typeof body.email !== 'string' || !body.email || typeof body.subject !== 'string' || !body.subject) {
+      typeof body.email !== 'string' || !body.email || typeof body.subject !== 'string' || !body.subject ||
+      !('onboardingComplete' in body) || typeof body.onboardingComplete !== 'boolean' ||
+      !('hasFlightLoggerCredential' in body) || typeof body.hasFlightLoggerCredential !== 'boolean' ||
+      body.onboardingComplete !== body.hasFlightLoggerCredential ||
+      !('flightLoggerUserId' in body) || (body.flightLoggerUserId !== null && typeof body.flightLoggerUserId !== 'string')) {
     throw new Error('The account service returned an unexpected response.');
   }
-  return { email: body.email, subject: body.subject };
+  return { email: body.email, subject: body.subject, onboardingComplete: body.onboardingComplete,
+    hasFlightLoggerCredential: body.hasFlightLoggerCredential, flightLoggerUserId: body.flightLoggerUserId };
 }

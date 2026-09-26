@@ -2,6 +2,8 @@ import type { AvailabilityResponse } from './types';
 import { isAvailabilityResponse } from './availability-response';
 import { availabilityUrl } from './api-url';
 
+export class OnboardingRequiredError extends Error {}
+
 export async function loadAvailability(from: string, to: string, signal: AbortSignal): Promise<AvailabilityResponse> {
   let response: Response;
   try {
@@ -19,6 +21,9 @@ export async function loadAvailability(from: string, to: string, signal: AbortSi
     throw new Error('Your Access session may have expired. Reload the page to sign in again.');
   }
   if (!response.ok) {
+    if (response.status === 409 && body && typeof body === 'object' && 'code' in body && body.code === 'ONBOARDING_REQUIRED') {
+      throw new OnboardingRequiredError('Connect your FlightLogger account before loading availability.');
+    }
     const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
       ? body.error : `Availability service returned HTTP ${response.status}.`;
     throw new Error(message);

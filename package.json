@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "npm --prefix frontend run build",
-    "dev": "wrangler pages dev frontend/dist",
+    "dev": "wrangler pages dev frontend/dist --config wrangler.local.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.local.jsonc",
+    "db:status:local": "wrangler d1 migrations list DB --local --config wrangler.local.jsonc",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "functions:build": "wrangler pages functions build functions --outdir .wrangler/pages-build"
@@ -15,6 +17,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260925.2",
+    "@types/node": "^22.20.4",
+    "miniflare": "^5.20260925.0-alpha",
     "typescript": "^5.9.0",
     "vitest": "^5.0.2",
     "wrangler": "^4.0.0"

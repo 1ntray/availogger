@@ -4,7 +4,6 @@ import type { AvailabilityResult } from './flightlogger/types';
 import { json } from './response';
 
 export interface AvailabilityEnv {
-  FLIGHTLOGGER_API_TOKEN: string;
   AVAILABILITY_CACHE: KVNamespace;
 }
 
@@ -18,9 +17,9 @@ type CacheEntry = { version: number; cachedAt: number; result: AvailabilityResul
 const hotCache = new Map<string, { expiresAt: number; entry: CacheEntry }>();
 const inFlight = new Map<string, Promise<CacheEntry>>();
 
-async function availabilityForRange(from: string, to: string, env: AvailabilityEnv): Promise<CacheEntry> {
-  // Hash the token so future account-specific tokens naturally separate cached data.
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(env.FLIGHTLOGGER_API_TOKEN));
+async function availabilityForRange(from: string, to: string, token: string, env: AvailabilityEnv): Promise<CacheEntry> {
+  // Hash the current user's token to separate cached data without readable credentials.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
   const tokenHash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
   const key = `availability:v${CACHE_VERSION}:${tokenHash}:${from}:${to}`;
   const now = Date.now();
@@ -38,7 +37,7 @@ async function availabilityForRange(from: string, to: string, env: AvailabilityE
       return stored;
     }
     const window = queryWindow(from, to);
-    const records = await new FlightLoggerClient(env.FLIGHTLOGGER_API_TOKEN).instructorsWithAvailability(window.from, window.to);
+    const records = await new FlightLoggerClient(token).instructorsWithAvailability(window.from, window.to);
     const entry: CacheEntry = { version: CACHE_VERSION, cachedAt: Date.now(), result: buildCalendar(from, to, records) };
     await env.AVAILABILITY_CACHE.put(key, JSON.stringify(entry), { expirationTtl: AVAILABILITY_CACHE_TTL_SECONDS });
     return entry;
@@ -61,13 +60,13 @@ function isDate(value: string | null): value is string {
 }
 
 // Authentication is applied by Pages /api middleware before this handler touches KV.
-export async function handleAvailability(request: Request, env: AvailabilityEnv): Promise<Response> {
+export async function handleAvailability(request: Request, token: string, env: AvailabilityEnv): Promise<Response> {
   if (request.method !== 'GET') {
     const response = json({ error: 'Method not allowed.' }, 405);
     response.headers.set('Allow', 'GET');
     return response;
   }
-  if (!env.FLIGHTLOGGER_API_TOKEN || !env.AVAILABILITY_CACHE) return json({ error: 'The availability service is not configured.' }, 503);
+  if (!token || !env.AVAILABILITY_CACHE) return json({ error: 'The availability service is not configured.' }, 503);
   const url = new URL(request.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
@@ -77,7 +76,7 @@ export async function handleAvailability(request: Request, env: AvailabilityEnv)
     return json({ error: 'Use from and to as valid YYYY-MM-DD dates, with a range of 1–62 days.' }, 400);
   }
   try {
-    const entry = await availabilityForRange(from, to, env);
+    const entry = await availabilityForRange(from, to, token, env);
     return json({ ...entry.result, cachedAt: new Date(entry.cachedAt).toISOString() });
   } catch (error) {
     if (error instanceof FlightLoggerError) {
@@ -85,7 +84,7 @@ export async function handleAvailability(request: Request, env: AvailabilityEnv)
       if (error.retryAfterSeconds) response.headers.set('Retry-After', String(error.retryAfterSeconds));
       return response;
     }
-    console.error('Unexpected availability error', error instanceof Error ? error.name : 'unknown');
+    console.error('Unexpected availability error');
     return json({ error: 'An unexpected availability service error occurred.' }, 500);
   }
 }
