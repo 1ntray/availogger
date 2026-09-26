@@ -1,0 +1,34 @@
+// The fields and pagination arguments come from the legacy Streamlit queries and
+// FlightLogger's public GraphQL reference. The nested availability selection avoids
+// one network subrequest per instructor on Cloudflare's free tier.
+export const INSTRUCTORS_QUERY = `
+query Instructors($first: Int, $after: String) {
+  users(roles: [FLIGHT_INSTRUCTOR], first: $first, after: $after) {
+    nodes { id firstName lastName callSign }
+    pageInfo { hasNextPage endCursor }
+  }
+}`;
+
+export const INSTRUCTORS_WITH_AVAILABILITY_QUERY = `
+query InstructorsWithAvailability($first: Int, $after: String, $from: DateTime, $to: DateTime) {
+  users(roles: [FLIGHT_INSTRUCTOR], first: $first, after: $after) {
+    nodes {
+      id firstName lastName callSign
+      availabilities(from: $from, to: $to, first: 50) {
+        nodes { startsAt endsAt unavailable }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}`;
+
+export const MORE_AVAILABILITY_QUERY = `
+query MoreAvailability($id: String, $from: DateTime, $to: DateTime, $after: String) {
+  user(id: $id) {
+    availabilities(from: $from, to: $to, first: 50, after: $after) {
+      nodes { startsAt endsAt unavailable }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}`;

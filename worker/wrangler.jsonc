@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "availogger-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "secrets": {
+    "required": ["FLIGHTLOGGER_API_TOKEN"]
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:5173"
+  }
+}
