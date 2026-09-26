@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadAvailability } from './api';
+import { cacheAgeLabel, cacheTimeInOslo } from './cache-age';
 import { dateKey, datesInRange, monthRange } from './dates';
 import type { AvailabilityResponse, AvailabilityStatus } from './types';
 
@@ -34,7 +35,13 @@ function App() {
   const [data, setData] = useState<AvailabilityResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const range = useMemo(() => monthRange(monthOffset), [monthOffset]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,7 +49,7 @@ function App() {
     setError('');
     setData(null);
     loadAvailability(range.from, range.to, controller.signal)
-      .then(setData)
+      .then(result => { setData(result); setNow(Date.now()); })
       .catch((cause: unknown) => {
         if (cause instanceof DOMException && cause.name === 'AbortError') return;
         setError(cause instanceof Error ? cause.message : 'Could not load availability.');
@@ -64,7 +71,7 @@ function App() {
 
     <section className="content">
       <div className="heading-row">
-        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo. Data may be up to 24 hours old.</p></div>
+        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p>{data && !loading && !error && <p className="cache-age"><time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time></p>}</div>
         <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Reload view</button>
       </div>
 

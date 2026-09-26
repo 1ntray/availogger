@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, buildCalendar, osloMidnight, statusForDay } from '../src/flightlogger/calendar';
+import { addDays, buildCalendar, osloMidnight, queryWindow, statusForDay } from '../src/flightlogger/calendar';
 
 describe('Oslo calendar boundaries', () => {
   it('uses 23 and 25 hour days at DST changes', () => {
@@ -20,5 +20,16 @@ describe('Oslo calendar boundaries', () => {
   it('builds one status per requested date', () => {
     const result = buildCalendar('2026-09-26', '2026-09-27', [{ instructor: { id: '1', firstName: 'Ada', lastName: 'L', callSign: '' }, periods: [] }]);
     expect(result.instructors[0].days).toEqual(['undefined', 'undefined']);
+  });
+
+  it('pads the query using Oslo midnights across clock changes', () => {
+    expect(queryWindow('2026-03-29', '2026-03-29')).toEqual({
+      from: '2025-12-28T23:00:00.000Z',
+      to: '2026-06-27T22:00:00.000Z',
+    });
+    expect(queryWindow('2026-10-25', '2026-10-25')).toEqual({
+      from: '2026-07-26T22:00:00.000Z',
+      to: '2027-01-23T23:00:00.000Z',
+    });
   });
 });

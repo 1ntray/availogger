@@ -27,6 +27,8 @@ export async function loadAvailability(from: string, to: string, signal: AbortSi
 
 function isAvailabilityResponse(value: unknown): value is AvailabilityResponse {
   return typeof value === 'object' && value !== null &&
+    'cachedAt' in value && typeof value.cachedAt === 'string' &&
+    Number.isFinite(Date.parse(value.cachedAt)) && new Date(value.cachedAt).toISOString() === value.cachedAt &&
     'instructors' in value && Array.isArray(value.instructors) &&
     value.instructors.every((item: unknown) => typeof item === 'object' && item !== null &&
       'id' in item && typeof item.id === 'string' && 'days' in item && Array.isArray(item.days) &&

@@ -46,8 +46,9 @@ export function buildCalendar(from: string, to: string, records: { instructor: I
 }
 
 export function queryWindow(from: string, to: string): { from: string; to: string } {
-  // The API's documented from/to filters only include events beginning and
-  // ending inside the requested window. Padding catches common spanning events.
+  // FlightLogger documents start-after and end-before filters, but no overlap
+  // filter for availabilities. Padding catches common spanning periods; a period
+  // crossing either padded boundary can still be missed.
   return {
     from: new Date(osloMidnight(addDays(from, -90))).toISOString(),
     to: new Date(osloMidnight(addDays(to, 91))).toISOString(),

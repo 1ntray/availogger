@@ -10,7 +10,7 @@ const env = { FLIGHTLOGGER_API_TOKEN: 'test-token', ALLOWED_ORIGINS: 'http://loc
 
 describe('Worker route boundaries', () => {
   it('accepts only configured browser origins', async () => {
-    const response = await worker.fetch(new Request('https://worker.example/api/instructors', { headers: { Origin: 'https://other.example' } }), env);
+    const response = await worker.fetch(new Request('https://worker.example/api/availability', { headers: { Origin: 'https://other.example' } }), env);
     expect(response.status).toBe(403);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
@@ -28,6 +28,13 @@ describe('Worker route boundaries', () => {
     expect(post.status).toBe(405);
   });
 
+  it('does not expose the unused instructors route', async () => {
+    const get = await worker.fetch(new Request('https://worker.example/api/instructors'), env);
+    const preflight = await worker.fetch(new Request('https://worker.example/api/instructors', { method: 'OPTIONS' }), env);
+    expect(get.status).toBe(404);
+    expect(preflight.status).toBe(404);
+  });
+
   it('reuses a successful calendar response for the same range', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: { users: {
       nodes: [{ id: '1', firstName: 'Ada', lastName: 'L', callSign: '', availabilities: {
@@ -41,6 +48,12 @@ describe('Worker route boundaries', () => {
       const second = await worker.fetch(new Request(url), env);
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
+      const firstBody = await first.json() as { cachedAt: string; instructors: unknown[] };
+      const secondBody = await second.json() as { cachedAt: string };
+      expect(firstBody.cachedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(Number.isFinite(Date.parse(firstBody.cachedAt))).toBe(true);
+      expect(secondBody.cachedAt).toBe(firstBody.cachedAt);
+      expect(firstBody.instructors).toHaveLength(1);
       expect(fetcher).toHaveBeenCalledTimes(1);
       expect(cache.put).toHaveBeenCalledWith(expect.any(String), expect.any(String), { expirationTtl: 86400 });
     } finally {
@@ -83,6 +96,28 @@ describe('Worker route boundaries', () => {
       expect(await second.json()).toEqual(await first.json());
       expect(fetcher).toHaveBeenCalledTimes(1);
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('fetches a new timestamp after the daily cache expires', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: { users: {
+      nodes: [], pageInfo: { hasNextPage: false, endCursor: null },
+    } } }), { status: 200 }));
+    const clock = vi.spyOn(Date, 'now');
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const start = Date.parse('2030-01-01T12:00:00.000Z');
+      clock.mockReturnValue(start);
+      const url = 'https://worker.example/api/availability?from=2031-03-01&to=2031-03-02';
+      const first = await worker.fetch(new Request(url), env);
+      expect((await first.json() as { cachedAt: string }).cachedAt).toBe('2030-01-01T12:00:00.000Z');
+      clock.mockReturnValue(start + 86_400_000);
+      const second = await worker.fetch(new Request(url), env);
+      expect((await second.json() as { cachedAt: string }).cachedAt).toBe('2030-01-02T12:00:00.000Z');
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      clock.mockRestore();
       vi.unstubAllGlobals();
     }
   });

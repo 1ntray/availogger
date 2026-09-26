@@ -12,5 +12,6 @@ export interface AvailabilityResponse {
   from: string;
   to: string;
   timeZone: 'Europe/Oslo';
+  cachedAt: string;
   instructors: InstructorAvailability[];
 }
