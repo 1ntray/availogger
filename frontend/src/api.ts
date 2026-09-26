@@ -12,7 +12,10 @@ export async function loadAvailability(from: string, to: string, signal: AbortSi
   }
 
   const body: unknown = await response.json().catch(() => null);
-  if (response.status === 401 || response.status === 403 || (response.ok && !body)) {
+  if (response.ok && !body && response.headers.get('Content-Type')?.includes('text/html') && !response.redirected) {
+    throw new Error('The availability API returned a webpage instead of data. Check that Pages Functions are included in the deployment.');
+  }
+  if (response.status === 401 || response.status === 403 || (response.ok && !body && response.redirected)) {
     throw new Error('Your Access session may have expired. Reload the page to sign in again.');
   }
   if (!response.ok) {

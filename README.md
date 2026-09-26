@@ -148,6 +148,10 @@ No application roles or D1 records are created. Future user records should key o
 
 Production verification has to be performed after these manual account-specific settings are supplied. Passing local tests/builds alone does not mean the live migration is complete.
 
+### If `/api/me` displays the calendar instead of JSON
+
+The deployment is serving Pages' SPA HTML fallback for the API URL. This means the Functions route is missing from that deployment; an Access policy change will not fix it. Check **Settings -> Build configuration**: the root directory must be the repository root, the build command must be `npm ci && cd frontend && npm ci && npm run build`, and the output must be `frontend/dist`. Keep `functions/` and `wrangler.jsonc` at the repository root. Confirm the deployed `master` commit includes the four `functions/api/` files and review its build log for Functions compilation. The reference ignore rule must be `/API/` (root only); `API/` can also ignore `functions/api/` on Windows and leave those files out of commits. After committing any missing routes or correcting the build settings, create a new production deployment and retry `/api/me` after signing in. An expired-session message in an older frontend can also mean that the API returned HTML rather than JSON.
+
 ## Retire the old production path after verification
 
 1. Confirm the new Pages deployment is stable and no frontend/network/configuration still references `availogger-api.lundell-simon-05.workers.dev`.

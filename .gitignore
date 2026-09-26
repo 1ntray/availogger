@@ -1,4 +1,5 @@
-API/
+# Ignore only the root reference project; functions/api must be committed.
+/API/
 **/node_modules/
 **/.npm-cache/
 **/dist/
