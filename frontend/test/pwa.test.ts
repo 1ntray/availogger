@@ -25,5 +25,11 @@ describe('PWA assets and authentication boundaries', () => {
     expect(routes.include).toContain('/api/*');
     expect(readFileSync('src/api-url.ts','utf8')).not.toContain('VITE_API_BASE_URL');
     expect(readFileSync('src/app/current-user-api.ts','utf8')).not.toContain('VITE_API_BASE_URL');
+    const credentialApi = readFileSync('src/features/flightlogger/credential-api.ts', 'utf8');
+    expect(credentialApi).toContain("fetch('/api/onboarding/flightlogger'");
+    expect(credentialApi).toContain("cache: 'no-store'");
+    for (const file of ['src/features/flightlogger/CredentialForm.tsx', 'src/features/flightlogger/credential-api.ts']) {
+      expect(readFileSync(file, 'utf8')).not.toMatch(/localStorage|sessionStorage|indexedDB|caches\.|console\./);
+    }
   });
 });

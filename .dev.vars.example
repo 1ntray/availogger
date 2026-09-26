@@ -1,0 +1,7 @@
+# Copy to .dev.vars in the repository root. Never commit the actual secret file.
+# Loopback only; never configure this bypass in Cloudflare Pages.
+LOCAL_ACCESS_DEV=true
+# Generate locally: node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"
+# Set FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY to that exact 32-byte Base64 value.
+# Use a separate key from production and retain it while keeping local D1 data.
+# Personal FlightLogger API keys are submitted through /onboarding, not this file.

@@ -1,18 +1,18 @@
-import { INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
+import { CURRENT_USER_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
 import type { AvailabilityPeriod, Instructor } from './types';
 
 const ENDPOINT = 'https://api.flightlogger.net/graphql';
 const PAGE_SIZE = 25;
 const MAX_REQUESTS = 45; // Workers Free permits 50 external subrequests per invocation.
 const MAX_INSTRUCTORS = 500;
-let rateLimitedUntil = 0;
+const rateLimits = new Map<string, number>(); // Hashed token keys, never plaintext credentials.
 
 type PageInfo = { hasNextPage: boolean; endCursor: string | null };
 type Connection<T> = { nodes: T[]; pageInfo: PageInfo };
 type RawInstructor = Instructor & { availabilities: Connection<AvailabilityPeriod> };
 
 export class FlightLoggerError extends Error {
-  constructor(message: string, public readonly status = 502, public readonly retryAfterSeconds?: number) { super(message); }
+  constructor(message: string, public readonly status = 502, public readonly retryAfterSeconds?: number, public readonly authenticationFailed = false) { super(message); }
 }
 
 function retryAfterSeconds(value: string | null): number {
@@ -70,10 +70,16 @@ function nextCursor(info: PageInfo, previous: string | null): string | null {
 
 export class FlightLoggerClient {
   private requestCount = 0;
+  private tokenHash?: Promise<string>;
   constructor(private readonly token: string, private readonly fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init)) {}
 
   private async query(query: string, variables: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.tokenHash ||= crypto.subtle.digest('SHA-256', new TextEncoder().encode(this.token))
+      .then(bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join(''));
+    const hash = await this.tokenHash;
+    const rateLimitedUntil = rateLimits.get(hash) || 0;
     if (Date.now() < rateLimitedUntil) throw rateLimitError(Math.ceil((rateLimitedUntil - Date.now()) / 1000));
+    rateLimits.delete(hash);
     if (++this.requestCount > MAX_REQUESTS) throw new FlightLoggerError('Too many FlightLogger pages were needed for this request.');
     let response: Response;
     try {
@@ -83,20 +89,15 @@ export class FlightLoggerClient {
         body: JSON.stringify({ query, variables }),
         signal: AbortSignal.timeout(20000),
       });
-    } catch (error) {
-      const cause = error instanceof Error && 'cause' in error ? error.cause : undefined;
-      const safeMessage = error instanceof Error ? error.message.replaceAll(this.token, '[redacted]') : 'unknown';
-      console.error('FlightLogger fetch failed', {
-        name: error instanceof Error ? error.name : 'unknown',
-        message: safeMessage,
-        causeCode: isObject(cause) && typeof cause.code === 'string' ? cause.code : undefined,
-      });
+    } catch {
+      console.error('FlightLogger fetch failed');
       throw new FlightLoggerError('Could not connect to FlightLogger. Try again shortly.', 503);
     }
-    if (response.status === 401 || response.status === 403) throw new FlightLoggerError('FlightLogger authentication failed. Check the Pages secret.');
+    if (response.status === 401 || response.status === 403) throw new FlightLoggerError('Your FlightLogger connection could not be authenticated. Replace the API key in Settings.', 502, undefined, true);
     if (response.status === 429) {
       const seconds = retryAfterSeconds(response.headers.get('Retry-After'));
-      rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + seconds * 1000);
+      rateLimits.set(hash, Math.max(rateLimits.get(hash) || 0, Date.now() + seconds * 1000));
+      if (rateLimits.size > 128) rateLimits.delete(rateLimits.keys().next().value!);
       throw rateLimitError(seconds);
     }
     if (!response.ok) throw new FlightLoggerError(`FlightLogger returned HTTP ${response.status}.`);
@@ -104,14 +105,19 @@ export class FlightLoggerClient {
     try { body = await response.json(); } catch { throw new FlightLoggerError('FlightLogger returned invalid JSON.'); }
     if (!isObject(body)) throw new FlightLoggerError('FlightLogger returned an invalid response.');
     if (Array.isArray(body.errors) && body.errors.length > 0) {
-      console.error('FlightLogger GraphQL errors', body.errors.map((error: unknown) => {
-        if (!isObject(error) || !isObject(error.extensions)) return 'unknown';
-        return typeof error.extensions.code === 'string' ? error.extensions.code : 'unknown';
-      }));
-      throw new FlightLoggerError('FlightLogger rejected the availability query.');
+      console.error('FlightLogger rejected a query');
+      throw new FlightLoggerError('FlightLogger rejected the request.');
     }
     if (!isObject(body.data)) throw new FlightLoggerError('FlightLogger returned no data.');
     return body.data;
+  }
+
+  async currentUser(): Promise<{ id: string }> {
+    const data = await this.query(CURRENT_USER_QUERY, {});
+    if (!isObject(data.user) || typeof data.user.id !== 'string' || !data.user.id || data.user.id.length > 256) {
+      throw new FlightLoggerError('The FlightLogger API key could not be verified.', 422);
+    }
+    return { id: data.user.id };
   }
 
   async instructors(): Promise<Instructor[]> {

@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "availogger-local",
+  "pages_build_output_dir": "./frontend/dist",
+  "compatibility_date": "2026-09-01",
+  // Local-only storage identities. No production database ID or remote binding.
+  "d1_databases": [{ "binding": "DB", "database_name": "studentportal-local", "migrations_dir": "./migrations", "remote": false }],
+  "kv_namespaces": [{ "binding": "AVAILABILITY_CACHE", "id": "studentportal-local-cache", "remote": false }]
+}

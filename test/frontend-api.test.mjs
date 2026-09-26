@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadAvailability } from '../frontend/src/api';
+import { loadAvailability, OnboardingRequiredError } from '../frontend/src/api';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('frontend API deployment errors', () => {
+  it('signals mandatory onboarding independently of Access session errors', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 'ONBOARDING_REQUIRED', error: 'Connect FlightLogger.' }, { status: 409 })));
+    await expect(loadAvailability('2026-09-01', '2026-10-31', new AbortController().signal)).rejects.toBeInstanceOf(OnboardingRequiredError);
+  });
   it('identifies Pages SPA fallback without calling it an expired session', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('<html><title>Availogger</title></html>', {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },

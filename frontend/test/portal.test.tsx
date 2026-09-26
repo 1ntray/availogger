@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 
@@ -6,8 +6,13 @@ import { MemoryRouter } from 'react-router';
 vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: () => ({ needRefresh: [false], updateServiceWorker: vi.fn() }) }));
 import { PortalRoutes } from '../src/app/App';
 import { loadCurrentUser } from '../src/app/current-user-api';
+import * as account from '../src/app/CurrentUser';
 
-afterEach(() => vi.unstubAllGlobals());
+const completed = { email: 'student@example.com', subject: 'verified-subject', onboardingComplete: true,
+  hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user' };
+beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: completed, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() }));
+
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('portal routes', () => {
   it.each([
     ['/', 'Welcome to Studentportal'], ['/availability', 'Instructor availability'],
@@ -36,10 +41,10 @@ describe('portal routes', () => {
 
 describe('current Access user', () => {
   it('fetches and validates identity from the same-origin API without persisting it', async () => {
-    const fetcher = vi.fn(async () => Response.json({ email: 'student@example.com', subject: 'verified-subject', extra: 'omit' }));
+    const fetcher = vi.fn(async () => Response.json({ ...completed, extra: 'omit' }));
     vi.stubGlobal('fetch', fetcher);
     const signal = new AbortController().signal;
-    expect(await loadCurrentUser(signal)).toEqual({ email: 'student@example.com', subject: 'verified-subject' });
+    expect(await loadCurrentUser(signal)).toEqual(completed);
     expect(fetcher).toHaveBeenCalledWith('/api/me', { signal, credentials: 'same-origin', cache: 'no-store' });
   });
   it.each([401,403])('handles denied Access identity (%s)', async status => {

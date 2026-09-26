@@ -3,6 +3,8 @@
   "name": "availogger",
   "pages_build_output_dir": "./frontend/dist",
   "compatibility_date": "2026-09-01",
+  // Deployment gate: add the real DB D1 binding/ID here before merging this phase.
+  // See docs/per-user-flightlogger.md. No production database ID is assumed.
   "kv_namespaces": [
     { "binding": "AVAILABILITY_CACHE", "id": "ccce02514a2b44d2a7698529136751fd" }
   ]

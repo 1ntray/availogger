@@ -1,6 +1,9 @@
 // The fields and pagination arguments come from the legacy Streamlit queries and
 // FlightLogger's public GraphQL reference. The nested availability selection avoids
 // one network subrequest per instructor on Cloudflare's free tier.
+// Omitting the ID returns the user scoped by the authenticated API key.
+export const CURRENT_USER_QUERY = `query CurrentUser { user { id } }`;
+
 export const INSTRUCTORS_QUERY = `
 query Instructors($first: Int, $after: String) {
   users(roles: [FLIGHT_INSTRUCTOR], first: $first, after: $after) {
