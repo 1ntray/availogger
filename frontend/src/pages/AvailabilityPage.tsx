@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { loadAvailability } from './api';
-import { cacheAgeLabel, cacheTimeInOslo } from './cache-age';
-import { calendarView, dateKey, monthRange, osloDate } from './dates';
-import type { AvailabilityResponse, AvailabilityStatus } from './types';
+import { loadAvailability } from '../api';
+import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
+import { calendarView, dateKey, monthRange, osloDate } from '../dates';
+import type { AvailabilityResponse, AvailabilityStatus } from '../types';
 
 const dayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' });
 const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -28,7 +28,7 @@ function weekNumber(date: Date): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-function App() {
+function AvailabilityPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery] = useState('');
@@ -65,13 +65,7 @@ function App() {
     `${instructor.firstName} ${instructor.lastName} ${instructor.callSign}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
   ), [data, query]);
 
-  return <main className="app-shell">
-    <header className="app-header">
-      <div className="brand"><span className="brand-mark">A</span><div><strong>Availogger</strong><span>Instructor availability</span></div></div>
-      <span className="header-note">FlightLogger availability overview</span>
-    </header>
-
-    <section className="content">
+  return <section className="availability-page">
       <div className="heading-row">
         <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p>{data && !loading && !error && <p className="cache-age">{data.cachedAt ? <time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time> : 'Update time unavailable'}</p>}</div>
         <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Reload view</button>
@@ -123,8 +117,7 @@ function App() {
         </div>
         <p className="footnote">A day is unavailable if any recorded unavailable period overlaps it; otherwise available if an available period overlaps it. Blank information means no matching record was returned.</p>
       </>}
-    </section>
-  </main>;
+  </section>;
 }
 
-export default App;
+export default AvailabilityPage;

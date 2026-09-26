@@ -1,6 +1,61 @@
-# Availogger
+# Luftfartsfag Studentportal
 
-Availogger displays recorded FlightLogger instructor availability. The current view starts today in Europe/Oslo, with future month navigation, fixed instructor names, and available/unavailable/no-information day cells. The application is read-only.
+An operational portal for pilot students at Luftfartsfag. Instructor Availability is the first implemented operational module; Home provides an honest starting overview, while Duty Ops and Transport are clearly marked as planned. The repository and Cloudflare Pages project retain the name `availogger`.
+
+Instructor Availability starts today in Europe/Oslo, with future month navigation, search, sticky instructor names, horizontal calendar scrolling, cache age, reload, and available/unavailable/no-information day cells. The application remains read-only.
+
+## Portal routes and navigation
+
+| Route | Current module |
+| --- | --- |
+| `/` | Home / Today, empty overview and quick navigation |
+| `/availability` | Working Instructor Availability calendar |
+| `/duty-ops` | Planned schedule, swaps and operational tools |
+| `/transport` | Planned car bookings and shared rides |
+| `/settings` | Access account email, app installation and update controls |
+
+Desktop uses a persistent top bar and left navigation. Tablet and phone layouts use Home, Duty Ops, Availability and More in a bottom bar; More opens Transport and Settings. The layout reserves iPhone safe areas. The calendar scrolls within its own container, without widening the portal.
+
+React Router handles client navigation. Cloudflare Pages' default SPA fallback handles direct links and refreshes (there is no root `404.html` or catch-all redirect). The existing `_routes.json` continues to send `/api/*` to Pages Functions, including their JSON 404 handler. The current-user provider reads `/api/me` once per app mount and holds only email/subject in memory; it creates no application session or browser identity storage.
+
+## Install as an app
+
+Use the production HTTPS site, `https://student.luftfartsfag.no`, and sign in through Cloudflare Access.
+
+- **Android (supporting browsers):** choose Install app from the browser menu, or use the subtle Install app button under Settings when the browser offers installation.
+- **Desktop (supporting browsers):** use the browser's install icon/menu or Settings.
+- **iPhone / iPad:** open in Safari, tap Share, then Add to Home Screen. Choose Open as Web App if offered. There is no simulated native prompt.
+- Installation availability depends on the browser. Standalone mode is detected in Settings. No notification permission is requested.
+
+The manifest names the app **Luftfartsfag Studentportal**, short name **Studentportal**, with `/` as start URL/scope, standalone display, and existing blue/green colors. Simple LF lettermark icons (192/512px, maskable 512px, Apple 180px and SVG) are local assets, easy to replace. Regenerate PNGs with `cd frontend && node scripts/generate-icons.cjs`.
+
+### Service worker and Access
+
+Vite PWA's Workbox `injectManifest` build precaches versioned JS/CSS, icons and the public app manifest only. It does **not** cache navigation HTML, `/api/*`, identity, Access login pages, or availability responses; fresh launches and reloads still go through Cloudflare Access. The server's 24-hour KV cache remains authoritative. API data and email are held only in the running React app, never in Cache Storage/localStorage/sessionStorage. A network connection is required for sign-in and schedules; this is not an offline schedule viewer.
+
+Service worker registration runs only in production builds (including local production preview / Pages dev after building). Development via Vite has no service worker. Updated versions wait for existing tabs to close or an explicit **Update and reload** under Settings, avoiding an unexpected calendar reload. Old static precache entries are cleaned on activation. `frontend/src/pwa/sw.js` is the small future extension point for Web Push; no subscriptions or push handlers exist yet. Manifest requests use same-origin credentials so installation works behind Access. See [Vite PWA React integration](https://vite-pwa-org.netlify.app/frameworks/react) and [Workbox integration](https://vite-pwa-org.netlify.app/guide/inject-manifest).
+
+### Deployment checks for this phase
+
+No new Cloudflare bindings, secrets, DNS changes or deployment workflow are required. Keep the existing Access policy covering the entire hostname, including all portal routes and `/api/*`. The current Pages build command/output and Git deployment from `master` stay the same.
+
+After deployment, sign in and refresh `/availability`, `/duty-ops`, `/transport` and `/settings` directly. Confirm `/api/me` returns JSON and the calendar still loads future uncached ranges. Check that `/manifest.webmanifest` and `/sw.js` return their assets after sign-in, and try installation on a supporting browser. In browser developer tools, confirm service worker caches contain only static assets/icons/manifest and never `/api/me`, `/api/availability`, HTML or Access URLs. Test expiry by signing out and reopening the app: API access must still require Access. Real Android/iOS installation and account-specific Access expiry need device verification.
+
+## Planned modules and notifications
+
+Future modules include Duty Ops schedules, swaps and scheduling/admin, fuel requests, task checklists/handover, aircraft fuel status, university transport/private rides, preferences and notifications. None of their business logic or records are implemented here.
+
+The intended notification architecture is:
+
+```text
+Verified Cloudflare Access identity
+  -> D1 application user
+  -> push subscription(s) per device
+  -> Pages Functions
+  -> Web Push
+```
+
+Possible events include upcoming duties, swap requests, fuel requests/completion, handovers and transport rides. D1, roles, subscription tables, VAPID keys, notification permissions, push delivery and per-user FlightLogger tokens are all deferred. The next phase should define the application user foundation keyed by verified Access subject, then choose one operational module.
 
 ## Architecture and migration status
 
@@ -22,7 +77,10 @@ Wix hosting and the existing CNAME remain unchanged. Production now uses Pages F
 
 ### Source layout
 
-- `frontend/`: React/Vite calendar, same-origin API client, date and cache-age tests.
+- `frontend/src/app/`: React Router routes, shared shell/navigation and current Access user provider.
+- `frontend/src/pages/`: Home, extracted Availability, Duty Ops/Transport placeholders and Settings.
+- `frontend/src/pwa/`, `frontend/pwa.config.ts`, `frontend/public/icons/`: installation, static service worker and replaceable app assets.
+- `frontend/src/`: existing availability API, calendar/date/cache helpers. `frontend/test/` retains their tests and adds route, identity and PWA checks.
 - `functions/api/`: Pages routes, Access middleware, availability, `/api/me`, and JSON 404 for unknown API routes.
 - `backend/availability.ts`: shared date validation, cache, response mapping and safe errors.
 - `backend/access.ts`: verified Access identity, reusable for future D1 user mapping.
@@ -177,4 +235,4 @@ The FlightLogger token stays server-side. There are no mutations, arbitrary Grap
 
 ## Next phase
 
-Map verified Access subjects to D1 application users, then consider encrypted per-user FlightLogger credentials. Preserve `FlightLoggerClient(token)` for that transition. Personal schedules, Duty Ops, swaps and advanced queries remain out of scope.
+Define an application user foundation keyed by verified Access subject, then choose one operational module (for example Duty Ops). Preserve `FlightLoggerClient(token)` for future encrypted per-user credentials. Business logic, D1, subscriptions, push delivery and roles remain outside this frontend/PWA phase.

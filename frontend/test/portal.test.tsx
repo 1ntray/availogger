@@ -1,0 +1,53 @@
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
+
+// SSR route tests don't register a browser service worker.
+vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: () => ({ needRefresh: [false], updateServiceWorker: vi.fn() }) }));
+import { PortalRoutes } from '../src/app/App';
+import { loadCurrentUser } from '../src/app/current-user-api';
+
+afterEach(() => vi.unstubAllGlobals());
+describe('portal routes', () => {
+  it.each([
+    ['/', 'Welcome to Studentportal'], ['/availability', 'Instructor availability'],
+    ['/duty-ops', 'Duty Ops'], ['/transport', 'Transport'], ['/settings', 'Settings'],
+    ['/missing', 'Page not found'],
+  ])('renders %s with the portal navigation', (route, heading) => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={[route]}><PortalRoutes /></MemoryRouter>);
+    expect(html).toContain(`<h1>${heading}</h1>`);
+    expect(html).toContain('Luftfartsfag');
+    expect(html).toContain('aria-label="Mobile navigation"');
+    expect(html).toContain('href="/availability"');
+    expect(html).not.toContain('Availogger');
+    if (route !== '/missing') expect(html).toContain('aria-current="page"');
+  });
+  it('retains the availability controls and loading state after extraction', () => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/availability']}><PortalRoutes /></MemoryRouter>);
+    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next month', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
+  });
+  it('home links to implemented and planned tools without fake operational data', () => {
+    const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
+    expect(html).toContain('No scheduled portal items to show yet.');
+    expect(html).toContain('href="/duty-ops"');
+    expect(html).toContain('href="/transport"');
+  });
+});
+
+describe('current Access user', () => {
+  it('fetches and validates identity from the same-origin API without persisting it', async () => {
+    const fetcher = vi.fn(async () => Response.json({ email: 'student@example.com', subject: 'verified-subject', extra: 'omit' }));
+    vi.stubGlobal('fetch', fetcher);
+    const signal = new AbortController().signal;
+    expect(await loadCurrentUser(signal)).toEqual({ email: 'student@example.com', subject: 'verified-subject' });
+    expect(fetcher).toHaveBeenCalledWith('/api/me', { signal, credentials: 'same-origin', cache: 'no-store' });
+  });
+  it.each([401,403])('handles denied Access identity (%s)', async status => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'denied' }, { status })));
+    await expect(loadCurrentUser(new AbortController().signal)).rejects.toThrow('Reload the page to sign in again.');
+  });
+  it('rejects malformed identity responses', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ email: 'student@example.com' })));
+    await expect(loadCurrentUser(new AbortController().signal)).rejects.toThrow('unexpected response');
+  });
+});
