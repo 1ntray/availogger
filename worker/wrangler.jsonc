@@ -7,7 +7,7 @@
     "required": ["FLIGHTLOGGER_API_TOKEN"]
   },
   "kv_namespaces": [
-    { "binding": "AVAILABILITY_CACHE" }
+    { "binding": "AVAILABILITY_CACHE", "id": "ccce02514a2b44d2a7698529136751fd" }
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://1ntray.github.io,http://localhost:5173"
