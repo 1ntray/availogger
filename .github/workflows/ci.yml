@@ -1,4 +1,4 @@
-name: Check frontend and Worker
+name: Check frontend and Pages Functions
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       - run: npm run build
         working-directory: frontend
 
-  worker:
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -33,10 +33,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: worker/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-        working-directory: worker
       - run: npm run check
-        working-directory: worker
       - run: npm test
-        working-directory: worker
+      - run: npm run functions:build

@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "availogger",
+  "pages_build_output_dir": "./frontend/dist",
+  "compatibility_date": "2026-09-01",
+  "kv_namespaces": [
+    { "binding": "AVAILABILITY_CACHE", "id": "ccce02514a2b44d2a7698529136751fd" }
+  ]
+}

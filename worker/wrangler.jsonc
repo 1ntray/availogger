@@ -10,8 +10,6 @@
     { "binding": "AVAILABILITY_CACHE", "id": "ccce02514a2b44d2a7698529136751fd" }
   ],
   "vars": {
-    "ALLOWED_ORIGINS": "https://1ntray.github.io,http://localhost:5173,https://availogger.pages.dev,https://student.luftfartsfag.no",
-	"VITE_API_BASE_URL": "https://availogger-api.lundell-simon-05.workers.dev/"
-
+    "ALLOWED_ORIGINS": "https://1ntray.github.io,http://localhost:5173,https://availogger.pages.dev,https://student.luftfartsfag.no"
   }
 }

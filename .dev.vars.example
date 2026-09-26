@@ -1,0 +1,7 @@
+# Local secrets only. Copy to .dev.vars in the repository root; never commit it.
+FLIGHTLOGGER_API_TOKEN=replace-with-your-token
+# Explicit local-only identity. Rejected on non-loopback hostnames, even if set.
+LOCAL_ACCESS_DEV=true
+# To test real Access verification locally instead, remove LOCAL_ACCESS_DEV and set:
+# CF_ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
+# CF_ACCESS_AUD=your-application-audience
