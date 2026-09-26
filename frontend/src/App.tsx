@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadAvailability } from './api';
 import { cacheAgeLabel, cacheTimeInOslo } from './cache-age';
-import { dateKey, datesInRange, monthRange } from './dates';
+import { calendarView, dateKey, monthRange, osloDate } from './dates';
 import type { AvailabilityResponse, AvailabilityStatus } from './types';
 
 const dayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' });
@@ -36,7 +36,9 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
-  const range = useMemo(() => monthRange(monthOffset), [monthOffset]);
+  const today = osloDate(new Date(now));
+  const currentMonth = today.slice(0, 7);
+  const range = useMemo(() => monthRange(monthOffset, new Date(`${currentMonth}-15T12:00:00Z`)), [monthOffset, currentMonth]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -58,7 +60,7 @@ function App() {
     return () => controller.abort();
   }, [range.from, range.to, refreshKey]);
 
-  const dates = useMemo(() => data ? datesInRange(data.from, data.to) : datesInRange(range.from, range.to), [data, range]);
+  const { dates, dayOffset } = useMemo(() => calendarView(data?.from || range.from, data?.to || range.to, today), [data, range, today]);
   const instructors = useMemo(() => (data?.instructors || []).filter(instructor =>
     `${instructor.firstName} ${instructor.lastName} ${instructor.callSign}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
   ), [data, query]);
@@ -77,11 +79,11 @@ function App() {
 
       <div className="toolbar">
         <div className="month-nav" aria-label="Month navigation">
-          <button aria-label="Previous month" onClick={() => setMonthOffset(value => value - 1)}>‹</button>
+          <button aria-label="Previous month" onClick={() => setMonthOffset(value => Math.max(0, value - 1))} disabled={monthOffset === 0}>‹</button>
           <span>{range.label}</span>
           <button aria-label="Next month" onClick={() => setMonthOffset(value => value + 1)}>›</button>
         </div>
-        <button className="today-button" onClick={() => setMonthOffset(0)} disabled={monthOffset === 0}>Current months</button>
+        <button className="today-button" onClick={() => setMonthOffset(0)} disabled={monthOffset === 0}>Today</button>
         <label className="search-box"><span className="sr-only">Find instructor</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Find instructor…" type="search" /></label>
       </div>
 
@@ -112,7 +114,7 @@ function App() {
             <tbody>{instructors.map(instructor => <tr key={instructor.id}>
               <th className="name-cell" scope="row" title={`${instructor.firstName} ${instructor.lastName}`.trim()}>{instructorName(instructor)}</th>
               {dates.map((date, index) => {
-                const status: AvailabilityStatus = instructor.days[index] || 'undefined';
+                const status: AvailabilityStatus = instructor.days[index + dayOffset] || 'undefined';
                 const label = `${instructorName(instructor)}, ${dateKey(date)}: ${status === 'undefined' ? 'no availability information' : status}`;
                 return <td key={dateKey(date)} className={`${status} ${date.getUTCDay() === 1 && index > 0 ? 'week-start' : ''}`} title={label}><span className="sr-only">{label}</span></td>;
               })}
