@@ -73,6 +73,8 @@ The existing repository is [1ntray/availogger](https://github.com/1ntray/availog
 
 Push frontend changes to `master` or run **Deploy frontend to GitHub Pages** under Actions. The workflow builds only `frontend/` and uploads only `frontend/dist`. Worker changes require the separate Wrangler deployment above. After deployment, open the Pages URL and confirm the calendar and updated timestamp load. If the Pages hostname or custom domain changes, update `ALLOWED_ORIGINS` in `worker/wrangler.jsonc` and redeploy the Worker.
 
+Deploy the Worker before Pages when an API response changes. The frontend also accepts schedules from older Workers without `cachedAt`, displaying “Update time unavailable” until the Worker is updated. It never substitutes the page load time for the actual fetch time.
+
 For local builds against a different backend, put `VITE_API_BASE_URL=https://your-worker.workers.dev` in `frontend/.env.local`. This variable contains a public URL. **Never put the FlightLogger token in any `VITE_` variable or GitHub repository variable.**
 
 ## API and security notes

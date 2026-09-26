@@ -1,4 +1,5 @@
 import type { AvailabilityResponse } from './types';
+import { isAvailabilityResponse } from './availability-response';
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787').replace(/\/$/, '');
 
@@ -23,14 +24,4 @@ export async function loadAvailability(from: string, to: string, signal: AbortSi
   }
   if (!isAvailabilityResponse(body)) throw new Error('The availability service returned an unexpected response.');
   return body;
-}
-
-function isAvailabilityResponse(value: unknown): value is AvailabilityResponse {
-  return typeof value === 'object' && value !== null &&
-    'cachedAt' in value && typeof value.cachedAt === 'string' &&
-    Number.isFinite(Date.parse(value.cachedAt)) && new Date(value.cachedAt).toISOString() === value.cachedAt &&
-    'instructors' in value && Array.isArray(value.instructors) &&
-    value.instructors.every((item: unknown) => typeof item === 'object' && item !== null &&
-      'id' in item && typeof item.id === 'string' && 'days' in item && Array.isArray(item.days) &&
-      item.days.every((day: unknown) => ['available', 'unavailable', 'undefined'].includes(String(day))));
 }

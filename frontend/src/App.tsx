@@ -71,7 +71,7 @@ function App() {
 
     <section className="content">
       <div className="heading-row">
-        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p>{data && !loading && !error && <p className="cache-age"><time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time></p>}</div>
+        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p>{data && !loading && !error && <p className="cache-age">{data.cachedAt ? <time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time> : 'Update time unavailable'}</p>}</div>
         <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Reload view</button>
       </div>
 

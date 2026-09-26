@@ -12,6 +12,6 @@ export interface AvailabilityResponse {
   from: string;
   to: string;
   timeZone: 'Europe/Oslo';
-  cachedAt: string;
+  cachedAt?: string; // Absent only on Workers deployed before cache timestamps.
   instructors: InstructorAvailability[];
 }
