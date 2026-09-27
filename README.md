@@ -2,6 +2,8 @@
 
 An operational portal for pilot students. Instructor Availability and read-only Duty Ops are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation; Transport remains planned. The repository and Cloudflare Pages project retain the name `availogger`.
 
+Duty Ops also supports give-away and direct-swap agreements with `duty_ops.swap`. These record agreement in Studentportal; FlightLogger assignments remain unchanged. Apply new migration `0004_duty_ops_swaps.sql` to local/preview before testing. See [Duty Ops shift exchange](docs/duty-ops-swaps.md).
+
 ## Deployment status
 
 Production `master` auto-deploys Pages. The `develop` branch includes read-only Duty Ops and D1 authorization; UI pull requests target **develop**, not master. CI checks pushes to both `master` and `develop`, plus pull requests. Required migrations (`0002_duty_ops.sql` and `0003_authorization.sql`) must be applied to the target database before code that depends on them is activated. UI work does not perform migrations or production deployment. See the setup guides for separate production/preview resources and live verification.
