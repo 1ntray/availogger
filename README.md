@@ -155,6 +155,10 @@ npm run functions:build
 
 Tests use synthetic keys/generated JWTs, mocked JWKS/FlightLogger and disposable local Miniflare D1 applying the real schema. They do not read real secrets or call production services. Coverage includes identity isolation, encryption/tampering, safe API shapes, atomic replacement/rollback, token-hashed cache isolation, onboarding gates/state/input/storage and PWA exclusions. Functions output stays ignored under `.wrangler/pages-build`.
 
+### Database updates
+
+From the repository root, use `npm run db:migrate:preview` or `npm run db:migrate:production` to apply pending migrations; `npm run db:status:preview` and `npm run db:status:production` list pending files. GitHub also has a manual **Update database** workflow with Preview/Production and migration-source branch choices. It needs GitHub environment secrets and must reach the default branch before its Run workflow button is available. See [Database update setup and release order](docs/database-updates.md). PR checks remain local; apply migrations before deploying code that requires them.
+
 ## Cloudflare Pages and production setup
 
 | Setting | Keep |
