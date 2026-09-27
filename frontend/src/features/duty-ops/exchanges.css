@@ -1,0 +1,18 @@
+.duty-exchanges { margin-top: 28px; min-width: 0; }
+.exchange-row { padding: 14px 0; border-bottom: 1px solid var(--portal-border, #d7e1df); overflow-wrap: anywhere; }
+.exchange-row-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; font-size: 14px; }
+.exchange-row-heading span, .exchange-note { color: var(--portal-muted, #60767c); font-size: 12px; }
+.exchange-note { margin: 6px 0; }
+.exchange-time { margin: 8px 0 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.exchange-actions, .exchange-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.duty-ops .exchange-proposals { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--portal-border, #d7e1df); }
+.exchange-proposals > li { padding: 10px 0; border-top: 1px solid var(--portal-border, #d7e1df); font-size: 13px; }
+.duty-ops .exchange-shift-action { margin-top: 8px; }
+.exchange-dialog { max-width: 460px; width: calc(100% - 32px); max-height: calc(100dvh - 48px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); color: var(--portal-control-text); background: var(--portal-surface); }
+.exchange-dialog::backdrop { background: rgb(20 35 44 / 45%); }
+.duty-ops .exchange-dialog h3 { margin: 0 0 14px; font-size: 17px; }
+.exchange-dialog p { overflow-wrap: anywhere; }
+.exchange-choices label { display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; }
+.exchange-select { display: grid; gap: 8px; font-size: 14px; }
+.exchange-select select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--portal-border, #d7e1df); border-radius: 6px; background: white; padding: 6px; }
+.exchange-dialog .exchange-actions { justify-content: flex-end; }

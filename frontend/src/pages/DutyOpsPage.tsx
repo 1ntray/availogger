@@ -7,6 +7,7 @@ import { loadDutyOps } from '../features/duty-ops/api';
 import { dateLabel, dutySections } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { ShiftList } from '../features/duty-ops/ShiftList';
+import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
 import '../features/duty-ops/duty-ops.css';
 
 export function DutyOpsPage() {
@@ -43,14 +44,14 @@ export function DutyOpsPage() {
     {loading && <p className="duty-loading" role="status">Loading Duty Ops…</p>}
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <p className="duty-alert" role="status">{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p>}
-    {sections && <>
+    {sections && data && <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload}>
       <div className="duty-summary">
         <section aria-labelledby="duty-today"><h2 id="duty-today">Today</h2>{sections.today.length ? <ShiftList shifts={sections.today} /> : <p className="duty-empty">Nothing scheduled</p>}</section>
-        <section aria-labelledby="duty-mine"><h2 id="duty-mine">My shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate /> : <p className="duty-empty">No upcoming shifts</p>}</section>
+        <section aria-labelledby="duty-mine"><h2 id="duty-mine">My shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming shifts</p>}</section>
       </div>
       <section aria-labelledby="duty-schedule"><h2 id="duty-schedule">Schedule</h2>
         {sections.schedule.length ? sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} /></section>) : <p className="duty-empty">Nothing scheduled</p>}
       </section>
-    </>}
+    </DutyExchanges>}
   </section>;
 }
