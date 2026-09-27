@@ -9,15 +9,19 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { PwaProvider } from '../pwa/PwaProvider';
 import { AccountGate, RequireFlightLogger } from './OnboardingGate';
 import { OnboardingPage } from '../pages/OnboardingPage';
+import { RequirePermission } from './permissions';
+import { PERMISSIONS } from '../../../shared/authorization';
+import { AdminUsersPage } from '../pages/AdminUsersPage';
 
 export function PortalRoutes() {
   return <Routes><Route element={<AccountGate />}>
     <Route path="onboarding" element={<OnboardingPage />} />
     <Route element={<RequireFlightLogger />}><Route element={<AppShell />}>
     <Route index element={<HomePage />} />
-    <Route path="availability" element={<AvailabilityPage />} />
-    <Route path="duty-ops" element={<DutyOpsPage />} />
-    <Route path="transport" element={<TransportPage />} />
+    <Route element={<RequirePermission permission={PERMISSIONS.availabilityView} />}><Route path="availability" element={<AvailabilityPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.dutyOpsView} />}><Route path="duty-ops" element={<DutyOpsPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.transportView} />}><Route path="transport" element={<TransportPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.adminManageUsers} />}><Route path="admin/users" element={<AdminUsersPage />} /></Route>
     <Route path="settings" element={<SettingsPage />} />
     <Route path="*" element={<section><h1>Page not found</h1><Link className="action-link" to="/">Return home →</Link></section>} />
     </Route></Route>

@@ -10,6 +10,8 @@ Complete [the manual setup and verification guide](docs/per-user-flightlogger.md
 
 ## Architecture
 
+The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; STUDENT defaults to Duty Ops and Transport view. Review the authorization migration and bootstrap-secret setup before activating this branch. Duty Ops API enforcement remains a follow-up integration with its parallel feature branch.
+
 ```text
 Wix main website: luftfartsfag.no (unchanged)
 Wix DNS: student.luftfartsfag.no CNAME -> availogger.pages.dev
@@ -47,6 +49,7 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/duty-ops` | Planned operational tools |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
+| `/admin/users` | Permission-protected portal user access editor |
 
 The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. More opens Transport and Settings; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
@@ -58,9 +61,9 @@ All routes run behind the existing Access middleware and return `Cache-Control: 
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId` |
+| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
 | `POST /api/onboarding/flightlogger` | JSON `{ "apiKey": "..." }`; validate, encrypt and connect/replace the current user's credential |
-| `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Current user's calendar; validated inclusive range of 1–62 days |
+| `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Requires `availability.view`; current user's calendar, validated inclusive range of 1–62 days |
 
 Onboarding success returns only `{ "connected": true, "flightLoggerUserId": "..." }`. Missing credentials return 409 with `ONBOARDING_REQUIRED`. Invalid keys return a safe 422, rate limits 429 with Retry-After, and configuration/service failures fail closed. No token/ciphertext/IV/key/JWT is returned. Wrong methods return 405; there is no generic GraphQL proxy, CORS layer or `ALLOWED_ORIGINS`.
 
@@ -75,7 +78,7 @@ Validation uses `query CurrentUser { user { id } }` with `Authorization: Bearer 
 - `users`: UUID, unique Access subject, verified email, nullable FlightLogger user ID and ISO timestamps.
 - `flightlogger_credentials`: one row per user, foreign key with cascade deletion, Base64 ciphertext/IV, encryption version and timestamps.
 
-Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. No operational/role tables are introduced.
+Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. Authorization roles/permissions/audit tables are added separately by `0003_authorization.sql`; no Duty Ops tables are added in this branch.
 
 Web Crypto **AES-256-GCM** uses a fresh random **12-byte IV** per save, a 128-bit authentication tag and AAD `studentportal:flightlogger:v1:<internal-user-id>`. Version 1 is explicit in schema/service. Copying ciphertext to another user or tampering fails authentication. Plaintext is never stored in D1.
 
@@ -187,6 +190,6 @@ The old standalone Worker was deleted after the user verified production cached/
 
 ## Next phase and limitations
 
-Choose an operational module (for example Duty Ops) using the Access-to-D1 foundation. Scheduling, swaps, fuel, transport, roles/cohorts, personal schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
+Choose an operational module (for example Duty Ops) using the Access-to-D1 and authorization foundation. Scheduling, swaps, fuel, transport, cohorts, personal schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
 
 No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached schedules. The portal can only show data the personal FlightLogger key permits. Production is not ready until the documented resources and live checks are completed.

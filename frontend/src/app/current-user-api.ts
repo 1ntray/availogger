@@ -1,9 +1,13 @@
+import { isPermissionKey, isRoleKey, type PermissionKey, type RoleKey } from '../../../shared/authorization';
+
 export type CurrentUser = {
   email: string;
   subject: string;
   onboardingComplete: boolean;
   hasFlightLoggerCredential: boolean;
   flightLoggerUserId: string | null;
+  permissions: PermissionKey[];
+  roles: RoleKey[];
 };
 
 export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser> {
@@ -24,9 +28,12 @@ export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser>
       !('onboardingComplete' in body) || typeof body.onboardingComplete !== 'boolean' ||
       !('hasFlightLoggerCredential' in body) || typeof body.hasFlightLoggerCredential !== 'boolean' ||
       body.onboardingComplete !== body.hasFlightLoggerCredential ||
-      !('flightLoggerUserId' in body) || (body.flightLoggerUserId !== null && typeof body.flightLoggerUserId !== 'string')) {
+      !('flightLoggerUserId' in body) || (body.flightLoggerUserId !== null && typeof body.flightLoggerUserId !== 'string') ||
+      !('permissions' in body) || !Array.isArray(body.permissions) || !body.permissions.every(isPermissionKey) ||
+      !('roles' in body) || !Array.isArray(body.roles) || !body.roles.every(isRoleKey)) {
     throw new Error('The account service returned an unexpected response.');
   }
   return { email: body.email, subject: body.subject, onboardingComplete: body.onboardingComplete,
-    hasFlightLoggerCredential: body.hasFlightLoggerCredential, flightLoggerUserId: body.flightLoggerUserId };
+    hasFlightLoggerCredential: body.hasFlightLoggerCredential, flightLoggerUserId: body.flightLoggerUserId,
+    permissions: body.permissions, roles: body.roles };
 }
