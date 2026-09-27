@@ -8,6 +8,10 @@
     "dev": "wrangler pages dev frontend/dist --config wrangler.local.jsonc",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.local.jsonc",
     "db:status:local": "wrangler d1 migrations list DB --local --config wrangler.local.jsonc",
+    "db:migrate:preview": "wrangler d1 migrations apply studentportal-preview --remote --env preview --config wrangler.jsonc",
+    "db:status:preview": "wrangler d1 migrations list studentportal-preview --remote --env preview --config wrangler.jsonc",
+    "db:migrate:production": "wrangler d1 migrations apply studentportal-db --remote --config wrangler.jsonc",
+    "db:status:production": "wrangler d1 migrations list studentportal-db --remote --config wrangler.jsonc",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "functions:build": "wrangler pages functions build functions --outdir .wrangler/pages-build"
