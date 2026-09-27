@@ -13,8 +13,8 @@ const catalogue = { permissions: permissionDefinitions, roles: [
   { key: 'ADMIN', name: 'Administrator', permissions: permissionDefinitions.map(permission => permission.key) },
   { key: 'STUDENT', name: 'Student', permissions: baseline },
 ] };
-const student = { id: 'student-id', email: 'student@example.test', roles: ['STUDENT'], permissions: baseline };
-const access = { user: { id: student.id, email: student.email }, roles: student.roles, permissions: baseline,
+const student = { id: 'student-id', email: 'student@example.test', firstName: 'Student', lastName: 'Example', roles: ['STUDENT'], permissions: baseline };
+const access = { user: { id: student.id, email: student.email, firstName: student.firstName, lastName: student.lastName }, roles: student.roles, permissions: baseline,
   inheritedPermissions: baseline, overrides: {}, revision: 1 };
 let currentPermissions: PermissionKey[];
 let api: ReturnType<typeof vi.fn>;
@@ -25,7 +25,7 @@ beforeEach(() => {
   currentPermissions = permissionDefinitions.map(permission => permission.key);
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   api = vi.fn(async (path: string) => {
-    if (path === '/api/me') return Response.json({ email: 'owner@example.test', subject: 'verified-subject',
+    if (path === '/api/me') return Response.json({ email: 'owner@example.test', subject: 'verified-subject', firstName: 'Portal', lastName: 'Owner',
       onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-owner',
       roles: ['ADMIN', 'STUDENT'], permissions: currentPermissions });
     if (path === '/api/admin/users') return Response.json({ users: [student] });
@@ -48,6 +48,20 @@ async function changePermission(value: string) {
 async function save() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
 
 describe('admin access editor', () => {
+  it('shows FlightLogger names first and searches first, last, full name and email', async () => {
+    await render();
+    const listed = host.querySelector('.admin-user-list button')!;
+    expect(listed.querySelector('strong')?.textContent).toBe('Student Example');
+    expect(listed.querySelector('span')?.textContent).toContain(student.email);
+    const input = host.querySelector<HTMLInputElement>('#user-search')!;
+    for (const term of ['Student', 'Example', 'student example', 'student@example.test']) {
+      await act(async () => { input.value = term; input.dispatchEvent(new Event('input', { bubbles: true })); });
+      expect(host.querySelectorAll('.admin-user-list li')).toHaveLength(1);
+    }
+    await selectUser();
+    expect(host.querySelector('.admin-editor h2')?.textContent).toBe('Student Example');
+    expect(host.querySelector('.admin-editor .small-note')?.textContent).toBe(student.email);
+  });
   it('allows the personal history route with view permission but no swap permission', async () => {
     currentPermissions = baseline;
     const original = api.getMockImplementation()!;

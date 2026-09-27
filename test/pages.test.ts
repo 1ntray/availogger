@@ -206,9 +206,9 @@ describe('Pages Functions API with Access middleware', () => {
   });
 
   it('returns only verified identity and safe application state from /api/me', async () => {
-    expect(await (await request('/api/me')).json()).toEqual({ email: 'student@example.test', subject: 'student-id',
+    expect(await (await request('/api/me')).json()).toEqual({ email: 'student@example.test', subject: 'student-id', firstName: null, lastName: null,
       onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-student',
-      roles: ['STUDENT'], permissions: ['availability.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
+      roles: ['STUDENT'], permissions: ['availability.view', 'brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
     expect((await request('/api/me', false)).status).toBe(401);
   });
   it('bootstraps only a matching verified Access subject and never an invalid JWT or email header', async () => {
@@ -227,9 +227,9 @@ describe('Pages Functions API with Access middleware', () => {
   it('creates an authenticated application user and enforces onboarding independently of the frontend', async () => {
     await fixture.db.prepare('DELETE FROM users').run();
     const me = await request('/api/me');
-    expect(await me.json()).toEqual({ email: 'student@example.test', subject: 'student-id',
+    expect(await me.json()).toEqual({ email: 'student@example.test', subject: 'student-id', firstName: null, lastName: null,
       onboardingComplete: false, hasFlightLoggerCredential: false, flightLoggerUserId: null,
-      roles: ['STUDENT'], permissions: ['duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
+      roles: ['STUDENT'], permissions: ['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
     expect(await fixture.db.prepare('SELECT COUNT(*) AS count FROM users').first('count')).toBe(1);
     const userId = await fixture.db.prepare('SELECT id FROM users').first<string>('id');
     await grantAvailability(fixture.db, userId!);
@@ -281,9 +281,9 @@ describe('Pages Functions API with Access middleware', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(await response.json()).toEqual({ connected: true, flightLoggerUserId: 'personal-user' });
     const me = await request('/api/me');
-    expect(await me.json()).toEqual({ email: 'student@example.test', subject: 'student-id', onboardingComplete: true,
+    expect(await me.json()).toEqual({ email: 'student@example.test', subject: 'student-id', firstName: null, lastName: null, onboardingComplete: true,
       hasFlightLoggerCredential: true, flightLoggerUserId: 'personal-user',
-      roles: ['STUDENT'], permissions: ['availability.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
+      roles: ['STUDENT'], permissions: ['availability.view', 'brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
   });
 
   it.each([

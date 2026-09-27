@@ -6,6 +6,9 @@ export const PERMISSIONS = {
   dutyOpsManageSchedule: 'duty_ops.manage_schedule',
   flyvaskView: 'flyvask.view',
   flyvaskSwap: 'flyvask.swap',
+  brakkevaktView: 'brakkevakt.view',
+  brakkevaktSwap: 'brakkevakt.swap',
+  brakkevaktManageSchedule: 'brakkevakt.manage_schedule',
   transportView: 'transport.view',
   transportBookUniversityCars: 'transport.book_university_cars',
   transportOfferPrivateRide: 'transport.offer_private_ride',
@@ -21,6 +24,9 @@ export const permissionDefinitions: readonly { key: PermissionKey; description: 
   { key: PERMISSIONS.dutyOpsManageSchedule, description: 'Manage Duty Ops schedule', privileged: true },
   { key: PERMISSIONS.flyvaskView, description: 'View Flyvask', privileged: false },
   { key: PERMISSIONS.flyvaskSwap, description: 'Swap Flyvask assignments', privileged: false },
+  { key: PERMISSIONS.brakkevaktView, description: 'View Brakkevakt', privileged: false },
+  { key: PERMISSIONS.brakkevaktSwap, description: 'Swap Brakkevakt assignments', privileged: false },
+  { key: PERMISSIONS.brakkevaktManageSchedule, description: 'Manage Brakkevakt schedule', privileged: true },
   { key: PERMISSIONS.transportView, description: 'View Transport', privileged: false },
   { key: PERMISSIONS.transportBookUniversityCars, description: 'Book university cars', privileged: false },
   { key: PERMISSIONS.transportOfferPrivateRide, description: 'Offer private rides', privileged: false },
@@ -39,7 +45,7 @@ export function isRoleKey(value: unknown): value is RoleKey {
   return typeof value === 'string' && ROLE_KEYS.some(role => role === value);
 }
 export interface UserAccess {
-  user: { id: string; email: string };
+  user: { id: string; email: string; firstName: string | null; lastName: string | null };
   roles: RoleKey[];
   permissions: PermissionKey[];
   inheritedPermissions: PermissionKey[];
