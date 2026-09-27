@@ -4,7 +4,7 @@ An operational portal for pilot students. Instructor Availability and read-only 
 
 ## Deployment status
 
-Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`**, which must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview deployments explicitly have no D1/KV bindings until a separate environment is provisioned.
+Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`**, which must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview `DB` now points to the separately created `studentportal-preview`; its migrations, preview KV and runtime secret/Access setup must be completed before live testing.
 
 See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
