@@ -6,7 +6,7 @@ Duty Ops also supports give-away and direct-swap agreements with `duty_ops.swap`
 
 ## Deployment status
 
-Production `master` auto-deploys Pages. The `develop` branch includes read-only Duty Ops and D1 authorization; UI pull requests target **develop**, not master. CI checks pushes to both `master` and `develop`, plus pull requests. Required migrations (`0002_duty_ops.sql` and `0003_authorization.sql`) must be applied to the target database before code that depends on them is activated. UI work does not perform migrations or production deployment. See the setup guides for separate production/preview resources and live verification.
+After the [release automation setup](docs/database-updates.md), GitHub Actions owns deployment: merge to **develop** → tests/build → preview D1 migration → Pages preview; merge to **master** → tests/build → production D1 migration → Pages production. Each release uses one exact SHA. Tests/build or migration failure blocks deployment. Automatic releases default to disabled until `AUTO_RELEASE_PREVIEW` / `AUTO_RELEASE_PRODUCTION` are enabled and independent Pages Git deployments are turned off. Keep existing Git deployments during bootstrap; follow the guide's safe switch order. PR CI remains local; normal releases require no manual migration.
 
 See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
@@ -28,7 +28,7 @@ student.luftfartsfag.no
                         -> server-side decrypt -> FlightLoggerClient(userToken)
                         -> existing KV availability cache / FlightLogger API
 
-GitHub 1ntray/availogger -> CI + Pages Git integration (master)
+GitHub 1ntray/availogger -> CI + ordered D1 migration/Pages release (after setup)
 ```
 
 **Access identity** identifies the portal user. **The FlightLogger API key** is that user's external service credential; it does not sign them into the portal. Access remains the sole authentication system. There are no custom passwords, application sessions or browser bearer tokens.
@@ -157,7 +157,7 @@ Tests use synthetic keys/generated JWTs, mocked JWKS/FlightLogger and disposable
 
 ### Database updates
 
-From the repository root, use `npm run db:migrate:preview` or `npm run db:migrate:production` to apply pending migrations; `npm run db:status:preview` and `npm run db:status:production` list pending files. GitHub also has a manual **Update database** workflow with Preview/Production and migration-source branch choices. It needs GitHub environment secrets and must reach the default branch before its Run workflow button is available. See [Database update setup and release order](docs/database-updates.md). PR checks remain local; apply migrations before deploying code that requires them.
+Enabled releases apply pending migrations automatically before deploying the same build. For recovery, **Release Studentportal → Run workflow** uses the selected `develop`/`master` branch to determine the target; **Update database** is a database-only fallback with the same fixed mapping. CLI migration/status scripts remain available. See [release setup, safe enable order and verification](docs/database-updates.md).
 
 ## Cloudflare Pages and production setup
 
@@ -173,11 +173,11 @@ From the repository root, use `npm run db:migrate:preview` or `npm run db:migrat
 | Access bindings | `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, unchanged |
 | Runtime secret | Existing `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`, retained |
 
-Root `wrangler.jsonc` is the Pages configuration source of truth, with the existing real production DB/KV IDs. Keep these bindings and the encryption key. Apply new migrations before activating code that requires them; see the Duty Ops guide. Local config is separate.
+Root `wrangler.jsonc` is the Pages configuration source of truth, with separate production/preview DB and KV IDs. Keep these bindings and runtime secrets. The release workflow migrates before deploying; local config is separate. Existing Pages dashboard build settings are retained for bootstrap/fallback, but Actions uploads the prebuilt frontend and compiled Functions after cutover.
 
 Access still verifies RS256 signature, exact issuer/audience, expiry/not-before, email and subject using team JWKS. Arbitrary email headers never establish identity. Keep Access covering the **entire hostname**, including onboarding/API, and protect aliases/previews too. Existing encrypted `CF_ACCESS_TEAM_DOMAIN`/`CF_ACCESS_AUD` dashboard bindings remain valid configuration. No policy redesign is required. See [Cloudflare JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
 
-Follow [the existing foundation setup guide](docs/per-user-flightlogger.md) and [Duty Ops migration/verification steps](docs/duty-ops.md). Production/preview resources are separate: do not expose production DB/key in an untrusted preview. Previews without required resources intentionally return 503. CI and Pages Git integration are preserved; no redundant deployment workflow.
+Follow [the existing foundation setup guide](docs/per-user-flightlogger.md) for runtime resources and [the release guide](docs/database-updates.md) for deployment. Previews without required resources intentionally return 503. After verified cutover, disable automatic Pages Git builds on the existing project; GitHub Actions owns release ordering. Keep the project, custom domain, Access and encrypted runtime secrets.
 
 If `/api/me` serves HTML, check repo root/output settings, deployed commit and Functions compilation. SPA fallback on an API URL means the route is missing, not an Access-policy problem. Keep `functions/` tracked. Root-only ignore `/API/` prevents the Streamlit reference folder from hiding `functions/api/` on Windows.
 
