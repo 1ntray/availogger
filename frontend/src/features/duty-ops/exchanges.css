@@ -16,3 +16,6 @@
 .exchange-select { display: grid; gap: 8px; font-size: 14px; }
 .exchange-select select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--portal-border, #d7e1df); border-radius: 6px; background: white; padding: 6px; }
 .exchange-dialog .exchange-actions { justify-content: flex-end; }
+.swap-history-shifts { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 10px; font-size: 13px; }
+.swap-history-shifts > div { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .swap-history-shifts { flex-direction: column; gap: 8px; } }

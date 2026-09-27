@@ -2,13 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { useCurrentUser } from '../../app/CurrentUser';
 import { PERMISSIONS } from '../../../../shared/authorization';
 import { osloDate } from '../../dates';
-import { dateLabel, timeLabel } from './presentation';
+import { shiftLabel, userName } from './exchange-presentation';
 import type { DutyShift } from './types';
-import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangeShift, type ExchangeUser, type ExchangesResponse } from './exchange-api';
+import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import './exchanges.css';
 
-const userName = (user: ExchangeUser) => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Student';
-const shiftLabel = (shift: ExchangeShift) => `${dateLabel(shift.startsAt)} · ${timeLabel(shift as DutyShift)}`;
 type DialogState = { kind: 'create'; shift: DutyShift; type?: 'GIVE_AWAY' | 'DIRECT_SWAP' }
   | { kind: 'claim' | 'cancel' | 'propose'; request: ExchangeRequest }
   | { kind: 'accept' | 'withdraw'; request: ExchangeRequest; proposal: ExchangeProposal };
@@ -21,7 +19,7 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   return <button className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'create', shift })}>Exchange shift</button>;
 }
 
-export function DutyExchanges({ children, shifts, now, refreshKey }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number }) {
+export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void }) {
   const { user } = useCurrentUser();
   const enabled = user?.permissions?.includes(PERMISSIONS.dutyOpsSwap) === true;
   const [data, setData] = useState<ExchangesResponse | null>(null);
@@ -65,7 +63,7 @@ export function DutyExchanges({ children, shifts, now, refreshKey }: { children:
         else if (dialog.kind === 'accept' || dialog.kind === 'withdraw') await saveExchange(`${root}/proposals/${encodeURIComponent(dialog.proposal.id)}/${dialog.kind}`);
         else await saveExchange(`${root}/${dialog.kind}`);
       }
-      if (generation === lifecycle.current) { setDialog(null); setVersion(v => v + 1); }
+      if (generation === lifecycle.current) { setDialog(null); setVersion(v => v + 1); onChanged?.(); }
     } catch (cause) {
       if (generation === lifecycle.current) setError(cause instanceof Error ? cause.message : 'Could not save the exchange.');
     } finally { saving.current = false; setBusy(false); }
@@ -81,13 +79,11 @@ export function DutyExchanges({ children, shifts, now, refreshKey }: { children:
   }
   function renderRequest(request: ExchangeRequest) {
     const own = request.requester.id === data!.currentUserId;
-    const agreement = request.status === 'ACCEPTED';
     return <li key={request.id} className="exchange-row">
       <div className="exchange-row-heading"><strong>{request.type === 'GIVE_AWAY' ? 'Give away' : 'Swap request'}</strong>
-        <span>{agreement ? 'Exchange agreed' : request.status === 'CANCELLED' ? 'Cancelled' : !request.eligible ? 'No longer eligible' : 'Open'}</span></div>
+        <span>{!request.eligible ? 'No longer eligible' : 'Open'}</span></div>
       <p className="exchange-time">{shiftLabel(request.requestedShift)}</p>
       <p className="exchange-note">Offered by {own ? 'you' : userName(request.requester)}</p>
-      {agreement && <p className="exchange-note">{request.acceptedBy && `Agreed with ${userName(own ? request.acceptedBy : request.requester)}. `}FlightLogger is not updated automatically.</p>}
       {request.status === 'OPEN' && <div className="exchange-actions">
         {own ? <button disabled={busy} onClick={() => open({ kind: 'cancel', request })}>Cancel request</button>
           : request.eligible && (request.type === 'GIVE_AWAY'
@@ -105,8 +101,10 @@ export function DutyExchanges({ children, shifts, now, refreshKey }: { children:
       </li>)}</ul>}
     </li>;
   }
-  const mine = data?.requests.filter(r => r.requester.id === data.currentUserId || r.acceptedBy?.id === data.currentUserId || r.proposals.some(p => p.proposer.id === data.currentUserId)) ?? [];
-  const available = data?.requests.filter(r => r.status === 'OPEN' && r.eligible && r.requester.id !== data.currentUserId && !mine.includes(r)) ?? [];
+  // Active work only, including when an old response is briefly retained.
+  const active = data?.requests.filter(r => r.status === 'OPEN').map(r => ({ ...r, proposals: r.proposals.filter(p => p.status === 'OPEN') })) ?? [];
+  const mine = active.filter(r => r.requester.id === data?.currentUserId || r.proposals.some(p => p.proposer.id === data?.currentUserId));
+  const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, open }}>{children}
     {enabled && <section className="duty-exchanges" aria-labelledby="exchange-title"><h2 id="exchange-title">Shift exchange</h2>
       {loading && <p role="status" className="duty-loading">Loading exchanges…</p>}

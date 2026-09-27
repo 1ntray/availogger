@@ -8,6 +8,7 @@ import { dateLabel, dutySections } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { ShiftList } from '../features/duty-ops/ShiftList';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
+import { DutyOpsNavigation } from '../features/duty-ops/DutyOpsNavigation';
 import '../features/duty-ops/duty-ops.css';
 
 export function DutyOpsPage() {
@@ -37,14 +38,15 @@ export function DutyOpsPage() {
   const sections = data ? dutySections(data.shifts, now) : null;
   return <section className="duty-ops">
     <div className="duty-heading"><h1>Duty Ops</h1><button aria-label="Reload Duty Ops" disabled={loading} onClick={() => setReload(n => n + 1)}>Reload</button></div>
+    <DutyOpsNavigation />
     {data && <div className="duty-meta"><span>Europe/Oslo</span>
-      <span>Schedule: <time dateTime={data.sync.discovery.lastSyncedAt} title={cacheTimeInOslo(data.sync.discovery.lastSyncedAt)}>{cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)}</time></span>
-      <span>My shifts: <time dateTime={data.sync.assignments.lastSyncedAt} title={cacheTimeInOslo(data.sync.assignments.lastSyncedAt)}>{cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</time></span>
+      <span>FlightLogger schedule: <time dateTime={data.sync.discovery.lastSyncedAt} title={cacheTimeInOslo(data.sync.discovery.lastSyncedAt)}>{cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)}</time></span>
+      <span>FlightLogger assignments: <time dateTime={data.sync.assignments.lastSyncedAt} title={cacheTimeInOslo(data.sync.assignments.lastSyncedAt)}>{cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</time></span>
     </div>}
     {loading && <p className="duty-loading" role="status">Loading Duty Ops…</p>}
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <p className="duty-alert" role="status">{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p>}
-    {sections && data && <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload}>
+    {sections && data && <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
       <div className="duty-summary">
         <section aria-labelledby="duty-today"><h2 id="duty-today">Today</h2>{sections.today.length ? <ShiftList shifts={sections.today} /> : <p className="duty-empty">Nothing scheduled</p>}</section>
         <section aria-labelledby="duty-mine"><h2 id="duty-mine">My shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming shifts</p>}</section>
