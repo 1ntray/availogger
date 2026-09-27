@@ -35,3 +35,20 @@ query MoreAvailability($id: String, $from: DateTime, $to: DateTime, $after: Stri
     }
   }
 }`;
+export const CURRENT_USER_PROFILE_QUERY = `query CurrentUserProfile { user { id firstName lastName } }`;
+
+export const DUTY_OPS_QUERY = `
+  query DutyOps($from: DateTime!, $to: DateTime!, $all: Boolean!, $after: String) {
+    bookings(from: $from, to: $to, all: $all, overlap: true, subtypes: [MEETING], first: 50, after: $after) {
+      nodes {
+        __typename
+        ... on MeetingBooking {
+          id startsAt endsAt status externalReference
+          classroom { id name }
+          participants { id firstName lastName }
+        }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;

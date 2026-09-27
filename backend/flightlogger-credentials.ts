@@ -35,7 +35,14 @@ export async function storeFlightLoggerCredential(db: D1Database, user: Applicat
   const encrypted = await encryptCredential(token, user.id, secret);
   const now = new Date().toISOString();
   await db.batch([
-    db.prepare('UPDATE users SET flightlogger_user_id = ?, updated_at = ? WHERE id = ?').bind(current.id, now, user.id),
+    db.prepare(`DELETE FROM duty_ops_assignments WHERE user_id = ? AND EXISTS (
+      SELECT 1 FROM users WHERE id = ? AND flightlogger_user_id IS NOT ?)`)
+      .bind(user.id, user.id, current.id),
+    db.prepare('DELETE FROM duty_ops_sync_state WHERE user_id = ?').bind(user.id),
+    db.prepare(`UPDATE users SET
+      flightlogger_first_name = CASE WHEN flightlogger_user_id = ? THEN flightlogger_first_name ELSE NULL END,
+      flightlogger_last_name = CASE WHEN flightlogger_user_id = ? THEN flightlogger_last_name ELSE NULL END,
+      flightlogger_user_id = ?, updated_at = ? WHERE id = ?`).bind(current.id, current.id, current.id, now, user.id),
     db.prepare(`INSERT INTO flightlogger_credentials (user_id, token_ciphertext, token_iv, encryption_version, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET token_ciphertext = excluded.token_ciphertext,

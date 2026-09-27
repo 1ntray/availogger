@@ -6,6 +6,8 @@ export interface ApplicationUser {
   access_subject: string;
   email: string;
   flightlogger_user_id: string | null;
+  flightlogger_first_name: string | null;
+  flightlogger_last_name: string | null;
   created_at: string;
   updated_at: string;
 }

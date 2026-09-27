@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { encryptCredential } from '../backend/credential-encryption';
 import { resolveApplicationUser } from '../backend/users';
@@ -13,9 +13,15 @@ export async function createTestDatabase(initializeAuthorization = true) {
     compatibilityDate: '2026-09-01', d1Databases: { DB: 'unit-test-database' }, d1Persist: false,
   }));
   const db = await runtime.getD1Database('DB') as unknown as D1Database;
-  const schema = readFileSync(new URL('../migrations/0001_application_users.sql', import.meta.url), 'utf8');
-  await db.batch(schema.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
-  if (initializeAuthorization) await applyAuthorizationMigration(db);
+  const directory = new URL('../migrations/', import.meta.url);
+  for (const file of readdirSync(directory).filter(file => file.endsWith('.sql')).sort()) {
+    if (!initializeAuthorization && file === '0003_authorization.sql') continue;
+    const schema = readFileSync(new URL(file, directory), 'utf8');
+    // Trigger bodies contain semicolons; preserve the explicit SQL boundaries.
+    const statements = schema.includes('-- statement-breakpoint')
+      ? schema.split('-- statement-breakpoint') : schema.replace(/^--.*$/gm, '').split(';');
+    await db.batch(statements.map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+  }
   return { db, dispose: () => runtime.dispose() };
 }
 
@@ -38,5 +44,5 @@ export async function seedCredential(db: D1Database, subject = 'student-id', tok
     db.prepare('INSERT INTO flightlogger_credentials VALUES (?, ?, ?, ?, ?, ?)')
       .bind(user.id, encrypted.token_ciphertext, encrypted.token_iv, encrypted.encryption_version, now, now),
   ]);
-  return user;
+  return { ...user, flightlogger_user_id: id };
 }

@@ -95,7 +95,7 @@ Frontend checks provide UX; APIs remain the authority and must never trust brows
 
 `0002` is reserved for the parallel Duty Ops migration; `0003` has no dependency on it. Do not renumber existing migrations. Once both PRs are in develop, review migration status/order before applying to any environment, including databases that already applied 0003 during isolated testing.
 
-This branch only defines Duty Ops keys and gates the existing generic route/navigation/shortcut. It does not edit DutyOpsPage, `/api/duty-ops`, Duty Ops backend/tests/tables. The follow-up integration must enforce `duty_ops.view` for reads, `duty_ops.swap` for swaps and `duty_ops.manage_schedule` for scheduling/admin mutations server-side, with appropriate ownership checks. No transport booking/ride system is implemented.
+The integrated read-only Duty Ops module now requires `duty_ops.view` through `withAuthorizedUser` before credential decryption or synchronization. Route/navigation/shortcut checks use the same permission. Tests cover role removal and explicit DENY before upstream access, and the client distinguishes portal 403 from an expired Access session. Future swaps must enforce `duty_ops.swap`; future scheduling/admin mutations must enforce `duty_ops.manage_schedule` with appropriate ownership checks. Those mutations and transport booking/ride systems remain unimplemented.
 
 Before manual production activation, apply the reviewed migration, configure the bootstrap secret, verify owner/student sign-in, onboarding/replacement, authorized Availability, forbidden API access, direct routes and PWA behavior. Existing users become STUDENT and will lose Availability until explicitly granted access. No production migration or deployment is performed by this feature task.
 

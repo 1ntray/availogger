@@ -3,8 +3,8 @@
   "name": "availogger",
   "pages_build_output_dir": "./frontend/dist",
   "compatibility_date": "2026-09-01",
-  // Deployment gate: apply the D1 migration and configure the encryption secret
-  // before merging. See docs/per-user-flightlogger.md.
+  // Apply migrations to the target DB before activating new Functions.
+  // See docs/duty-ops.md for preview setup and release verification.
   "d1_databases": [
     {
       "binding": "DB",
@@ -14,8 +14,22 @@
     }
   ],
   // Previews must not inherit production user/credential storage.
-  // Add a separately provisioned DB here only when preview testing is needed.
-  "env": { "preview": { "d1_databases": [], "kv_namespaces": [] } },
+  // Preview storage is separate; runtime secrets/Access are set in Pages.
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "studentportal-preview",
+          "database_id": "29d8b17d-c2e1-4b2d-bc17-4c295bd049af",
+          "migrations_dir": "./migrations"
+        }
+      ],
+      "kv_namespaces": [
+        { "binding": "AVAILABILITY_CACHE", "id": "adf2fbe2e1314246a8e6d973fc4994ae" }
+      ]
+    }
+  },
   "kv_namespaces": [
     { "binding": "AVAILABILITY_CACHE", "id": "ccce02514a2b44d2a7698529136751fd" }
   ]
