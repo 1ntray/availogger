@@ -220,6 +220,21 @@ describe('reported locations, projections and confirmations', () => {
 });
 
 describe('private rides and passenger capacity', () => {
+  it.each([
+    ['driver', 'transport_driver_cannot_join'],
+    ['cancelled', 'transport_ride_unavailable'],
+    ['departed', 'transport_ride_unavailable'],
+    ['full', 'transport_ride_full'],
+  ])('enforces passenger integrity for direct database writes: %s', async (scenario, error) => {
+    await driver(); const ride = await offerRide(db(), alice, rideBody());
+    if (scenario === 'cancelled') await db().prepare("UPDATE transport_private_rides SET status = 'CANCELLED' WHERE id = ?").bind(ride.id).run();
+    if (scenario === 'departed') await db().prepare('UPDATE transport_private_rides SET departure_at = ? WHERE id = ?').bind(NOW, ride.id).run();
+    if (scenario === 'full') await joinRide(db(), carol, ride.id);
+    await expect(db().prepare('INSERT INTO transport_private_ride_passengers (ride_id, user_id, joined_at) VALUES (?, ?, ?)')
+      .bind(ride.id, scenario === 'driver' ? alice.id : bob.id, NOW).run()).rejects.toThrow(error);
+    expect(await db().prepare('SELECT COUNT(*) FROM transport_private_ride_passengers WHERE ride_id = ?')
+      .bind(ride.id).first('COUNT(*)')).toBe(scenario === 'full' ? 1 : 0);
+  });
   it('needs opt-in offering permission, stores passenger seats and excludes the driver', async () => {
     await expect(offerRide(db(), alice, rideBody())).rejects.toMatchObject({ status: 403 });
     await driver(); const ride = await offerRide(db(), alice, { ...rideBody(2), note: ' Meet outside ' });

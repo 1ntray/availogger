@@ -14,6 +14,14 @@ Run from the repository root in a checkout containing the reviewed migrations, a
 
 Preview/production scripts explicitly name the database and use root `wrangler.jsonc`; preview also selects `--env preview`. Local continues to use `wrangler.local.jsonc` without remote access. After a successful update, the status command should report no migrations to apply. These scripts update the database only; they do not deploy Pages, modify Access or change credentials/bindings.
 
+## Troubleshooting `0005_transport.sql`: incomplete input
+
+If remote preview reports `incomplete input: SQLITE_ERROR` for `0005_transport.sql`, update your checkout to the reviewed fix before retrying `npm run db:migrate:preview`. Then run `npm run db:status:preview` to check that no migrations remain pending. Do not delete migration history or manually mark the file as applied.
+
+The corrected passenger trigger uses conditional `SELECT RAISE(...) WHERE ...` statements instead of nested `CASE ... END`, preserving the same driver, ride availability and seat capacity checks. Remote D1 has reported [trigger parsing problems with nested CASE expressions](https://github.com/cloudflare/workers-sdk/issues/4727) and [CRLF migration files](https://github.com/cloudflare/workers-sdk/issues/14991), even when local SQLite accepts the SQL. `.gitattributes` keeps migration SQL on LF line endings in Windows checkouts.
+
+This corrects the SQL representation in the pending migration; it does not add another schema version. Databases that already applied `0005` keep their equivalent existing trigger and do not reapply it. A failed migration remains pending, and earlier completed migrations remain applied. Local tests cannot prove remote parser compatibility: verify the retry on preview before any production release.
+
 ## GitHub setup: one time
 
 ### 1. Make the workflow available

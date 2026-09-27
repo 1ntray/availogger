@@ -87,13 +87,14 @@ CREATE TABLE transport_private_ride_passengers (
 -- statement-breakpoint
 CREATE INDEX transport_passengers_by_user ON transport_private_ride_passengers(user_id, ride_id);
 -- statement-breakpoint
+-- Avoid CASE ... END inside triggers: remote D1 may split at the inner END.
 CREATE TRIGGER transport_passenger_integrity BEFORE INSERT ON transport_private_ride_passengers
 BEGIN
-  SELECT CASE WHEN EXISTS (SELECT 1 FROM transport_private_rides WHERE id = NEW.ride_id AND driver_user_id = NEW.user_id)
-    THEN RAISE(ABORT, 'transport_driver_cannot_join') END;
-  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM transport_private_rides WHERE id = NEW.ride_id AND status = 'OPEN' AND departure_at > NEW.joined_at)
-    THEN RAISE(ABORT, 'transport_ride_unavailable') END;
-  SELECT CASE WHEN (SELECT COUNT(*) FROM transport_private_ride_passengers WHERE ride_id = NEW.ride_id) >=
-    (SELECT seat_count FROM transport_private_rides WHERE id = NEW.ride_id)
-    THEN RAISE(ABORT, 'transport_ride_full') END;
+  SELECT RAISE(ABORT, 'transport_driver_cannot_join')
+    WHERE EXISTS (SELECT 1 FROM transport_private_rides WHERE id = NEW.ride_id AND driver_user_id = NEW.user_id);
+  SELECT RAISE(ABORT, 'transport_ride_unavailable')
+    WHERE NOT EXISTS (SELECT 1 FROM transport_private_rides WHERE id = NEW.ride_id AND status = 'OPEN' AND departure_at > NEW.joined_at);
+  SELECT RAISE(ABORT, 'transport_ride_full')
+    WHERE (SELECT COUNT(*) FROM transport_private_ride_passengers WHERE ride_id = NEW.ride_id) >=
+      (SELECT seat_count FROM transport_private_rides WHERE id = NEW.ride_id);
 END;
