@@ -2,7 +2,7 @@ name: Check frontend and Pages Functions
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
   pull_request:
 
 permissions:

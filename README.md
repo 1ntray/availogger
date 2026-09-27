@@ -1,10 +1,10 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability and read-only Duty Ops are implemented; Home provides a starting overview and Transport remains planned. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. Instructor Availability and read-only Duty Ops are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation; Transport remains planned. The repository and Cloudflare Pages project retain the name `availogger`.
 
 ## Deployment status
 
-Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`** and integrates develop's **`0003_authorization.sql`**. Both must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview `DB` points to the separately created `studentportal-preview`, with 0001 and 0002 applied by the user; 0003 now also needs applying. Preview `AVAILABILITY_CACHE` uses the separate `studentportal-preview-availability-cache` namespace. The user has configured preview encryption and Access settings; deployment and live testing remain pending.
+Production `master` auto-deploys Pages. The `develop` branch includes read-only Duty Ops and D1 authorization; UI pull requests target **develop**, not master. CI checks pushes to both `master` and `develop`, plus pull requests. Required migrations (`0002_duty_ops.sql` and `0003_authorization.sql`) must be applied to the target database before code that depends on them is activated. UI work does not perform migrations or production deployment. See the setup guides for separate production/preview resources and live verification.
 
 See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
@@ -44,14 +44,14 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | Route | Current module |
 | --- | --- |
 | `/onboarding` | Mandatory personal FlightLogger connection |
-| `/` | Home / Today, empty overview and quick navigation |
+| `/` | Today's Duty Ops, next personal shift when today is empty, and quick navigation |
 | `/availability` | Working Instructor Availability |
 | `/duty-ops` | Today, My shifts and date-grouped Duty Ops schedule |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. More opens Transport and Settings; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Transport, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 
@@ -99,7 +99,7 @@ FlightLogger's availability filters use start/end containment, not overlap. Exis
 
 ## Duty Ops
 
-Duty Ops is now a read-only operational module: **Today**, **My shifts**, and the upcoming date-grouped **Schedule**. Desktop shows Today/My shifts side by side; mobile stacks them before Schedule. Dedicated feature styles leave the shared portal UI unchanged. UTC instants display in Europe/Oslo, including overnight and DST shifts.
+Duty Ops is now a read-only operational module: **Today**, **My shifts**, and the upcoming date-grouped **Schedule**. Desktop shows Today/My shifts side by side; mobile stacks them before Schedule. Dedicated feature styles leave the shared portal UI unchanged. UTC instants display in Europe/Oslo, including overnight and DST shifts. Home reuses the same read API and shift presentation: today's shifts take priority, otherwise the first upcoming personal shift is shown when present. Users without `duty_ops.view` see no Duty Ops Home section or link and make no Duty Ops request. Loading and errors stay within the summary; quick navigation remains usable. Stale returned schedules are identified. Transport retains its Coming soon label.
 
 FlightLogger `MeetingBooking` records in classroom ID **852** supply the data. Paginated `all:true` discovers shared shifts and slot counts; `all:false` associates only the requesting portal user. An authenticated self query supplies that student's trusted name. Other participant identities are discarded, including unmasked entries. Known names accumulate as students synchronize; three slots with one known student display `Simon · 2 others`.
 
@@ -202,6 +202,6 @@ The old standalone Worker was deleted after the user verified production cached/
 
 ## Next phase and limitations
 
-Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs and existing authorization foundation. Scheduling, swaps, fuel, transport, cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
+Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs and existing authorization foundation. Schedule editing, swaps, fuel, transport, cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
 
-No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached availability. Duty Ops identities can remain partial/stale until students synchronize, and shared discovery assumes the verified program-student visibility. The portal can only show data the personal FlightLogger key permits. The existing production foundation works; Duty Ops still requires migration and live staging verification before a later production release.
+No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached availability. Duty Ops identities can remain partial/stale until students synchronize, and shared discovery assumes the verified program-student visibility. The portal can only show data the personal FlightLogger key permits. Before deploying Duty Ops to another environment, verify its required migrations and read-only behavior with multiple students in staging.

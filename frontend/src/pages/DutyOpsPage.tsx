@@ -4,21 +4,10 @@ import { OnboardingRequiredError } from '../api';
 import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
 import { osloDate } from '../dates';
 import { loadDutyOps } from '../features/duty-ops/api';
-import { dateLabel, dutySections, participantLabel, timeLabel } from '../features/duty-ops/presentation';
-import type { DutyOpsData, DutyShift } from '../features/duty-ops/types';
+import { dateLabel, dutySections } from '../features/duty-ops/presentation';
+import type { DutyOpsData } from '../features/duty-ops/types';
+import { ShiftList } from '../features/duty-ops/ShiftList';
 import '../features/duty-ops/duty-ops.css';
-
-function ShiftList({ shifts, showDate = false }: { shifts: DutyShift[]; showDate?: boolean }) {
-  return <ul>{shifts.map(s => <li key={s.id} className={`duty-row ${s.participants.some(p => p.isCurrentUser) ? 'is-mine' : ''} ${s.status === 'CANCELLED' ? 'is-cancelled' : ''}`}>
-    <div className="duty-row-top">{showDate && <span className="duty-row-date">{dateLabel(s.startsAt)}</span>}
-      <time dateTime={s.startsAt}>{timeLabel(s)}</time>
-      {s.participants.some(p => p.isCurrentUser) && <span className="sr-only">Your shift</span>}
-      {s.status === 'CANCELLED' && <span className="duty-status">Cancelled</span>}
-      {s.status === 'COMPLETED' && <span className="duty-status">Completed</span>}
-      {s.status === 'PARTIALLY_COMPLETED' && <span className="duty-status">Partially completed</span>}
-    </div><p className="duty-participants">{participantLabel(s)}</p>
-  </li>)}</ul>;
-}
 
 export function DutyOpsPage() {
   const { refresh } = useCurrentUser();
