@@ -59,7 +59,7 @@ export function AppShell() {
         if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false);
       }}>
         <button className={`current-user ${pathname === '/settings' ? 'active' : ''}`} ref={accountButton} title={user?.email} aria-label={`Account: ${user?.email || 'Studentportal'}`} aria-expanded={accountOpen} aria-controls="account-navigation" onClick={() => { setMoreOpen(false); setAccountOpen(value => !value); }}>
-          <Icon name="account" /><span className="account-identity">{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</span><span className="account-chevron" aria-hidden="true">⌄</span>
+          <Icon name="account" /><span className="account-identity">{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</span><span className="account-chevron" aria-hidden="true"><Icon name="chevron-down" /></span>
         </button>
         {accountOpen && <nav className="account-panel" id="account-navigation" aria-label="Account navigation" ref={accountPanel}>
           <NavLink to="/settings"><Icon name="settings" /><span>Settings</span></NavLink>
