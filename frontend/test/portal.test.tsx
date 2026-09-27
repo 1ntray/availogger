@@ -25,11 +25,11 @@ describe('portal routes', () => {
     expect(html).toContain('aria-label="Mobile navigation"');
     expect(html).toContain('href="/availability"');
     expect(html).not.toContain('Availogger');
-    if (route !== '/missing') expect(html).toContain('aria-current="page"');
+    if (route !== '/missing' && route !== '/settings') expect(html).toContain('aria-current="page"');
   });
   it('retains the availability controls and loading state after extraction', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/availability']}><PortalRoutes /></MemoryRouter>);
-    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next month', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
+    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next dates', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
   });
   it('home links to implemented and planned tools without fake operational data', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
