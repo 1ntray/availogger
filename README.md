@@ -1,12 +1,12 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability is the first implemented operational module; Home provides a starting overview, while Duty Ops and Transport remain planned. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. Instructor Availability and read-only Duty Ops are implemented; Home provides a starting overview and Transport remains planned. The repository and Cloudflare Pages project retain the name `availogger`.
 
-## Deployment status — do not merge this phase yet
+## Deployment status
 
-Production `master` auto-deploys Pages. This feature branch requires **D1, its migration, the `DB` binding and `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`**. The user created `studentportal-db`; its verified real ID is configured as `DB` on this feature branch. The production migration and encryption secret still need setup before merge. Preview deployments explicitly have no D1/KV bindings until a separate environment is provisioned.
+Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`**, which must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview deployments explicitly have no D1/KV bindings until a separate environment is provisioned.
 
-Complete [the manual setup and verification guide](docs/per-user-flightlogger.md) before merging. The old `FLIGHTLOGGER_API_TOKEN` remains externally configured for rollout/rollback, but the new code never reads it or falls back to it. Remove it manually only after onboarding, replacement and uncached production schedules work. The user's actual `.dev.vars` is not modified.
+See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
 ## Architecture
 
@@ -44,7 +44,7 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/onboarding` | Mandatory personal FlightLogger connection |
 | `/` | Home / Today, empty overview and quick navigation |
 | `/availability` | Working Instructor Availability |
-| `/duty-ops` | Planned operational tools |
+| `/duty-ops` | Today, My shifts and date-grouped Duty Ops schedule |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 
@@ -61,6 +61,7 @@ All routes run behind the existing Access middleware and return `Cache-Control: 
 | `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId` |
 | `POST /api/onboarding/flightlogger` | JSON `{ "apiKey": "..." }`; validate, encrypt and connect/replace the current user's credential |
 | `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Current user's calendar; validated inclusive range of 1–62 days |
+| `GET /api/duty-ops` | D1-backed shared shifts, current-user assignments, known participants and separate freshness metadata; optional paired dates, maximum 93 days |
 
 Onboarding success returns only `{ "connected": true, "flightLoggerUserId": "..." }`. Missing credentials return 409 with `ONBOARDING_REQUIRED`. Invalid keys return a safe 422, rate limits 429 with Retry-After, and configuration/service failures fail closed. No token/ciphertext/IV/key/JWT is returned. Wrong methods return 405; there is no generic GraphQL proxy, CORS layer or `ALLOWED_ORIGINS`.
 
@@ -70,12 +71,12 @@ Validation uses `query CurrentUser { user { id } }` with `Authorization: Bearer 
 
 ## D1 and encryption
 
-`migrations/0001_application_users.sql` creates only:
+`migrations/0001_application_users.sql` creates:
 
 - `users`: UUID, unique Access subject, verified email, nullable FlightLogger user ID and ISO timestamps.
 - `flightlogger_credentials`: one row per user, foreign key with cascade deletion, Base64 ciphertext/IV, encryption version and timestamps.
 
-Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. No operational/role tables are introduced.
+`migrations/0002_duty_ops.sql` adds nullable trusted self-name fields, shared Duty Ops shifts, many-to-many assignments and separate global/own sync state. Internal shift UUIDs stay stable across FlightLogger upserts. Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. Replacement invalidates own Duty Ops freshness and clears old assignments/names if the external identity changes. No roles/admin or operational write API is introduced.
 
 Web Crypto **AES-256-GCM** uses a fresh random **12-byte IV** per save, a 128-bit authentication tag and AAD `studentportal:flightlogger:v1:<internal-user-id>`. Version 1 is explicit in schema/service. Copying ciphertext to another user or tampering fails authentication. Plaintext is never stored in D1.
 
@@ -92,6 +93,16 @@ Cache format remains `availability:v1:<SHA-256(token)>:<from>:<to>`. Raw tokens,
 Successful results retain `cachedAt` for **24 hours** in KV, with a **60-second** hot cache and same-token/range in-flight deduplication. Reload does not bypass the cache. Upstream cooldowns now use token hashes so one token's 429 cannot block another token in the same isolate. Pagination limits/cursor checks remain. KV is eventually consistent; separate locations may duplicate a miss.
 
 FlightLogger's availability filters use start/end containment, not overlap. Existing 90-day padding remains; a period extending beyond the padded boundaries may be missed. Fixed read-only queries and calendar semantics are unchanged.
+
+## Duty Ops
+
+Duty Ops is now a read-only operational module: **Today**, **My shifts**, and the upcoming date-grouped **Schedule**. Desktop shows Today/My shifts side by side; mobile stacks them before Schedule. Dedicated feature styles leave the shared portal UI unchanged. UTC instants display in Europe/Oslo, including overnight and DST shifts.
+
+FlightLogger `MeetingBooking` records in classroom ID **852** supply the data. Paginated `all:true` discovers shared shifts and slot counts; `all:false` associates only the requesting portal user. An authenticated self query supplies that student's trusted name. Other participant identities are discarded, including unmasked entries. Known names accumulate as students synchronize; three slots with one known student display `Simon · 2 others`.
+
+D1 is the normal read source, with separate **five-minute** discovery/own freshness and a default **30 past / 60 future days**. Only completed queries reconcile data; own reconciliation preserves other users' assignments. On refresh failure, usable earlier data returns with explicit stale metadata. No usable snapshot means a safe service error. Reload honors the TTL, and no Cron/polling or API service-worker cache is added.
+
+Read [the full Duty Ops guide](docs/duty-ops.md) for schema/query decisions, API shape, pagination bounds, migration/preview setup, verification and limitations.
 
 ## Local development
 
@@ -149,15 +160,15 @@ Tests use synthetic keys/generated JWTs, mocked JWKS/FlightLogger and disposable
 | Output / Node | `frontend/dist` / `22` or newer |
 | Custom domain | `student.luftfartsfag.no` |
 | KV binding | `AVAILABILITY_CACHE`, existing ID `ccce02514a2b44d2a7698529136751fd` |
-| New D1 binding | `DB`, actual database ID must be added before merge |
+| D1 binding | `DB`, existing `studentportal-db`, ID `a6a29063-bacf-454f-8423-5e956e769e5f` |
 | Access bindings | `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, unchanged |
-| New runtime secret | `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY` |
+| Runtime secret | Existing `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`, retained |
 
-Root `wrangler.jsonc` is the Pages configuration source of truth. Add the **real** production DB binding there before merging, not a guessed ID or only a dashboard binding that config could replace. Keep the existing production KV; no new namespace is created. Local config is separate.
+Root `wrangler.jsonc` is the Pages configuration source of truth, with the existing real production DB/KV IDs. Keep these bindings and the encryption key. Apply new migrations before activating code that requires them; see the Duty Ops guide. Local config is separate.
 
 Access still verifies RS256 signature, exact issuer/audience, expiry/not-before, email and subject using team JWKS. Arbitrary email headers never establish identity. Keep Access covering the **entire hostname**, including onboarding/API, and protect aliases/previews too. Existing encrypted `CF_ACCESS_TEAM_DOMAIN`/`CF_ACCESS_AUD` dashboard bindings remain valid configuration. No policy redesign is required. See [Cloudflare JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
 
-Follow [exact setup, migration, verification and rollback steps](docs/per-user-flightlogger.md). Production/preview resources are separate: do not expose production DB/key in an untrusted preview. Previews without required resources intentionally return 503. CI and Pages Git integration are preserved; no redundant deployment workflow.
+Follow [the existing foundation setup guide](docs/per-user-flightlogger.md) and [Duty Ops migration/verification steps](docs/duty-ops.md). Production/preview resources are separate: do not expose production DB/key in an untrusted preview. Previews without required resources intentionally return 503. CI and Pages Git integration are preserved; no redundant deployment workflow.
 
 If `/api/me` serves HTML, check repo root/output settings, deployed commit and Functions compilation. SPA fallback on an API URL means the route is missing, not an Access-policy problem. Keep `functions/` tracked. Root-only ignore `/API/` prevents the Streamlit reference folder from hiding `functions/api/` on Windows.
 
@@ -169,7 +180,7 @@ The existing manifest/icons/service worker/install UI remain: **Luftfartsfag Stu
 - **iPhone / iPad:** Safari -> Share -> Add to Home Screen; Open as Web App if offered.
 - A network connection is needed for Access, onboarding and schedules. No notification permission is requested.
 
-Workbox precaches only versioned JS/CSS, icons and public manifest. It does **not** cache HTML navigation, `/api/me`, `/api/availability`, onboarding POST bodies/responses, credentials, identity or Access pages. No API runtime cache/offline fallback is added. Keys remain in transient form state, cleared on success/discarded on unmount, never localStorage/sessionStorage/IndexedDB/analytics/URL/history.
+Workbox precaches only versioned JS/CSS, icons and public manifest. It does **not** cache HTML navigation, `/api/me`, `/api/availability`, `/api/duty-ops`, onboarding POST bodies/responses, credentials, identity or Access pages. No API runtime cache/offline fallback is added. Keys remain in transient form state, cleared on success/discarded on unmount, never localStorage/sessionStorage/IndexedDB/analytics/URL/history.
 
 Registration is production-build only; updates wait for tabs to close or Settings **Update and reload**. Inspect Cache Storage after onboarding: only static assets should appear. Real Android/iOS installation and Access expiry still need device verification. Icons remain replaceable (`cd frontend && node scripts/generate-icons.cjs`).
 
@@ -180,6 +191,7 @@ Registration is production-build only; updates wait for tabs to close or Setting
 - `functions/api/`: Access middleware, extended me, per-user availability, onboarding POST and JSON fallback.
 - `backend/users.ts`, `credential-encryption.ts`, `flightlogger-credentials.ts`, `credential-request.ts`, `application-api.ts`: reusable security/application services.
 - `backend/flightlogger/`: client/fixed queries and retained calendar/pagination.
+- `backend/duty-ops/`, `functions/api/duty-ops.ts`, `frontend/src/features/duty-ops/`: bounded synchronization, normalized read API and isolated Duty Ops presentation.
 - `migrations/`, `wrangler.jsonc`, `wrangler.local.jsonc`: schema and production/local config.
 - `frontend/src/pwa/`: unchanged static foundation; `test/`, `frontend/test/`: checks.
 
@@ -187,6 +199,6 @@ The old standalone Worker was deleted after the user verified production cached/
 
 ## Next phase and limitations
 
-Choose an operational module (for example Duty Ops) using the Access-to-D1 foundation. Scheduling, swaps, fuel, transport, roles/cohorts, personal schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
+Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs. Scheduling, swaps, fuel, transport, roles/cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
 
-No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached schedules. The portal can only show data the personal FlightLogger key permits. Production is not ready until the documented resources and live checks are completed.
+No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached availability. Duty Ops identities can remain partial/stale until students synchronize, and shared discovery assumes the verified program-student visibility. The portal can only show data the personal FlightLogger key permits. The existing production foundation works; Duty Ops still requires migration and live staging verification before a later production release.

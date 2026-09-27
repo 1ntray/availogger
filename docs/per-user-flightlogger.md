@@ -1,8 +1,8 @@
-# Per-user FlightLogger rollout — complete setup before merging
+# Per-user FlightLogger setup reference
 
-This feature branch requires **D1 + DB + an encryption secret**. `master` auto-deploys Pages. **Do not merge yet:** this work does not create production resources, apply remote migrations or verify a live deployment. The old shared secret remains externally configured, but is never a fallback in the new code.
+The per-user foundation is merged and the user verified onboarding, replacement and uncached availability in production. The old shared secret has been removed. The setup instructions below are retained for new environments; production already has **D1 + DB + the encryption secret**. `master` auto-deploys Pages. For the new read-only Duty Ops phase, follow [the separate migration and staging guide](duty-ops.md); its PR targets develop.
 
-Current setup progress: the user created `studentportal-db`, and a read-only Cloudflare check confirmed UUID `a6a29063-bacf-454f-8423-5e956e769e5f`. That real ID is now configured as `DB` on the feature branch. The production migration and encryption secret remain pending. Preview D1/KV bindings are explicitly empty so previews cannot inherit the production resources.
+The existing production `DB` is `studentportal-db`, UUID `a6a29063-bacf-454f-8423-5e956e769e5f`, with the foundation migration and encryption secret configured. Preview D1/KV bindings are explicitly empty so previews cannot inherit the production resources. Do not recreate the production DB or rotate its encryption key to test Duty Ops.
 
 ## Implementation report
 

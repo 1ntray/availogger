@@ -1,4 +1,5 @@
-import { CURRENT_USER_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
+import { CURRENT_USER_QUERY, CURRENT_USER_PROFILE_QUERY, DUTY_OPS_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
+import { parseDutyMeeting, parseSelfProfile, type DutyMeeting, type FlightLoggerProfile } from './duty-ops';
 import type { AvailabilityPeriod, Instructor } from './types';
 
 const ENDPOINT = 'https://api.flightlogger.net/graphql';
@@ -71,7 +72,7 @@ function nextCursor(info: PageInfo, previous: string | null): string | null {
 export class FlightLoggerClient {
   private requestCount = 0;
   private tokenHash?: Promise<string>;
-  constructor(private readonly token: string, private readonly fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init)) {}
+  constructor(private readonly token: string, private readonly fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init), private readonly maxRequests = MAX_REQUESTS) {}
 
   private async query(query: string, variables: Record<string, unknown>): Promise<Record<string, unknown>> {
     this.tokenHash ||= crypto.subtle.digest('SHA-256', new TextEncoder().encode(this.token))
@@ -80,7 +81,7 @@ export class FlightLoggerClient {
     const rateLimitedUntil = rateLimits.get(hash) || 0;
     if (Date.now() < rateLimitedUntil) throw rateLimitError(Math.ceil((rateLimitedUntil - Date.now()) / 1000));
     rateLimits.delete(hash);
-    if (++this.requestCount > MAX_REQUESTS) throw new FlightLoggerError('Too many FlightLogger pages were needed for this request.');
+    if (++this.requestCount > this.maxRequests) throw new FlightLoggerError('Too many FlightLogger pages were needed for this request.');
     let response: Response;
     try {
       response = await this.fetcher(ENDPOINT, {
@@ -118,6 +119,35 @@ export class FlightLoggerClient {
       throw new FlightLoggerError('The FlightLogger API key could not be verified.', 422);
     }
     return { id: data.user.id };
+  }
+
+  async currentUserProfile(): Promise<FlightLoggerProfile> {
+    return parseSelfProfile((await this.query(CURRENT_USER_PROFILE_QUERY, {})).user);
+  }
+
+  async dutyOps(from: string, to: string, all: boolean): Promise<DutyMeeting[]> {
+    const meetings = new Map<string, DutyMeeting>();
+    const cursors = new Set<string>();
+    let after: string | null = null;
+    let count = 0;
+    do {
+      const data = await this.query(DUTY_OPS_QUERY, { from, to, all, after });
+      const page = connection(data.bookings, parseDutyMeeting);
+      count += page.nodes.length;
+      if (page.nodes.length > 50 || count > 1500) throw new FlightLoggerError('The meeting schedule exceeds the supported size.');
+      for (const meeting of page.nodes) {
+        if (!meeting) continue;
+        const existing = meetings.get(meeting.id);
+        if (existing && JSON.stringify(existing) !== JSON.stringify(meeting)) throw new FlightLoggerError('FlightLogger returned conflicting Duty Ops records.');
+        if (meeting.startsAt < to && meeting.endsAt > from) meetings.set(meeting.id, meeting);
+      }
+      after = nextCursor(page.pageInfo, after);
+      if (after) {
+        if (cursors.has(after) || page.nodes.length === 0) throw new FlightLoggerError('FlightLogger pagination stopped making progress.');
+        cursors.add(after);
+      }
+    } while (after);
+    return [...meetings.values()];
   }
 
   async instructors(): Promise<Instructor[]> {
