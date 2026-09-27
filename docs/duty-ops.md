@@ -1,5 +1,7 @@
 # Read-only Duty Ops foundation
 
+> Deployment instructions below describe the original feature bootstrap. After release automation cutover, use [ordered database and Pages releases](database-updates.md); normal merges migrate and deploy together.
+
 Branch: `feature/duty-ops-core`, based on `develop`. The PR targets **develop**, must be reviewed, and must not be merged automatically. Production `master` and its Pages Git deployment are unchanged.
 
 ## Data flow

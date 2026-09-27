@@ -1,5 +1,7 @@
 # Per-user FlightLogger setup reference
 
+> Deployment instructions below describe the original feature bootstrap. After release automation cutover, use [ordered database and Pages releases](database-updates.md); normal merges migrate and deploy together.
+
 The per-user foundation is merged and the user verified onboarding, replacement and uncached availability in production. The old shared secret has been removed. The setup instructions below are retained for new environments; production already has **D1 + DB + the encryption secret**. `master` auto-deploys Pages. For the new read-only Duty Ops phase, follow [the separate migration and staging guide](duty-ops.md); its PR targets develop.
 
 The existing production `DB` is `studentportal-db`, UUID `a6a29063-bacf-454f-8423-5e956e769e5f`, with the foundation migration and encryption secret configured. Duty Ops preview uses the separately created `studentportal-preview` DB with 0001 and 0002 applied and a separate `studentportal-preview-availability-cache` KV namespace. The user has configured preview encryption and Access settings. After integrating develop, apply `0003_authorization.sql` before activating the preview; live verification remains pending. Do not recreate the production DB or rotate its encryption key to test Duty Ops.
