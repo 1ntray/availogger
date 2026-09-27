@@ -11,7 +11,7 @@ async function responseData(response: Response) {
 export async function loadExchanges(signal: AbortSignal, cursor?: string): Promise<ExchangesResponse> {
   const body = await responseData(await fetch(`${base}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal, credentials: 'same-origin', cache: 'no-store' }));
   if (!body || typeof body !== 'object' || !('requests' in body) || !Array.isArray(body.requests) ||
-      !('currentUserId' in body) || typeof body.currentUserId !== 'string' || !('lockedShiftIds' in body) || !Array.isArray(body.lockedShiftIds) ||
+      !('currentUserId' in body) || typeof body.currentUserId !== 'string' || !('currentUserCreditBalance' in body) || !Number.isSafeInteger(body.currentUserCreditBalance) || !('lockedShiftIds' in body) || !Array.isArray(body.lockedShiftIds) ||
       !('nextCursor' in body) || (body.nextCursor !== null && typeof body.nextCursor !== 'string')) throw new Error('Shift exchange returned an unexpected response.');
   return body as ExchangesResponse;
 }

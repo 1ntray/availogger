@@ -70,7 +70,7 @@ describe('effective Duty Ops presentation', () => {
     const fetcher = vi.fn(async (path: string, init: RequestInit) => {
       if (init.method === 'POST') { claimed = true; return Response.json({ id: 'request' }); }
       if (path === '/api/duty-ops') return Response.json({ ...data, shifts: [claimed ? shift : { ...shift, participants: [anna], assignmentsDiffer: false }] });
-      return Response.json({ currentUserId: 'me', requests: claimed ? [] : [request], lockedShiftIds: [], nextCursor: null });
+      return Response.json({ currentUserId: 'me', currentUserCreditBalance: claimed ? 1 : 0, requests: claimed ? [] : [request], lockedShiftIds: [], nextCursor: null });
     });
     vi.stubGlobal('fetch', fetcher); await render(<DutyOpsPage />);
     expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('No upcoming shifts');

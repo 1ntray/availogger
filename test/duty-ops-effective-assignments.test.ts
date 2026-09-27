@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDatabase, seedCredential, testEncryptionKey } from './d1-fixture';
+import { createTestDatabase, seedCredential, testEncryptionKey, resetCreditLedger, applyTestMigration } from './d1-fixture';
 import { acceptProposal, cancelExchange, claimGiveAway, createExchange, createProposal, listExchanges } from '../backend/duty-ops/swaps';
 import { listSwapHistory } from '../backend/duty-ops/swap-history';
 import { readAssignmentStates } from '../backend/duty-ops/effective-assignments';
@@ -30,6 +30,7 @@ async function shift(db: D1Database, owner: ApplicationUser, schedule = times) {
 }
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(now));
+  await resetCreditLedger(fixture.db);
   await fixture.db.batch([
     fixture.db.prepare("UPDATE duty_ops_swap_requests SET type = 'GIVE_AWAY', accepted_proposal_id = NULL"),
     ...['duty_ops_swap_events', 'duty_ops_swap_reservations', 'duty_ops_swap_proposals', 'duty_ops_swap_requests', 'users', 'duty_ops_shifts', 'duty_ops_sync_state'].map(t => fixture.db.prepare(`DELETE FROM ${t}`)),
@@ -286,6 +287,9 @@ describe('0006 upgrade from populated v1', () => {
       const directRead = await readAssignmentStates(legacy.db, [directA, directB], from.id);
       expect(directRead(directA, 3).participants.map(p => p.userId)).toEqual([to.id]);
       expect(directRead(directB, 3).participants.map(p => p.userId)).toEqual([from.id]);
+      // Current application runs only after the ordered migrations have landed.
+      await applyTestMigration(legacy.db, '0007_flyvask.sql');
+      await applyTestMigration(legacy.db, '0008_duty_ops_credits.sql');
       await createExchange(legacy.db, to, shiftId, 'GIVE_AWAY', times);
       expect((await legacy.db.prepare('SELECT * FROM duty_ops_swap_reservations WHERE request_id = ?').bind(accepted).all()).results).toEqual([]);
       expect((await listExchanges(legacy.db, from)).requests.find(r => r.id === open)?.proposals.map(p => p.id)).toEqual([openProposal]);
