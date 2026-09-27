@@ -4,11 +4,13 @@ An operational portal for pilot students. Instructor Availability and read-only 
 
 ## Deployment status
 
-Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`**, which must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview `DB` points to the separately created `studentportal-preview`, with both migrations applied by the user. Preview `AVAILABILITY_CACHE` uses the separate `studentportal-preview-availability-cache` namespace. Runtime secret/Access setup remains pending before live testing.
+Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`** and integrates develop's **`0003_authorization.sql`**. Both must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview `DB` points to the separately created `studentportal-preview`, with 0001 and 0002 applied by the user; 0003 now also needs applying. Preview `AVAILABILITY_CACHE` uses the separate `studentportal-preview-availability-cache` namespace. The user has configured preview encryption and Access settings; deployment and live testing remain pending.
 
 See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
 ## Architecture
+
+The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults to Duty Ops and Transport view. Review the authorization migration and bootstrap-secret setup before activating this branch.
 
 ```text
 Wix main website: luftfartsfag.no (unchanged)
@@ -47,6 +49,7 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/duty-ops` | Today, My shifts and date-grouped Duty Ops schedule |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
+| `/admin/users` | Permission-protected portal user access editor |
 
 The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. More opens Transport and Settings; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
@@ -58,10 +61,10 @@ All routes run behind the existing Access middleware and return `Cache-Control: 
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId` |
+| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
 | `POST /api/onboarding/flightlogger` | JSON `{ "apiKey": "..." }`; validate, encrypt and connect/replace the current user's credential |
-| `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Current user's calendar; validated inclusive range of 1–62 days |
-| `GET /api/duty-ops` | D1-backed shared shifts, current-user assignments, known participants and separate freshness metadata; optional paired dates, maximum 93 days |
+| `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Requires `availability.view`; current user's calendar, validated inclusive range of 1–62 days |
+| `GET /api/duty-ops` | Requires `duty_ops.view`; D1-backed shared shifts, current-user assignments, known participants and separate freshness metadata; optional paired dates, maximum 93 days |
 
 Onboarding success returns only `{ "connected": true, "flightLoggerUserId": "..." }`. Missing credentials return 409 with `ONBOARDING_REQUIRED`. Invalid keys return a safe 422, rate limits 429 with Retry-After, and configuration/service failures fail closed. No token/ciphertext/IV/key/JWT is returned. Wrong methods return 405; there is no generic GraphQL proxy, CORS layer or `ALLOWED_ORIGINS`.
 
@@ -76,7 +79,7 @@ Validation uses `query CurrentUser { user { id } }` with `Authorization: Bearer 
 - `users`: UUID, unique Access subject, verified email, nullable FlightLogger user ID and ISO timestamps.
 - `flightlogger_credentials`: one row per user, foreign key with cascade deletion, Base64 ciphertext/IV, encryption version and timestamps.
 
-`migrations/0002_duty_ops.sql` adds nullable trusted self-name fields, shared Duty Ops shifts, many-to-many assignments and separate global/own sync state. Internal shift UUIDs stay stable across FlightLogger upserts. Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. Replacement invalidates own Duty Ops freshness and clears old assignments/names if the external identity changes. No roles/admin or operational write API is introduced.
+`migrations/0002_duty_ops.sql` adds nullable trusted self-name fields, shared Duty Ops shifts, many-to-many assignments and separate global/own sync state. Internal shift UUIDs stay stable across FlightLogger upserts. Queries are parameterized. Credential replacement and FlightLogger user ID updates use a transactional D1 `batch`; a failed write rolls both back. Replacement invalidates own Duty Ops freshness and clears old assignments/names if the external identity changes. Authorization roles/permissions/audit tables are added separately by `0003_authorization.sql`. Duty Ops remains read-only.
 
 Web Crypto **AES-256-GCM** uses a fresh random **12-byte IV** per save, a 128-bit authentication tag and AAD `studentportal:flightlogger:v1:<internal-user-id>`. Version 1 is explicit in schema/service. Copying ciphertext to another user or tampering fails authentication. Plaintext is never stored in D1.
 
@@ -199,6 +202,6 @@ The old standalone Worker was deleted after the user verified production cached/
 
 ## Next phase and limitations
 
-Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs. Scheduling, swaps, fuel, transport, roles/cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
+Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs and existing authorization foundation. Scheduling, swaps, fuel, transport, cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
 
 No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached availability. Duty Ops identities can remain partial/stale until students synchronize, and shared discovery assumes the verified program-student visibility. The portal can only show data the personal FlightLogger key permits. The existing production foundation works; Duty Ops still requires migration and live staging verification before a later production release.

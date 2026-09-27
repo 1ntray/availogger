@@ -4,7 +4,7 @@ Branch: `feature/duty-ops-core`, based on `develop`. The PR targets **develop**,
 
 ## Data flow
 
-Verified Cloudflare Access identity → existing D1 application user → decrypt that user's stored FlightLogger credential → bounded read-only FlightLogger queries → transactional D1 snapshots → `GET /api/duty-ops` → Duty Ops page.
+Verified Cloudflare Access identity → existing D1 application user → require `duty_ops.view` → decrypt that user's stored FlightLogger credential → bounded read-only FlightLogger queries → transactional D1 snapshots → `GET /api/duty-ops` → Duty Ops page.
 
 The existing authentication, onboarding, `/api/me`, availability/calendar/KV cache, shell/navigation and static-only PWA worker remain in place. No new runtime secret or resource is required by Duty Ops.
 
@@ -45,7 +45,7 @@ If refresh fails, overlapping prior discovery **and matching-credential own** sn
 
 ## API and UI
 
-`GET /api/duty-ops` uses the existing `/api/*` Access middleware and application-user wrapper. It returns:
+`GET /api/duty-ops` uses the existing `/api/*` Access middleware and authorized-user wrapper. `duty_ops.view` is required before date validation, credential decryption or synchronization. STUDENT has this permission by default; explicit DENY or a removed role is enforced on every API call, including fresh D1 snapshots. The router/navigation use the same permission. It returns:
 
 ```json
 {
@@ -102,11 +102,11 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
 
 ## Manual Cloudflare steps
 
-**No remote migration or production deployment is performed by this feature branch.** No Access changes, additional KV namespace, encryption-key rotation or new secret is needed.
+**This feature does not automatically apply remote migrations or deploy production.** Duty Ops reuses the existing resource/secret types; staging uses separately configured resources and secrets.
 
 1. Review the PR targeting **develop**. Production still deploys only from **master**.
 2. The user created the separate D1 database **`studentportal-preview`**, and Wrangler verified ID `29d8b17d-c2e1-4b2d-bc17-4c295bd049af`. It is configured as `env.preview.d1_databases` binding `DB` with `migrations_dir: "./migrations"`. The user applied both migrations successfully and confirmed none remain pending. The separate KV namespace **`studentportal-preview-availability-cache`**, verified ID `adf2fbe2e1314246a8e6d973fc4994ae`, is configured as preview `AVAILABILITY_CACHE`. Do not copy production credentials into preview.
-3. Configure preview's existing encryption-key format using a **separate key**, plus verified `CF_ACCESS_TEAM_DOMAIN` / preview application's `CF_ACCESS_AUD`. Protect the preview hostname with Cloudflare Access; do not enable `LOCAL_ACCESS_DEV` publicly. Onboard a test student's personal key into preview.
+3. The user has configured preview's **separate encryption key**, `CF_ACCESS_TEAM_DOMAIN`, preview application's `CF_ACCESS_AUD` and Access protection. Redeploy after settings changes; do not enable `LOCAL_ACCESS_DEV` publicly. Onboard a test student's personal key into preview.
 4. After preview bindings are configured, the administrator applies its migrations:
 
    ```bash
@@ -114,8 +114,8 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
    npx wrangler d1 migrations list DB --remote --env preview --config wrangler.jsonc
    ```
 
-   Confirm `0002_duty_ops.sql` is applied before activating the new Functions.
-5. Verify `/api/me`, `/api/duty-ops`, Today/My shifts/Schedule, reload within/after five minutes, and uncached Instructor Availability. Use two authorized student accounts to verify names appear after each self-sync and own reconciliation preserves the other student's assignment. Do not publish keys/headers in diagnostics.
+   Confirm `0001_application_users.sql`, `0002_duty_ops.sql` and develop's `0003_authorization.sql` are applied before activating the new Functions. Preview 0001/0002 were applied earlier; 0003 is now required after integrating develop. Do not renumber migrations.
+5. Follow [administrator bootstrap](authorization.md#initial-administrator-setup) if the preview has no administrator, then grant `availability.view` to test users who should access Availability. STUDENT defaults to Duty Ops/Transport only. Verify `/api/me`, `/api/duty-ops`, Today/My shifts/Schedule, reload within/after five minutes, and uncached authorized Instructor Availability. Use two authorized student accounts to verify names appear after each self-sync and own reconciliation preserves the other student's assignment. Verify denied `duty_ops.view` returns 403 without exposing snapshots. Do not publish keys/headers in diagnostics.
 6. If a later reviewed release promotes this code to master, **before that deployment** apply the additive migration to the existing production DB:
 
    ```bash
@@ -123,11 +123,11 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
    npx wrangler d1 migrations list DB --remote --config wrangler.jsonc
    ```
 
-   Confirm the target is `studentportal-db` before accepting Wrangler's prompt. The new credential replacement code also requires migration 0002. Retain existing production Access, encryption secret, DB/KV bindings, DNS and Pages build settings. No direct deploy or master merge is part of this task.
+   Confirm the target is `studentportal-db` before accepting Wrangler's prompt. All migrations through 0003 must be applied; the new credential replacement code also requires migration 0002. Review authorization/bootstrap and Availability grants before activating. Retain existing production Access, encryption secret, DB/KV bindings, DNS and Pages build settings. No direct deploy or master merge is part of this task.
 
 ## Limitations and next phase
 
-- Shared discovery assumes the authorized program students have the tested visibility of classroom 852. It reflects the requesting credential's permitted schedule, not administrative access; no cross-program/tenant or role model is added. A masked/unreadable meeting classroom fails synchronization conservatively because it cannot prove whether the record is Duty Ops; prior snapshots are preserved.
+- Shared discovery assumes the authorized program students have the tested visibility of classroom 852. It reflects the requesting credential's permitted schedule, not administrative access; no cross-program/tenant isolation is added. Existing portal permissions control access to the module. A masked/unreadable meeting classroom fails synchronization conservatively because it cannot prove whether the record is Duty Ops; prior snapshots are preserved.
 - Participant identities are incomplete until students use Duty Ops. Other students' assignments can remain stale until they revisit; known names may briefly exceed a newly reduced slot count. Unknown counts clamp at zero instead of inventing negative slots.
 - Refresh happens on visits/reload, not Cron/polling. No historical UI or date-range controls are added; recent history is available through the bounded API.
 - Requests exceeding pagination budgets fail safely. Large schedules and actual Workers Free CPU behavior still need staging verification with real permitted data.

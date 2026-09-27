@@ -61,6 +61,10 @@ describe('same-origin Duty Ops API', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({}, { status })));
     await expect(loadDutyOps(new AbortController().signal)).rejects.toThrow('Reload the page');
   });
+  it('distinguishes a denied portal permission from an expired Access session', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 'FORBIDDEN' }, { status: 403 })));
+    await expect(loadDutyOps(new AbortController().signal)).rejects.toThrow('You do not have access to Duty Ops.');
+  });
   it('distinguishes onboarding and safe service failure from malformed responses', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ code: 'ONBOARDING_REQUIRED' }, { status: 409 }))
       .mockResolvedValueOnce(Response.json({ error: 'Try again later' }, { status: 429 }))

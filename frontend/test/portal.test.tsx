@@ -7,9 +7,11 @@ vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: () => ({ needRefre
 import { PortalRoutes } from '../src/app/App';
 import { loadCurrentUser } from '../src/app/current-user-api';
 import * as account from '../src/app/CurrentUser';
+import type { PermissionKey } from '../../shared/authorization';
 
 const completed = { email: 'student@example.com', subject: 'verified-subject', onboardingComplete: true,
-  hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user' };
+  hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user', roles: ['STUDENT'] as ['STUDENT'],
+  permissions: ['availability.view', 'duty_ops.view', 'transport.view'] as PermissionKey[] };
 beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: completed, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() }));
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -25,17 +27,27 @@ describe('portal routes', () => {
     expect(html).toContain('aria-label="Mobile navigation"');
     expect(html).toContain('href="/availability"');
     expect(html).not.toContain('Availogger');
-    if (route !== '/missing') expect(html).toContain('aria-current="page"');
+    if (route !== '/missing' && route !== '/settings') expect(html).toContain('aria-current="page"');
   });
   it('retains the availability controls and loading state after extraction', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/availability']}><PortalRoutes /></MemoryRouter>);
-    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next month', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
+    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next dates', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
   });
   it('home links to implemented and planned tools without fake operational data', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
     expect(html).toContain('Nothing scheduled');
     expect(html).toContain('href="/duty-ops"');
     expect(html).toContain('href="/transport"');
+  });
+  it('hides forbidden modules in desktop/mobile navigation and Home, and guards manual routes', () => {
+    vi.mocked(account.useCurrentUser).mockReturnValue({ user: { ...completed, permissions: [] }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
+    const home = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
+    for (const path of ['/availability', '/transport', '/duty-ops', '/admin/users']) {
+      expect(home).not.toContain(`href="${path}"`);
+      const page = renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><PortalRoutes /></MemoryRouter>);
+      expect(page).toContain('<h1>Access denied</h1>');
+    }
+    expect(home).toContain('aria-controls="account-navigation"');
   });
 });
 

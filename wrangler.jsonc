@@ -14,7 +14,7 @@
     }
   ],
   // Previews must not inherit production user/credential storage.
-  // Preview storage is separate; preview secrets/Access still need setup.
+  // Preview storage is separate; runtime secrets/Access are set in Pages.
   "env": {
     "preview": {
       "d1_databases": [

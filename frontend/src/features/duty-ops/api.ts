@@ -21,6 +21,7 @@ export async function loadDutyOps(signal: AbortSignal): Promise<DutyOpsData> {
     throw new Error('Could not reach Duty Ops. Check your connection and try again.');
   }
   const body: unknown = await response.json().catch(() => null);
+  if (response.status === 403 && object(body) && body.code === 'FORBIDDEN') throw new Error('You do not have access to Duty Ops.');
   if (response.status === 401 || response.status === 403 || response.redirected) throw new Error('Your Access session may have expired. Reload the page to sign in again.');
   if (response.status === 409 && object(body) && body.code === 'ONBOARDING_REQUIRED') throw new OnboardingRequiredError('Connect FlightLogger in Settings.');
   if (!response.ok) throw new Error(object(body) && typeof body.error === 'string' ? body.error : 'Duty Ops could not be loaded. Try again shortly.');

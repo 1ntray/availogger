@@ -1,11 +1,9 @@
 import { ApplicationError } from './application-error';
 import { MAX_API_KEY_LENGTH } from './credential-encryption';
+import { requireSameOrigin } from './same-origin';
 
 export async function readCredentialRequest(request: Request): Promise<string> {
-  const origin = request.headers.get('Origin');
-  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
-    throw new ApplicationError('Submit the connection from the student portal.', 403);
-  }
+  requireSameOrigin(request, 'Submit the connection from the student portal.');
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new ApplicationError('Submit the API key as JSON.', 415);
   }

@@ -1,8 +1,14 @@
+import { PERMISSIONS, type PermissionKey } from '../../../shared/authorization';
+
 export const navigation = [
   { path: '/', label: 'Home', icon: 'home' },
-  { path: '/duty-ops', label: 'Duty Ops', icon: 'duty' },
-  { path: '/availability', label: 'Availability', icon: 'calendar' },
-  { path: '/transport', label: 'Transport', icon: 'transport' },
+  { path: '/duty-ops', label: 'Duty Ops', icon: 'duty', permission: PERMISSIONS.dutyOpsView },
+  { path: '/availability', label: 'Availability', icon: 'calendar', permission: PERMISSIONS.availabilityView },
+  { path: '/transport', label: 'Transport', icon: 'transport', permission: PERMISSIONS.transportView },
   { path: '/settings', label: 'Settings', icon: 'settings' },
+  { path: '/admin/users', label: 'Admin', icon: 'account', permission: PERMISSIONS.adminManageUsers },
 ] as const;
+export function visibleNavigation(hasPermission: (permission: PermissionKey) => boolean) {
+  return navigation.filter(item => !('permission' in item) || hasPermission(item.permission));
+}
 export type NavIcon = typeof navigation[number]['icon'] | 'more';
