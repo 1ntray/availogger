@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import App from './app/App';
+import './tokens.css';
 import './styles.css';
 import './app/portal.css';
 import './features/flightlogger/credentials.css';

@@ -27,7 +27,7 @@ describe('portal routes', () => {
     expect(html).toContain('aria-label="Mobile navigation"');
     expect(html).toContain('href="/availability"');
     expect(html).not.toContain('Availogger');
-    if (route !== '/missing' && route !== '/settings') expect(html).toContain('aria-current="page"');
+    if (route !== '/missing') expect(html).toContain('aria-current="page"');
   });
   it('retains the availability controls and loading state after extraction', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/availability']}><PortalRoutes /></MemoryRouter>);
@@ -35,7 +35,7 @@ describe('portal routes', () => {
   });
   it('home links to implemented and planned tools without fake operational data', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
-    expect(html).toContain('Nothing scheduled');
+    expect(html).toContain('Loading Duty Ops');
     expect(html).toContain('href="/duty-ops"');
     expect(html).toContain('href="/transport"');
   });
@@ -47,7 +47,7 @@ describe('portal routes', () => {
       const page = renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><PortalRoutes /></MemoryRouter>);
       expect(page).toContain('<h1>Access denied</h1>');
     }
-    expect(home).toContain('aria-controls="account-navigation"');
+    expect(home).toContain('href="/settings"');
   });
 });
 

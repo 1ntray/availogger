@@ -1,0 +1,26 @@
+/* Existing Studentportal values. Reuse these before adding a new visual pattern. */
+:root {
+  --portal-navy: #172833;
+  --portal-background: #f5f7f7;
+  --portal-surface: #fff;
+  --portal-border: #d7e1df;
+  --portal-control-border: #cbd6d9;
+  --portal-control-text: #243b47;
+  --portal-muted: #60767c;
+  --portal-accent: #23775e;
+  --portal-focus: #238568;
+  --portal-control-hover: #eef4f2;
+  --portal-nav-hover: #e0eae6;
+  --portal-nav-active: #d5e8df;
+  --portal-nav-active-text: #165c46;
+  --portal-header-text: #d0dcdf;
+  --portal-header-border: #ffffff24;
+  --portal-header-hover: #ffffff0d;
+  --portal-radius: 6px;
+  --portal-control-height: 40px;
+  --portal-touch-height: 44px;
+  --portal-space-1: 4px;
+  --portal-space-2: 8px;
+  --portal-space-3: 12px;
+  --portal-space-4: 16px;
+}
