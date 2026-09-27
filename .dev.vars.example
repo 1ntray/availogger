@@ -5,3 +5,6 @@ LOCAL_ACCESS_DEV=true
 # Set FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY to that exact 32-byte Base64 value.
 # Use a separate key from production and retain it while keeping local D1 data.
 # Personal FlightLogger API keys are submitted through /onboarding, not this file.
+# Optional local authorization bootstrap only: PORTAL_BOOTSTRAP_ADMIN_SUBJECT=local-development
+# For Pages use a runtime secret with the owner's exact verified /api/me subject.
+# See docs/authorization.md. Never use a VITE_* variable or commit a real subject.

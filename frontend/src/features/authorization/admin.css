@@ -1,0 +1,21 @@
+.admin-users { max-width: 1100px; }
+.admin-columns { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); gap: 24px; margin-top: 20px; }
+.admin-users input[type=search], .admin-users select { border: 1px solid #b9cbc5; border-radius: 6px; padding: 10px; background: white; color: #243b47; font: inherit; max-width: 100%; }
+.admin-users input[type=search] { display: block; width: 100%; margin-top: 8px; }
+.admin-users .small-note, .admin-users small { font-size: 12px; color: #60767c; }
+.admin-user-list ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+.admin-user-list li button { width: 100%; text-align: left; border: 1px solid #d7e1df; border-radius: 6px; padding: 12px; background: white; color: #243b47; }
+.admin-user-list li button[aria-pressed=true] { border-color: #23775e; background: #edf5f0; }
+.admin-user-list strong, .admin-user-list span { display: block; overflow-wrap: anywhere; }
+.admin-user-list span { font-size: 12px; color: #60767c; margin-top: 5px; }
+.admin-editor { min-width: 0; }
+.admin-editor h2 { overflow-wrap: anywhere; }
+.admin-editor fieldset { border: 0; padding: 16px 0; margin: 12px 0; min-width: 0; }
+.admin-editor legend { font-size: 14px; font-weight: 650; }
+.admin-role { display: inline-flex; align-items: center; gap: 8px; margin-right: 20px; font-size: 14px; }
+.admin-permission { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #d7e1df; padding: 12px 0; font-size: 14px; }
+.admin-permission small { display: block; margin-top: 4px; }
+.admin-permission select { flex-shrink: 0; }
+.admin-users select:focus-visible { outline: 3px solid #238568; outline-offset: 3px; }
+.admin-users button:disabled, .admin-users select:disabled { opacity: .6; }
+@media (max-width: 700px) { .admin-columns { grid-template-columns: 1fr; } .admin-permission { flex-wrap: wrap; gap: 8px; } }

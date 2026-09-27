@@ -10,7 +10,8 @@ vi.mock('../src/pwa/PwaProvider', () => ({ PwaProvider: ({ children }: { childre
   usePwa: () => ({ canInstall: false, installed: false, installing: false, needsUpdate: false, error: '', install: vi.fn(), update: vi.fn() }) }));
 
 const state = { email: 'student@example.test', subject: 'verified-subject', onboardingComplete: false,
-  hasFlightLoggerCredential: false, flightLoggerUserId: null as string | null };
+  hasFlightLoggerCredential: false, flightLoggerUserId: null as string | null,
+  permissions: ['duty_ops.view', 'transport.view'], roles: ['STUDENT'] };
 const connected = { ...state, onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user' };
 let root: Root;
 let host: HTMLDivElement;

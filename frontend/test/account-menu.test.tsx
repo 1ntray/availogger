@@ -14,7 +14,7 @@ async function click(element: Element) { await act(async () => { element.dispatc
 beforeEach(async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   window.scrollTo = vi.fn();
-  vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: { email: 'student@example.test', subject: 'test', onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'test' }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
+  vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: { email: 'student@example.test', subject: 'test', onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'test', roles: ['STUDENT'], permissions: ['duty_ops.view', 'transport.view'] }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   await act(async () => root.render(<MemoryRouter><Routes><Route element={<AppShell />}><Route path="*" element={<Location />} /></Route></Routes></MemoryRouter>));
 });

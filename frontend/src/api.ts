@@ -14,6 +14,9 @@ export async function loadAvailability(from: string, to: string, signal: AbortSi
   }
 
   const body: unknown = await response.json().catch(() => null);
+  if (response.status === 403 && body && typeof body === 'object' && 'code' in body && body.code === 'FORBIDDEN') {
+    throw new Error('You do not have access to instructor availability.');
+  }
   if (response.ok && !body && response.headers.get('Content-Type')?.includes('text/html') && !response.redirected) {
     throw new Error('The availability API returned a webpage instead of data. Check that Pages Functions are included in the deployment.');
   }
