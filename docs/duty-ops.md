@@ -105,7 +105,7 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
 **No remote migration or production deployment is performed by this feature branch.** No Access changes, additional KV namespace, encryption-key rotation or new secret is needed.
 
 1. Review the PR targeting **develop**. Production still deploys only from **master**.
-2. The user created the separate D1 database **`studentportal-preview`**, and Wrangler verified ID `29d8b17d-c2e1-4b2d-bc17-4c295bd049af`. It is configured as `env.preview.d1_databases` binding `DB` with `migrations_dir: "./migrations"`. Its migrations still need applying. Preview `kv_namespaces` remains empty: create and configure a separate preview KV binding `AVAILABILITY_CACHE`. Do not copy production credentials into preview.
+2. The user created the separate D1 database **`studentportal-preview`**, and Wrangler verified ID `29d8b17d-c2e1-4b2d-bc17-4c295bd049af`. It is configured as `env.preview.d1_databases` binding `DB` with `migrations_dir: "./migrations"`. The user applied both migrations successfully and confirmed none remain pending. The separate KV namespace **`studentportal-preview-availability-cache`**, verified ID `adf2fbe2e1314246a8e6d973fc4994ae`, is configured as preview `AVAILABILITY_CACHE`. Do not copy production credentials into preview.
 3. Configure preview's existing encryption-key format using a **separate key**, plus verified `CF_ACCESS_TEAM_DOMAIN` / preview application's `CF_ACCESS_AUD`. Protect the preview hostname with Cloudflare Access; do not enable `LOCAL_ACCESS_DEV` publicly. Onboard a test student's personal key into preview.
 4. After preview bindings are configured, the administrator applies its migrations:
 

@@ -2,7 +2,7 @@
 
 The per-user foundation is merged and the user verified onboarding, replacement and uncached availability in production. The old shared secret has been removed. The setup instructions below are retained for new environments; production already has **D1 + DB + the encryption secret**. `master` auto-deploys Pages. For the new read-only Duty Ops phase, follow [the separate migration and staging guide](duty-ops.md); its PR targets develop.
 
-The existing production `DB` is `studentportal-db`, UUID `a6a29063-bacf-454f-8423-5e956e769e5f`, with the foundation migration and encryption secret configured. Duty Ops preview now uses the separately created `studentportal-preview` DB; preview KV and secret/Access setup remain pending. Do not recreate the production DB or rotate its encryption key to test Duty Ops.
+The existing production `DB` is `studentportal-db`, UUID `a6a29063-bacf-454f-8423-5e956e769e5f`, with the foundation migration and encryption secret configured. Duty Ops preview uses the separately created `studentportal-preview` DB with both migrations applied and a separate `studentportal-preview-availability-cache` KV namespace. Preview secret/Access setup remains pending. Do not recreate the production DB or rotate its encryption key to test Duty Ops.
 
 ## Implementation report
 

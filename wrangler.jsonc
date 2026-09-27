@@ -14,7 +14,7 @@
     }
   ],
   // Previews must not inherit production user/credential storage.
-  // The preview DB is separate; preview KV/secrets/Access still need setup.
+  // Preview storage is separate; preview secrets/Access still need setup.
   "env": {
     "preview": {
       "d1_databases": [
@@ -25,7 +25,9 @@
           "migrations_dir": "./migrations"
         }
       ],
-      "kv_namespaces": []
+      "kv_namespaces": [
+        { "binding": "AVAILABILITY_CACHE", "id": "adf2fbe2e1314246a8e6d973fc4994ae" }
+      ]
     }
   },
   "kv_namespaces": [
