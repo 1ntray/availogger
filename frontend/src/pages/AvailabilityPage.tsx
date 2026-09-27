@@ -4,6 +4,7 @@ import { useCurrentUser } from '../app/CurrentUser';
 import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
 import { calendarView, dateKey, monthRange, osloDate } from '../dates';
 import type { AvailabilityResponse, AvailabilityStatus } from '../types';
+import { Icon } from '../app/Icon';
 
 const dayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' });
 const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -69,10 +70,8 @@ function AvailabilityPage() {
   ), [data, query]);
 
   return <section className="availability-page">
-      <div className="heading-row">
-        <div><p className="eyebrow">Schedule overview</p><h1>Instructor availability</h1><p className="subtitle">A daily view of recorded availability. Times use Europe/Oslo.</p>{data && !loading && !error && <p className="cache-age">{data.cachedAt ? <time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time> : 'Update time unavailable'}</p>}</div>
-        <button className="refresh-button" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}>↻ Reload view</button>
-      </div>
+      <h1>Instructor availability</h1>
+      <div className="availability-meta"><p>Times shown in Europe/Oslo</p>{data && !loading && !error && <p className="cache-age">{data.cachedAt ? <time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time> : 'Update time unavailable'}</p>}</div>
 
       <div className="toolbar">
         <div className="month-nav" aria-label="Month navigation">
@@ -81,6 +80,7 @@ function AvailabilityPage() {
           <button aria-label="Next month" onClick={() => setMonthOffset(value => value + 1)}>›</button>
         </div>
         <button className="today-button" onClick={() => setMonthOffset(0)} disabled={monthOffset === 0}>Today</button>
+        <button className="refresh-button" aria-label="Reload view" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}><Icon name="reload" /><span className="reload-label">Reload view</span></button>
         <label className="search-box"><span className="sr-only">Find instructor</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Find instructor…" type="search" /></label>
       </div>
 
@@ -96,7 +96,7 @@ function AvailabilityPage() {
       {!loading && !error && data && data.instructors.length > 0 && instructors.length === 0 && <div className="message">No instructors match “{query}”.</div>}
 
       {!loading && !error && data && instructors.length > 0 && <>
-        <p className="result-count">{instructors.length} instructor{instructors.length === 1 ? '' : 's'} · Scroll horizontally for more dates</p>
+        <p className="result-count">{instructors.length} instructor{instructors.length === 1 ? '' : 's'}<span className="sr-only">. Scroll horizontally for more dates.</span></p>
         <div className="calendar-scroll" tabIndex={0} aria-label="Scrollable instructor availability calendar">
           <table className="calendar">
             <thead>

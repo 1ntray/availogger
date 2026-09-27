@@ -54,7 +54,7 @@ describe('mandatory FlightLogger onboarding', () => {
   it('redirects a completed user away from onboarding to Home', async () => {
     api.mockImplementation(async () => Response.json(connected)); await render('/onboarding');
     expect(host.querySelector('output')!.textContent).toBe('/');
-    expect(host.querySelector('h1')!.textContent).toBe('Welcome to Studentportal');
+    expect(host.querySelector('h1')!.textContent).toBe('Home');
   });
   it('does not render operations while identity is loading or unavailable', async () => {
     let resolve!: (value: Response) => void;
