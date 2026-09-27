@@ -3,8 +3,8 @@
   "name": "availogger",
   "pages_build_output_dir": "./frontend/dist",
   "compatibility_date": "2026-09-01",
-  // Apply migrations to the target DB before activating new Functions.
-  // See docs/duty-ops.md for preview setup and release verification.
+  // GitHub releases validate/build, migrate this target, then deploy Pages.
+  // See docs/database-updates.md for bootstrap and environment setup.
   "d1_databases": [
     {
       "binding": "DB",

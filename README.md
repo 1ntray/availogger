@@ -4,7 +4,7 @@ An operational portal for pilot students. Instructor Availability and read-only 
 
 ## Deployment status
 
-Production `master` auto-deploys Pages. Per-user D1 onboarding, encrypted credentials, replacement and uncached availability have been verified in production by the user. This Duty Ops feature is based on `develop`; its PR targets **develop**, not master. It adds **migration `0002_duty_ops.sql`** and integrates develop's **`0003_authorization.sql`**. Both must be applied to the target database before the new code is activated. No production migration or deployment is performed here. Preview `DB` points to the separately created `studentportal-preview`, with 0001 and 0002 applied by the user; 0003 now also needs applying. Preview `AVAILABILITY_CACHE` uses the separate `studentportal-preview-availability-cache` namespace. The user has configured preview encryption and Access settings; deployment and live testing remain pending.
+After the [release automation setup](docs/database-updates.md), GitHub Actions owns deployment: merge to **develop** → tests/build → preview D1 migration → Pages preview; merge to **master** → tests/build → production D1 migration → Pages production. Each release uses one exact SHA. Tests/build or migration failure blocks deployment. Automatic releases default to disabled until `AUTO_RELEASE_PREVIEW` / `AUTO_RELEASE_PRODUCTION` are enabled and independent Pages Git deployments are turned off. Keep existing Git deployments during bootstrap; follow the guide's safe switch order. PR CI remains local; normal releases require no manual migration.
 
 See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this phase and [the per-user setup guide](docs/per-user-flightlogger.md) for the existing foundation. The old shared `FLIGHTLOGGER_API_TOKEN` was removed after production verification; there is no shared-token fallback. The user's actual `.dev.vars` is not modified.
 
@@ -26,7 +26,7 @@ student.luftfartsfag.no
                         -> server-side decrypt -> FlightLoggerClient(userToken)
                         -> existing KV availability cache / FlightLogger API
 
-GitHub 1ntray/availogger -> CI + Pages Git integration (master)
+GitHub 1ntray/availogger -> CI + ordered D1 migration/Pages release (after setup)
 ```
 
 **Access identity** identifies the portal user. **The FlightLogger API key** is that user's external service credential; it does not sign them into the portal. Access remains the sole authentication system. There are no custom passwords, application sessions or browser bearer tokens.
@@ -153,6 +153,10 @@ npm run functions:build
 
 Tests use synthetic keys/generated JWTs, mocked JWKS/FlightLogger and disposable local Miniflare D1 applying the real schema. They do not read real secrets or call production services. Coverage includes identity isolation, encryption/tampering, safe API shapes, atomic replacement/rollback, token-hashed cache isolation, onboarding gates/state/input/storage and PWA exclusions. Functions output stays ignored under `.wrangler/pages-build`.
 
+### Database updates
+
+Enabled releases apply pending migrations automatically before deploying the same build. For recovery, **Release Studentportal → Run workflow** uses the selected `develop`/`master` branch to determine the target; **Update database** is a database-only fallback with the same fixed mapping. CLI migration/status scripts remain available. See [release setup, safe enable order and verification](docs/database-updates.md).
+
 ## Cloudflare Pages and production setup
 
 | Setting | Keep |
@@ -167,11 +171,11 @@ Tests use synthetic keys/generated JWTs, mocked JWKS/FlightLogger and disposable
 | Access bindings | `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, unchanged |
 | Runtime secret | Existing `FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY`, retained |
 
-Root `wrangler.jsonc` is the Pages configuration source of truth, with the existing real production DB/KV IDs. Keep these bindings and the encryption key. Apply new migrations before activating code that requires them; see the Duty Ops guide. Local config is separate.
+Root `wrangler.jsonc` is the Pages configuration source of truth, with separate production/preview DB and KV IDs. Keep these bindings and runtime secrets. The release workflow migrates before deploying; local config is separate. Existing Pages dashboard build settings are retained for bootstrap/fallback, but Actions uploads the prebuilt frontend and compiled Functions after cutover.
 
 Access still verifies RS256 signature, exact issuer/audience, expiry/not-before, email and subject using team JWKS. Arbitrary email headers never establish identity. Keep Access covering the **entire hostname**, including onboarding/API, and protect aliases/previews too. Existing encrypted `CF_ACCESS_TEAM_DOMAIN`/`CF_ACCESS_AUD` dashboard bindings remain valid configuration. No policy redesign is required. See [Cloudflare JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
 
-Follow [the existing foundation setup guide](docs/per-user-flightlogger.md) and [Duty Ops migration/verification steps](docs/duty-ops.md). Production/preview resources are separate: do not expose production DB/key in an untrusted preview. Previews without required resources intentionally return 503. CI and Pages Git integration are preserved; no redundant deployment workflow.
+Follow [the existing foundation setup guide](docs/per-user-flightlogger.md) for runtime resources and [the release guide](docs/database-updates.md) for deployment. Previews without required resources intentionally return 503. After verified cutover, disable automatic Pages Git builds on the existing project; GitHub Actions owns release ordering. Keep the project, custom domain, Access and encrypted runtime secrets.
 
 If `/api/me` serves HTML, check repo root/output settings, deployed commit and Functions compilation. SPA fallback on an API URL means the route is missing, not an Access-policy problem. Keep `functions/` tracked. Root-only ignore `/API/` prevents the Streamlit reference folder from hiding `functions/api/` on Windows.
 
