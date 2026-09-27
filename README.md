@@ -4,6 +4,8 @@ An operational portal for pilot students. Instructor Availability, read-only Dut
 
 Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) is available with `duty_ops.view`. Additive migration `0006_duty_ops_effective_assignments.sql` is applied through the ordered release workflow; use `npm run db:migrate:local` for local development.
 
+[Flyvask](docs/flyvask.md) adds FlightLogger schedule discovery, effective Studentportal assignments, chained **direct swaps only**, and personal history. Meeting comments identify Flyvask; classroom is metadata. Migration `0007_flyvask.sql` grants `flyvask.view` and `flyvask.swap` to STUDENT/ADMIN and adds independent persistence. FlightLogger stays read-only.
+
 ## Deployment status
 
 After the [release automation setup](docs/database-updates.md), GitHub Actions owns deployment: merge to **develop** → tests/build → preview D1 migration → Pages preview; merge to **master** → tests/build → production D1 migration → Pages production. Each release uses one exact SHA. Tests/build or migration failure blocks deployment. Automatic releases default to disabled until `AUTO_RELEASE_PREVIEW` / `AUTO_RELEASE_PRODUCTION` are enabled and independent Pages Git deployments are turned off. Keep existing Git deployments during bootstrap; follow the guide's safe switch order. PR CI remains local; normal releases require no manual migration.
@@ -12,7 +14,7 @@ See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this 
 
 ## Architecture
 
-The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults to Duty Ops and Transport view. Review the authorization migration and bootstrap-secret setup before activating this branch.
+The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults include Duty Ops/Transport view, university car bookings, and Flyvask view/swaps. Explicit overrides remain authoritative.
 
 ```text
 Wix main website: luftfartsfag.no (unchanged)
@@ -50,11 +52,13 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/availability` | Working Instructor Availability |
 | `/duty-ops` | Effective Today/My shifts/Schedule and active exchanges |
 | `/duty-ops/swap-history` | Personal accepted exchange history |
+| `/flyvask` | My Flyvask, effective schedule and active direct swaps |
+| `/flyvask/swap-history` | Personal accepted Flyvask swap history |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Transport/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Transport/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Flyvask, Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 

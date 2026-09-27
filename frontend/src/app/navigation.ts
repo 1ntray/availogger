@@ -4,6 +4,7 @@ export const navigation = [
   { path: '/', label: 'Home', icon: 'home' },
   { path: '/duty-ops', label: 'Duty Ops', icon: 'duty', permission: PERMISSIONS.dutyOpsView },
   { path: '/transport', label: 'Transport', icon: 'transport', permission: PERMISSIONS.transportView },
+  { path: '/flyvask', label: 'Flyvask', icon: 'wash', permission: PERMISSIONS.flyvaskView },
   { path: '/availability', label: 'Availability', icon: 'calendar', permission: PERMISSIONS.availabilityView },
   { path: '/settings', label: 'Settings', icon: 'settings' },
   { path: '/admin/users', label: 'Admin', icon: 'account', permission: PERMISSIONS.adminManageUsers },

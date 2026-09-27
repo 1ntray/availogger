@@ -5,6 +5,8 @@ import { HomePage } from '../pages/HomePage';
 import AvailabilityPage from '../pages/AvailabilityPage';
 import { DutyOpsPage } from '../pages/DutyOpsPage';
 import { DutySwapHistoryPage } from '../pages/DutySwapHistoryPage';
+import { FlyvaskPage } from '../pages/FlyvaskPage';
+import { FlyvaskSwapHistoryPage } from '../pages/FlyvaskSwapHistoryPage';
 import { TransportPage } from '../pages/TransportPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { PwaProvider } from '../pwa/PwaProvider';
@@ -25,6 +27,10 @@ export function PortalRoutes() {
       <Route path="duty-ops/swap-history" element={<DutySwapHistoryPage />} />
     </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.transportView} />}><Route path="transport" element={<TransportPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.flyvaskView} />}>
+      <Route path="flyvask" element={<FlyvaskPage />} />
+      <Route path="flyvask/swap-history" element={<FlyvaskSwapHistoryPage />} />
+    </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.adminManageUsers} />}><Route path="admin/users" element={<AdminUsersPage />} /></Route>
     <Route path="settings" element={<SettingsPage />} />
     <Route path="*" element={<section><h1>Page not found</h1><Link className="action-link" to="/">Return home →</Link></section>} />

@@ -52,3 +52,19 @@ export const DUTY_OPS_QUERY = `
     }
   }
 `;
+
+export const FLYVASK_QUERY = `
+  query Flyvask($from: DateTime!, $to: DateTime!, $all: Boolean!, $after: String) {
+    bookings(from: $from, to: $to, all: $all, overlap: true, subtypes: [MEETING], first: 50, after: $after) {
+      nodes {
+        __typename
+        ... on MeetingBooking {
+          id startsAt endsAt status comment externalReference
+          classroom { id name }
+          participants { id firstName lastName }
+        }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;
