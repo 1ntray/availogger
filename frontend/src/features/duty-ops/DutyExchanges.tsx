@@ -3,6 +3,7 @@ import { useCurrentUser } from '../../app/CurrentUser';
 import { PERMISSIONS } from '../../../../shared/authorization';
 import { osloDate } from '../../dates';
 import { shiftLabel, userName } from './exchange-presentation';
+import { creditSign } from './credit-api';
 import type { DutyShift } from './types';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import './exchanges.css';
@@ -19,7 +20,7 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   return <button className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'create', shift })}>Exchange shift</button>;
 }
 
-export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void }) {
+export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, onBalanceChanged }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void }) {
   const { user } = useCurrentUser();
   const enabled = user?.permissions?.includes(PERMISSIONS.dutyOpsSwap) === true;
   const [data, setData] = useState<ExchangesResponse | null>(null);
@@ -37,11 +38,24 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: 
     const controller = new AbortController(); lifecycle.current++;
     setData(null); setError(''); setLoading(enabled);
     if (!enabled) setDialog(null);
-    if (enabled) loadExchanges(controller.signal).then(value => { if (!controller.signal.aborted) setData(value); })
+    let pending = false;
+    const update = async () => {
+      if (!enabled || pending || saving.current) return;
+      pending = true;
+      await loadExchanges(controller.signal).then(value => { if (!controller.signal.aborted) { setData(value); setError(''); } })
       .catch((cause: unknown) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not load exchanges.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => { controller.abort(); lifecycle.current++; };
+      pending = false;
+    };
+    void update();
+    const refreshVisible = () => { if (!document.hidden) void update(); };
+    const timer = window.setInterval(refreshVisible, 60_000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => { controller.abort(); lifecycle.current++; window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshVisible); };
   }, [enabled, refreshKey, version, today]);
+  useEffect(() => { if (data) onBalanceChanged?.(data.currentUserCreditBalance); }, [data, onBalanceChanged]);
+  const balance = data?.currentUserCreditBalance;
+  const atFloor = balance !== undefined && balance <= -2;
   useEffect(() => {
     if (dialog && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
   }, [dialog]);
@@ -52,7 +66,7 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: 
     saving.current = true; setBusy(true); setError(''); const generation = lifecycle.current;
     try {
       if (dialog.kind === 'create') {
-        if (!dialog.type) return;
+        if (!dialog.type || (dialog.type === 'GIVE_AWAY' && atFloor)) return;
         await saveExchange('', { type: dialog.type, shiftId: dialog.shift.id, startsAt: dialog.shift.startsAt, endsAt: dialog.shift.endsAt });
       } else {
         const root = `/${encodeURIComponent(dialog.request.id)}`;
@@ -81,9 +95,10 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: 
     const own = request.requester.id === data!.currentUserId;
     return <li key={request.id} className="exchange-row">
       <div className="exchange-row-heading"><strong>{request.type === 'GIVE_AWAY' ? 'Give away' : 'Swap request'}</strong>
-        <span>{!request.eligible ? 'No longer eligible' : 'Open'}</span></div>
+        <span>{!request.eligible ? 'Currently unavailable' : 'Open'}</span></div>
       <p className="exchange-time">{shiftLabel(request.requestedShift)}</p>
       <p className="exchange-note">Offered by {own ? 'you' : userName(request.requester)}</p>
+      {own && request.ineligibleReason === 'CREDIT_FLOOR' && <p className="exchange-note">Your balance must be above -2 before someone can take this shift. Cover another student’s shift to earn a credit.</p>}
       {request.status === 'OPEN' && <div className="exchange-actions">
         {own ? <button disabled={busy} onClick={() => open({ kind: 'cancel', request })}>Cancel request</button>
           : request.eligible && (request.type === 'GIVE_AWAY'
@@ -118,19 +133,21 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged }: 
       <h3 id="exchange-dialog-title">{dialog.kind === 'create' ? 'Exchange shift' : dialog.kind === 'accept' ? 'Confirm exchange' : dialog.kind === 'claim' ? 'Take this Duty Ops shift?' : dialog.kind === 'cancel' ? 'Cancel request?' : dialog.kind === 'withdraw' ? 'Withdraw offer?' : 'Offer one of my shifts'}</h3>
       <form onSubmit={e => { e.preventDefault(); void confirm(); }}>
         {dialog.kind === 'create' ? <><p className="exchange-time">{shiftLabel(dialog.shift)}</p><div className="exchange-choices">
-          <label><input type="radio" name="exchange-type" checked={dialog.type === 'GIVE_AWAY'} onChange={() => setDialog({ ...dialog, type: 'GIVE_AWAY' })} disabled={busy} />Give away</label>
+          <label><input type="radio" name="exchange-type" checked={dialog.type === 'GIVE_AWAY'} onChange={() => setDialog({ ...dialog, type: 'GIVE_AWAY' })} disabled={busy || atFloor} />Give away</label>
           <label><input type="radio" name="exchange-type" checked={dialog.type === 'DIRECT_SWAP'} onChange={() => setDialog({ ...dialog, type: 'DIRECT_SWAP' })} disabled={busy} />Look for swap</label>
-        </div>{dialog.type === 'GIVE_AWAY' && <p className="exchange-note">Publishing lets another student take this shift without another confirmation from you.</p>}</>
+        </div>{atFloor && <p className="exchange-note">Your balance is {creditSign(balance!)}. Cover another student’s shift to earn a credit before giving away a shift. Your balance must be above -2. Direct swaps remain available.</p>}
+        {dialog.type === 'GIVE_AWAY' && <><p className="exchange-note">Publishing lets another student take this shift without another confirmation from you.</p><p className="exchange-note">When someone takes your shift, you spend 1 credit: {creditSign(balance!)} → {creditSign(balance! - 1)}.</p></>}</>
           : dialog.kind === 'accept' ? <><p><strong>Your shift</strong><br />{shiftLabel(dialog.request.requestedShift)}</p>
             <p><strong>{userName(dialog.proposal.proposer)}’s shift</strong><br />{shiftLabel(dialog.proposal.offeredShift)}</p>
             <p className="exchange-note">Agreed in Studentportal. FlightLogger is not updated automatically.</p></>
           : <><p className="exchange-time">{shiftLabel(dialog.kind === 'withdraw' ? dialog.proposal.offeredShift : dialog.request.requestedShift)}</p>
+            {dialog.kind === 'claim' && <p className="exchange-note">Taking this shift earns you 1 credit: {creditSign(balance!)} → {creditSign(balance! + 1)}.</p>}
             {dialog.kind === 'propose' && <label className="exchange-select">Your shift<select value={offeredId} onChange={e => setOfferedId(e.target.value)} disabled={busy} required>
               <option value="">Choose a shift</option>{eligible.filter(s => s.id !== dialog.request.requestedShift.id).map(s => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
             </select></label>}</>}
         {error && <p role="alert" className="duty-alert">{error}</p>}
         <div className="exchange-actions"><button type="button" disabled={busy} onClick={() => setDialog(null)}>Back</button>
-          <button type="submit" disabled={busy || (dialog.kind === 'create' && !dialog.type) || (dialog.kind === 'propose' && !offeredId)}>
+          <button type="submit" disabled={busy || (dialog.kind === 'create' && (!dialog.type || (dialog.type === 'GIVE_AWAY' && atFloor))) || (dialog.kind === 'propose' && !offeredId)}>
             {busy ? 'Saving…' : dialog.kind === 'create' ? 'Publish request' : dialog.kind === 'accept' ? 'Confirm exchange' : dialog.kind === 'claim' ? 'Take shift' : dialog.kind === 'cancel' ? 'Cancel request' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Offer shift'}
           </button></div>
       </form>

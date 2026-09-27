@@ -1,4 +1,5 @@
 import { activeReservations, effectiveAssignments } from './effective-assignments';
+import { creditAboveFloor, creditSummary, coverageTransfer, reconcileCoverage, reconcileCoverageStatement } from './credits';
 import { ApplicationError } from '../application-error';
 import type { ApplicationUser } from '../users';
 import type { ExchangeRequest, ExchangeProposal, ExchangesResponse, ExchangeType, RequestStatus, ProposalStatus } from '../../shared/duty-ops-swaps';
@@ -32,16 +33,23 @@ export function exchangeId(value: unknown): string {
   return value;
 }
 const conflict = () => new ApplicationError('This exchange changed or the shift is no longer eligible. Reload Duty Ops.', 409, 'EXCHANGE_CONFLICT');
-async function transaction(db: D1Database, actor: ApplicationUser, predicate: string, values: (string | number | null)[], writes: D1PreparedStatement[]) {
+type CreditGuard = { userExpression: string; value: string; own: boolean };
+async function transaction(db: D1Database, actor: ApplicationUser, predicate: string, values: (string | number | null)[], writes: D1PreparedStatement[], credit?: CreditGuard) {
   try {
     await db.batch([
+      ...(credit ? [reconcileCoverageStatement(db)] : []),
       db.prepare(`UPDATE duty_ops_swap_state SET revision = CASE WHEN
         EXISTS (SELECT 1 FROM effective_user_permissions WHERE user_id = ? AND permission_key = 'duty_ops.swap')
         AND (${predicate}) THEN revision + 1 ELSE -1 END WHERE id = 1`).bind(actor.id, ...values),
+      ...(credit ? [db.prepare(`UPDATE duty_ops_credit_state SET revision = CASE WHEN ${creditAboveFloor(credit.userExpression)}
+        THEN revision + 1 ELSE -1 END WHERE id = 1`).bind(credit.value)] : []),
       db.prepare("DELETE FROM duty_ops_swap_reservations WHERE request_id IN (SELECT id FROM duty_ops_swap_requests WHERE status <> 'OPEN')"),
       ...writes,
     ]);
   } catch (cause) {
+    if (cause instanceof Error && cause.message.includes('duty_ops_credit_floor')) throw new ApplicationError(
+      credit?.own ? 'Cover another student’s shift to earn a credit before giving away another shift. Your credit balance must be above -2.'
+        : 'This give-away is currently unavailable. Reload Duty Ops.', 409, 'DUTY_OPS_CREDIT_FLOOR');
     if (cause instanceof Error && (cause.message.includes('duty_ops_swap_guard') ||
         cause.message.includes('UNIQUE constraint failed: duty_ops_swap_reservations') ||
         cause.message.includes('UNIQUE constraint failed: duty_ops_swap_proposals'))) throw conflict();
@@ -66,7 +74,7 @@ export async function createExchange(db: D1Database, actor: ApplicationUser, shi
         SELECT ?, ?, id, starts_at, ends_at, ?, 'OPEN', ?, ? FROM duty_ops_shifts WHERE id = ?`)
         .bind(id, actor.id, type, now, now, shiftId),
       reservation(db, actor.id, shiftId, id), event(db, id, actor, 'REQUEST_CREATED', now),
-    ]);
+    ], type === 'GIVE_AWAY' ? { userExpression: '?', value: actor.id, own: true } : undefined);
   return { id };
 }
 export async function claimGiveAway(db: D1Database, actor: ApplicationUser, id: string) {
@@ -80,8 +88,10 @@ export async function claimGiveAway(db: D1Database, actor: ApplicationUser, id: 
       db.prepare(`UPDATE duty_ops_swap_requests SET status = 'ACCEPTED', accepted_by_user_id = ?, accepted_at = ${acceptedTimestamp}, updated_at = ?
         WHERE id = ? AND status = 'OPEN'`).bind(actor.id, now, now, id),
       db.prepare('DELETE FROM duty_ops_swap_reservations WHERE request_id = ?').bind(id),
-      event(db, id, actor, 'GIVE_AWAY_CLAIMED', now),
-    ]);
+      coverageTransfer(db, id),
+      db.prepare(`INSERT INTO duty_ops_swap_events SELECT ?, id, ?, 'GIVE_AWAY_CLAIMED', NULL, accepted_at
+        FROM duty_ops_swap_requests WHERE id = ?`).bind(crypto.randomUUID(), actor.id, id),
+    ], { userExpression: '(SELECT requester_user_id FROM duty_ops_swap_requests WHERE id = ?)', value: id, own: false });
   return { id };
 }
 export async function createProposal(db: D1Database, actor: ApplicationUser, id: string, shiftId: string, expected: { startsAt: string; endsAt: string }) {
@@ -164,9 +174,11 @@ export async function listExchanges(db: D1Database, actor: ApplicationUser, curs
     }
     before = parts[0]; beforeId = exchangeId(parts[1]);
   }
+  await reconcileCoverage(db);
   const requests = await db.prepare(`SELECT r.*, u.flightlogger_first_name AS first_name, u.flightlogger_last_name AS last_name,
     v.flightlogger_first_name AS accepted_first_name, v.flightlogger_last_name AS accepted_last_name,
-    ${requestedEligible} AND ${requestReservation} AS eligible
+    ${requestedEligible} AND ${requestReservation} AS eligible,
+    r.type = 'GIVE_AWAY' AND NOT (${creditAboveFloor('r.requester_user_id')}) AS credit_blocked
     FROM duty_ops_swap_requests r JOIN users u ON u.id = r.requester_user_id LEFT JOIN users v ON v.id = r.accepted_by_user_id
     WHERE r.status = 'OPEN' AND (r.requester_user_id = ? OR r.accepted_by_user_id = ? OR
       EXISTS (SELECT 1 FROM duty_ops_swap_proposals p WHERE p.request_id = r.id AND p.proposer_user_id = ? AND p.status = 'OPEN') OR
@@ -188,11 +200,12 @@ export async function listExchanges(db: D1Database, actor: ApplicationUser, curs
   const normalized: ExchangeRequest[] = page.map(r => ({ id: r.id as string, type: r.type as ExchangeType, status: r.status as RequestStatus,
     requester: person(r.requester_user_id, r.first_name, r.last_name), requestedShift: { id: r.requested_shift_id as string | null, startsAt: r.requested_starts_at as string, endsAt: r.requested_ends_at as string },
     acceptedBy: r.accepted_by_user_id ? person(r.accepted_by_user_id, r.accepted_first_name, r.accepted_last_name) : null,
-    acceptedProposalId: r.accepted_proposal_id as string | null, createdAt: r.created_at as string, acceptedAt: r.accepted_at as string | null, eligible: !!r.eligible,
+    acceptedProposalId: r.accepted_proposal_id as string | null, createdAt: r.created_at as string, acceptedAt: r.accepted_at as string | null, eligible: !!r.eligible && !r.credit_blocked,
+    ineligibleReason: r.requester_user_id === actor.id && r.eligible && r.credit_blocked ? 'CREDIT_FLOOR' : null,
     proposals: proposals.filter(p => p.request_id === r.id).map(p => ({ id: p.id as string, status: p.status as ProposalStatus,
       proposer: person(p.proposer_user_id, p.first_name, p.last_name), offeredShift: { id: p.offered_shift_id as string | null, startsAt: p.offered_starts_at as string, endsAt: p.offered_ends_at as string },
       createdAt: p.created_at as string, eligible: !!p.eligible } satisfies ExchangeProposal)) }));
   const last = page.at(-1);
-  return { currentUserId: actor.id, requests: normalized, lockedShiftIds: (result[1].results as { shift_id: string }[]).map(r => r.shift_id),
+  return { currentUserId: actor.id, currentUserCreditBalance: (await creditSummary(db, actor)).balance, requests: normalized, lockedShiftIds: (result[1].results as { shift_id: string }[]).map(r => r.shift_id),
     nextCursor: requests.results.length > 30 && last ? `${last.created_at}|${last.id}` : null };
 }

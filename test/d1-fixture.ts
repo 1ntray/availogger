@@ -30,10 +30,23 @@ export async function applyAuthorizationMigration(db: D1Database) {
   const authorization = readFileSync(new URL('../migrations/0003_authorization.sql', import.meta.url), 'utf8');
   await db.batch(authorization.split('-- statement-breakpoint').map(sql => db.prepare(sql.trim())));
 }
+export async function applyTestMigration(db: D1Database, file: string) {
+  const sql = readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
+  await db.batch(sql.split('-- statement-breakpoint').filter(part => part.trim()).map(part => db.prepare(part)));
+}
 
 export async function grantAvailability(db: D1Database, userId: string) {
   await db.prepare(`INSERT INTO user_permission_overrides (user_id, permission_key, effect, created_at, updated_at)
     VALUES (?, 'availability.view', 'ALLOW', 'test', 'test')`).bind(userId).run();
+}
+
+// Fixture maintenance only. Production ledger records remain append-only.
+export async function resetCreditLedger(db: D1Database) {
+  await db.batch([
+    db.prepare('DROP TRIGGER duty_ops_credits_immutable_delete'),
+    db.prepare('DELETE FROM duty_ops_credit_transactions'),
+    db.prepare("CREATE TRIGGER duty_ops_credits_immutable_delete BEFORE DELETE ON duty_ops_credit_transactions BEGIN SELECT RAISE(ABORT, 'duty_ops_credits_immutable'); END"),
+  ]);
 }
 
 export async function seedCredential(db: D1Database, subject = 'student-id', token = 'test-token', email = 'student@example.test', id = 'fl-student') {

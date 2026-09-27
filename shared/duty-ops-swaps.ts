@@ -11,9 +11,10 @@ export interface ExchangeRequest {
   id: string; type: ExchangeType; status: RequestStatus; requester: ExchangeUser;
   requestedShift: ExchangeShift; acceptedBy: ExchangeUser | null; acceptedProposalId: string | null;
   createdAt: string; acceptedAt: string | null; proposals: ExchangeProposal[]; eligible: boolean;
+  ineligibleReason: 'CREDIT_FLOOR' | null;
 }
 export interface ExchangesResponse {
-  currentUserId: string; requests: ExchangeRequest[]; lockedShiftIds: string[]; nextCursor: string | null;
+  currentUserId: string; currentUserCreditBalance: number; requests: ExchangeRequest[]; lockedShiftIds: string[]; nextCursor: string | null;
 }
 export interface ExchangeHistoryEntry {
   id: string; type: ExchangeType; counterparty: ExchangeUser;

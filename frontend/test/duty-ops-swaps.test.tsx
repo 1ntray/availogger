@@ -17,14 +17,14 @@ const own: DutyShift = { id: 'own', startsAt: '2026-09-28T05:00:00.000Z', endsAt
 const anna = { id: 'anna', firstName: 'Anna', lastName: 'Student' }, erik = { id: 'erik', firstName: 'Erik', lastName: 'Student' };
 const offered = { id: 'anna-shift', startsAt: '2026-09-29T10:00:00.000Z', endsAt: '2026-09-29T16:00:00.000Z' };
 const makeRequest = (changes: Partial<ExchangeRequest> = {}): ExchangeRequest => ({ id: 'request', type: 'GIVE_AWAY', status: 'OPEN', requester: anna,
-  requestedShift: offered, acceptedBy: null, acceptedProposalId: null, createdAt: '2026-09-27T07:00:00.000Z', acceptedAt: null, proposals: [], eligible: true, ...changes });
+  requestedShift: offered, acceptedBy: null, acceptedProposalId: null, createdAt: '2026-09-27T07:00:00.000Z', acceptedAt: null, proposals: [], eligible: true, ineligibleReason: null, ...changes });
 const makeProposal = (changes: Partial<ExchangeProposal> = {}): ExchangeProposal => ({ id: 'proposal', proposer: anna, offeredShift: offered, status: 'OPEN', createdAt: '2026-09-27T07:00:00.000Z', eligible: true, ...changes });
 let data: ExchangesResponse, host: HTMLDivElement, root: Root;
 let writes: { path: string; body: Record<string, unknown> }[];
 let fetcher: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   permissions = ['duty_ops.view', 'duty_ops.swap'];
-  data = { currentUserId: 'me', requests: [], lockedShiftIds: [], nextCursor: null }; writes = [];
+  data = { currentUserId: 'me', currentUserCreditBalance: 0, requests: [], lockedShiftIds: [], nextCursor: null }; writes = [];
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   // jsdom does not implement the native dialog API. Browser QA checks real dialogs.
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); } });
@@ -43,7 +43,7 @@ beforeEach(() => {
   });
   vi.stubGlobal('fetch', fetcher);
 });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 async function render(shifts = [own]) {
   await act(async () => root.render(<DutyExchanges now={now} shifts={shifts} refreshKey={0}>
     <ShiftList shifts={shifts} showDate renderAction={shift => <ExchangeShiftActions shift={shift} />} />
@@ -60,6 +60,36 @@ async function selectType(type: 'GIVE_AWAY' | 'DIRECT_SWAP') {
 }
 
 describe('Duty Ops shift exchange UI', () => {
+  it.each([-2, -3])('disables give-away at balance %s and keeps direct swaps usable', async balance => {
+    data.currentUserCreditBalance = balance; await render(); await click('Exchange shift');
+    expect(dialog().querySelector<HTMLInputElement>('input')!.disabled).toBe(true);
+    expect(dialog().textContent).toContain('Cover another student’s shift');
+    await selectType('DIRECT_SWAP'); await click('Publish request', dialog());
+    expect(writes[0].body.type).toBe('DIRECT_SWAP');
+  });
+  it.each([0, -1, 2])('explains the predicted debit from balance %s', async balance => {
+    data.currentUserCreditBalance = balance; await render(); await click('Exchange shift'); await selectType('GIVE_AWAY');
+    const sign = (n: number) => n > 0 ? `+${n}` : String(n);
+    expect(dialog().textContent).toContain(`${sign(balance)} → ${sign(balance - 1)}`);
+  });
+  it('allows earning at the floor and explains the predicted credit', async () => {
+    data.currentUserCreditBalance = -2; data.requests = [makeRequest()]; await render(); await click('Take shift');
+    expect(dialog().textContent).toContain('-2 → -1'); await click('Take shift', dialog()); expect(writes).toHaveLength(1);
+  });
+  it('explains a blocked owner request without revealing an exact counterparty balance', async () => {
+    data.requests = [makeRequest({ requester: { id: 'me', firstName: null, lastName: null }, eligible: false, ineligibleReason: 'CREDIT_FLOOR' })];
+    await render(); expect(host.textContent).toContain('Your balance must be above -2');
+    expect(host.textContent).toContain('Currently unavailable'); await click('Cancel request'); await click('Cancel request', dialog());
+  });
+  it('refreshes the overview balance after another student claims a shift', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const changed = vi.fn();
+    await act(async () => root.render(<DutyExchanges shifts={[own]} now={now} refreshKey={0} onBalanceChanged={changed}>Overview</DutyExchanges>));
+    expect(changed).toHaveBeenLastCalledWith(0);
+    data = { ...data, currentUserCreditBalance: -1 };
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(changed).toHaveBeenLastCalledWith(-1);
+  });
   it('has no controls or exchange fetch without swap permission', async () => {
     permissions = ['duty_ops.view']; await render();
     expect(host.textContent).not.toContain('Exchange shift'); expect(host.textContent).not.toContain('Shift exchange');

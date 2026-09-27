@@ -5,6 +5,7 @@ import { HomePage } from '../pages/HomePage';
 import AvailabilityPage from '../pages/AvailabilityPage';
 import { DutyOpsPage } from '../pages/DutyOpsPage';
 import { DutySwapHistoryPage } from '../pages/DutySwapHistoryPage';
+import { DutyCreditsPage } from '../pages/DutyCreditsPage';
 import { FlyvaskPage } from '../pages/FlyvaskPage';
 import { FlyvaskSwapHistoryPage } from '../pages/FlyvaskSwapHistoryPage';
 import { TransportPage } from '../pages/TransportPage';
@@ -25,6 +26,7 @@ export function PortalRoutes() {
     <Route element={<RequirePermission permission={PERMISSIONS.dutyOpsView} />}>
       <Route path="duty-ops" element={<DutyOpsPage />} />
       <Route path="duty-ops/swap-history" element={<DutySwapHistoryPage />} />
+      <Route path="duty-ops/credits" element={<DutyCreditsPage />} />
     </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.transportView} />}><Route path="transport" element={<TransportPage />} /></Route>
     <Route element={<RequirePermission permission={PERMISSIONS.flyvaskView} />}>
