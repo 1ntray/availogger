@@ -6,7 +6,7 @@ import { resolveApplicationUser } from '../backend/users';
 // Public deterministic key for tests only. Never a local/production secret.
 export const testEncryptionKey = btoa(String.fromCharCode(...new Uint8Array(32).fill(42)));
 
-export async function createTestDatabase(initializeAuthorization = true) {
+export async function createTestDatabase(initializeAuthorization = true, throughMigration?: string) {
   const runtime = new Miniflare(convertV4MiniflareOptions({
     telemetry: { enabled: false },
     modules: true, script: 'export default { fetch() { return new Response("test"); } }',
@@ -15,6 +15,7 @@ export async function createTestDatabase(initializeAuthorization = true) {
   const db = await runtime.getD1Database('DB') as unknown as D1Database;
   const directory = new URL('../migrations/', import.meta.url);
   for (const file of readdirSync(directory).filter(file => file.endsWith('.sql')).sort()) {
+    if (throughMigration && file > throughMigration) continue;
     if (!initializeAuthorization && file >= '0003') continue;
     const schema = readFileSync(new URL(file, directory), 'utf8');
     // Trigger bodies contain semicolons; preserve the explicit SQL boundaries.

@@ -1,3 +1,4 @@
+import { readAssignmentStates, type DutyParticipant } from './effective-assignments';
 import { ApplicationError } from '../application-error';
 import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
 import type { DutyMeeting, FlightLoggerProfile } from '../flightlogger/duty-ops';
@@ -9,12 +10,12 @@ export const DUTY_OPS_TTL_MS = 5 * 60 * 1000;
 export const DUTY_OPS_MAX_REQUESTS = 30;
 type SyncState = { scope: string; window_from: string; window_to: string; token_hash: string | null; last_synced_at: string };
 type ShiftRow = { id: string; starts_at: string; ends_at: string; status: string; participant_count: number };
-type ParticipantRow = { shift_id: string; user_id: string; flightlogger_user_id: string; flightlogger_first_name: string | null; flightlogger_last_name: string | null };
 const pending = new WeakMap<D1Database, Map<string, Promise<DutyOpsResponse>>>();
 export interface DutyOpsResponse {
   from: string; to: string; timeZone: 'Europe/Oslo';
   shifts: { id: string; startsAt: string; endsAt: string; status: string; participantCount: number;
-    participants: { userId: string; firstName: string | null; lastName: string | null; isCurrentUser: boolean }[] }[];
+    participants: DutyParticipant[];
+    flightlogger: { participantCount: number; participants: DutyParticipant[] }; assignmentsDiffer: boolean }[];
   sync: { stale: boolean; warning: string | null; discovery: SyncMetadata; assignments: SyncMetadata };
 }
 type SyncMetadata = { lastSyncedAt: string; stale: boolean; from: string; to: string };
@@ -123,23 +124,12 @@ async function syncAndRead(db: D1Database, user: ApplicationUser, token: string,
   if (failure) warning = 'Refresh failed. Showing previously synchronized Duty Ops data.';
   const rows = await db.prepare(`SELECT id, starts_at, ends_at, status, participant_count FROM duty_ops_shifts
     WHERE starts_at < ? AND ends_at > ? ORDER BY starts_at, id`).bind(window.endsAt, window.startsAt).all<ShiftRow>();
-  const participants = await db.prepare(`SELECT a.shift_id, a.user_id, u.flightlogger_user_id,
-    u.flightlogger_first_name, u.flightlogger_last_name FROM duty_ops_assignments a JOIN users u ON u.id = a.user_id
-    JOIN duty_ops_shifts s ON s.id = a.shift_id WHERE s.starts_at < ? AND s.ends_at > ?
-    ORDER BY u.flightlogger_first_name, u.flightlogger_last_name, u.id`).bind(window.endsAt, window.startsAt).all<ParticipantRow>();
-  const byShift = new Map<string, Map<string, ParticipantRow>>();
-  for (const p of participants.results) {
-    const group = byShift.get(p.shift_id) ?? new Map<string, ParticipantRow>();
-    // One FlightLogger identity is one participant, even with multiple Access subjects.
-    if (!group.has(p.flightlogger_user_id) || p.user_id === user.id) group.set(p.flightlogger_user_id, p);
-    byShift.set(p.shift_id, group);
-  }
+  const assignmentState = await readAssignmentStates(db, rows.results.map(s => s.id), user.id);
   const metadata = (s: SyncState): SyncMetadata => ({ lastSyncedAt: s.last_synced_at, stale: !fresh(s, window), from: s.window_from, to: s.window_to });
   const discovery = metadata(state.global!);
   const assignments = metadata(state.own!);
   return { from: window.from, to: window.to, timeZone: 'Europe/Oslo',
-    shifts: rows.results.map(s => ({ id: s.id, startsAt: s.starts_at, endsAt: s.ends_at, status: s.status, participantCount: s.participant_count,
-      participants: [...(byShift.get(s.id)?.values() ?? [])].map(p => ({ userId: p.user_id, firstName: p.flightlogger_first_name, lastName: p.flightlogger_last_name, isCurrentUser: p.user_id === user.id })) })),
+    shifts: rows.results.map(s => ({ id: s.id, startsAt: s.starts_at, endsAt: s.ends_at, status: s.status, ...assignmentState(s.id, s.participant_count) })),
     sync: { stale: discovery.stale || assignments.stale || !!warning, warning, discovery, assignments } };
 }
 

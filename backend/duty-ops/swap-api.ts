@@ -7,10 +7,11 @@ import { requireSameOrigin } from '../same-origin';
 import { PERMISSIONS } from '../../shared/authorization';
 import { loadDutyOps } from './service';
 import { dutyWindow } from './window';
+import { listSwapHistory } from './swap-history';
 import { acceptProposal, cancelExchange, claimGiveAway, createExchange, createProposal, exchangeId, listExchanges, withdrawProposal } from './swaps';
 
 type Context = { request: Request; env: PagesEnv; data: AccessData; params: Record<string, string | string[]> };
-type Action = 'requests' | 'claim' | 'cancel' | 'propose' | 'accept' | 'withdraw';
+type Action = 'requests' | 'history' | 'claim' | 'cancel' | 'propose' | 'accept' | 'withdraw';
 const invalid = () => new ApplicationError('Submit only the required exchange fields.', 400, 'INVALID_EXCHANGE');
 async function body(request: Request, fields: string[]) {
   requireSameOrigin(request);
@@ -37,13 +38,14 @@ async function body(request: Request, fields: string[]) {
   return parsed as Record<string, unknown>;
 }
 export function exchangeEndpoint(context: Context, action: Action): Promise<Response> | Response {
-  const list = action === 'requests' && context.request.method === 'GET';
+  const list = (action === 'requests' || action === 'history') && context.request.method === 'GET';
+  if (action === 'history' && !list) return methodNotAllowed('GET');
   if (!list && context.request.method !== 'POST') return methodNotAllowed(action === 'requests' ? 'GET, POST' : 'POST');
   return withAuthorizedUser(context, list ? PERMISSIONS.dutyOpsView : PERMISSIONS.dutyOpsSwap, async (db, user) => {
     if (list) {
       const url = new URL(context.request.url);
       if ([...url.searchParams.keys()].some(key => key !== 'cursor') || url.searchParams.getAll('cursor').length > 1) throw invalid();
-      return json(await listExchanges(db, user, url.searchParams.get('cursor')));
+      return json(action === 'history' ? await listSwapHistory(db, user, url.searchParams.get('cursor')) : await listExchanges(db, user, url.searchParams.get('cursor')));
     }
     const fields = action === 'requests' ? ['type', 'shiftId', 'startsAt', 'endsAt'] : action === 'propose' ? ['shiftId', 'startsAt', 'endsAt'] : [];
     const submitted = await body(context.request, fields);

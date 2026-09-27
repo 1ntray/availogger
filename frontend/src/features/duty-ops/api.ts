@@ -4,14 +4,17 @@ import type { DutyOpsData } from './types';
 const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const time = (v: unknown) => typeof v === 'string' && Number.isFinite(Date.parse(v));
 const name = (v: unknown) => v === null || typeof v === 'string';
+const participants = (v: unknown) => Array.isArray(v) && v.every(p => object(p) && typeof p.userId === 'string' && name(p.firstName) && name(p.lastName) && typeof p.isCurrentUser === 'boolean');
+const count = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
 export function isDutyOpsData(value: unknown): value is DutyOpsData {
   if (!object(value) || typeof value.from !== 'string' || typeof value.to !== 'string' || value.timeZone !== 'Europe/Oslo' || !Array.isArray(value.shifts) || !object(value.sync)) return false;
   const sync = value.sync;
   if (typeof sync.stale !== 'boolean' || !name(sync.warning)) return false;
   for (const s of [sync.discovery, sync.assignments]) if (!object(s) || !time(s.lastSyncedAt) || typeof s.stale !== 'boolean' || !time(s.from) || !time(s.to)) return false;
   return value.shifts.every(s => object(s) && typeof s.id === 'string' && time(s.startsAt) && time(s.endsAt) && Date.parse(s.startsAt as string) < Date.parse(s.endsAt as string) &&
-    ['OPEN', 'CANCELLED', 'COMPLETED', 'PARTIALLY_COMPLETED'].includes(s.status as string) && Number.isInteger(s.participantCount) && (s.participantCount as number) >= 0 && Array.isArray(s.participants) &&
-    s.participants.every(p => object(p) && typeof p.userId === 'string' && name(p.firstName) && name(p.lastName) && typeof p.isCurrentUser === 'boolean'));
+    ['OPEN', 'CANCELLED', 'COMPLETED', 'PARTIALLY_COMPLETED'].includes(s.status as string) && count(s.participantCount) && participants(s.participants) &&
+    ((s.flightlogger === undefined && s.assignmentsDiffer === undefined) ||
+      (typeof s.assignmentsDiffer === 'boolean' && object(s.flightlogger) && count(s.flightlogger.participantCount) && participants(s.flightlogger.participants))));
 }
 export async function loadDutyOps(signal: AbortSignal): Promise<DutyOpsData> {
   let response: Response;

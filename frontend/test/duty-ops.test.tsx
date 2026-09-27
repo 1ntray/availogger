@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router';
 // @vitest-environment jsdom
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -80,7 +81,7 @@ describe('Duty Ops page', () => {
   it('renders compact sections and own highlights, retains stale data and reloads on demand', async () => {
     const fetcher = vi.fn(async () => Response.json({ ...data, sync: { ...data.sync, stale: true, warning: 'Refresh failed. Showing previous data.' } }));
     vi.stubGlobal('fetch', fetcher);
-    await act(async () => root.render(<DutyOpsPage />));
+    await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
     expect(host.querySelector('h1')!.textContent).toBe('Duty Ops');
     expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['Today', 'My shifts', 'Schedule']);
     expect(host.textContent).toContain('Simon · 2 others'); expect(host.textContent).toContain('07:00–14:00');
@@ -92,14 +93,14 @@ describe('Duty Ops page', () => {
   it('shows restrained empty states and safe failures', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ ...data, shifts: [] })).mockResolvedValueOnce(Response.json({ error: 'Duty Ops unavailable' }, { status: 503 }));
     vi.stubGlobal('fetch', fetcher);
-    await act(async () => root.render(<DutyOpsPage />));
+    await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
     expect(host.textContent).toContain('Nothing scheduled'); expect(host.textContent).toContain('No upcoming shifts');
     await act(async () => host.querySelector('button')!.click());
     expect(host.querySelector('[role=alert]')!.textContent).toBe('Duty Ops unavailable');
   });
   it('refreshes current user if the backend requires onboarding', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 'ONBOARDING_REQUIRED' }, { status: 409 })));
-    await act(async () => root.render(<DutyOpsPage />));
+    await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

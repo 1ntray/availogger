@@ -4,6 +4,7 @@ import { CurrentUserProvider } from './CurrentUser';
 import { HomePage } from '../pages/HomePage';
 import AvailabilityPage from '../pages/AvailabilityPage';
 import { DutyOpsPage } from '../pages/DutyOpsPage';
+import { DutySwapHistoryPage } from '../pages/DutySwapHistoryPage';
 import { TransportPage } from '../pages/TransportPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { PwaProvider } from '../pwa/PwaProvider';
@@ -19,7 +20,10 @@ export function PortalRoutes() {
     <Route element={<RequireFlightLogger />}><Route element={<AppShell />}>
     <Route index element={<HomePage />} />
     <Route element={<RequirePermission permission={PERMISSIONS.availabilityView} />}><Route path="availability" element={<AvailabilityPage />} /></Route>
-    <Route element={<RequirePermission permission={PERMISSIONS.dutyOpsView} />}><Route path="duty-ops" element={<DutyOpsPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.dutyOpsView} />}>
+      <Route path="duty-ops" element={<DutyOpsPage />} />
+      <Route path="duty-ops/swap-history" element={<DutySwapHistoryPage />} />
+    </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.transportView} />}><Route path="transport" element={<TransportPage />} /></Route>
     <Route element={<RequirePermission permission={PERMISSIONS.adminManageUsers} />}><Route path="admin/users" element={<AdminUsersPage />} /></Route>
     <Route path="settings" element={<SettingsPage />} />
