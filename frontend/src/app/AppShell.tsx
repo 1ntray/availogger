@@ -25,11 +25,11 @@ export function AppShell() {
     <a className="skip-link" href="#portal-content">Skip to content</a>
     <header className="portal-header">
       <Link className="brand" to="/" aria-label="Luftfartsfag Studentportal home"><span className="brand-mark">LF</span><div><strong>Luftfartsfag</strong><span>Studentportal</span></div></Link>
-      <span className="current-user" title={user?.email}>{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</span>
+      <span className="current-user" title={user?.email}><Icon name="account" /><span className="account-identity">{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</span></span>
     </header>
-    <aside className="sidebar"><p className="nav-heading">Student operations</p><nav aria-label="Main navigation">{navigation.map(item =>
+    <aside className="sidebar"><nav aria-label="Main navigation">{navigation.map(item =>
       <NavLink key={item.path} to={item.path} end={item.path === '/'}><Icon name={item.icon} /><span>{item.label}</span></NavLink>
-    )}</nav><p className="sidebar-footer">Luftfartsfag<br /><span>Studentportal</span></p></aside>
+    )}</nav></aside>
     <main className="portal-content" id="portal-content" ref={content} tabIndex={-1}>
       {error && <div className="account-error" role="alert"><span>{error}</span><button onClick={retry}>Retry account</button></div>}
       <Outlet />
