@@ -39,6 +39,33 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('mandatory FlightLogger onboarding', () => {
+  it('provides the API key setup guide and a new-tab link while retaining the credential form', async () => {
+    await render('/onboarding');
+    expect(host.querySelector('h1')!.textContent).toBe('Connect FlightLogger');
+    const link = host.querySelector<HTMLAnchorElement>('.onboarding-guide a')!;
+    expect(link.textContent).toBe('Open FlightLogger API keys');
+    expect(link.href).toBe('https://my.flightlogger.net/my/api_keys');
+    expect(link.target).toBe('_blank');
+    expect(link.rel.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']));
+    const steps = [...host.querySelectorAll('.onboarding-guide > li')].map(li => li.textContent);
+    expect(steps).toHaveLength(7);
+    expect(steps[1]).toContain('Create key');
+    expect(steps[2]).toContain('any name');
+    expect(steps[2]).toContain('Studentportal');
+    expect(steps[3]).toContain('Global is not checked');
+    expect(steps[3]).toContain('No expiry is checked');
+    expect(steps[4]).toBe('Click Create.');
+    expect(steps[5]).toContain('Copy the API key');
+    expect(steps[6]).toContain('paste the key below');
+    const input = host.querySelector<HTMLInputElement>('input[name="flightlogger-api-key"]')!;
+    expect(input.type).toBe('password');
+    expect(input.required).toBe(true);
+    expect(host.querySelector(`label[for="${input.id}"]`)!.textContent).toBe('FlightLogger API key');
+    expect(document.getElementById(input.getAttribute('aria-describedby')!)!.textContent).toBe('Your API key is stored securely and is only used by Studentportal to access your FlightLogger data.');
+    expect(button('Connect FlightLogger').disabled).toBe(true);
+    expect(host.textContent).not.toContain('API reference');
+    expect(host.textContent).not.toContain('Help Center');
+  });
   it.each(['/', '/availability', '/duty-ops', '/transport', '/settings'])('redirects an incomplete user from %s', async path => {
     await render(path);
     expect(host.querySelector('output')!.textContent).toBe('/onboarding');

@@ -28,7 +28,7 @@ export function CredentialForm({ replacement = false, onCancel }: { replacement?
     <label htmlFor={field}>FlightLogger API key</label>
     <input id={field} name="flightlogger-api-key" type="password" value={apiKey} onChange={event => setApiKey(event.target.value)}
       autoComplete="off" autoCapitalize="none" spellCheck={false} required maxLength={4096} disabled={busy} aria-describedby={`${field}-security`} />
-    <p id={`${field}-security`} className="small-note">Your API key is validated server-side and stored encrypted.</p>
+    <p id={`${field}-security`} className="small-note">Your API key is stored securely and is only used by Studentportal to access your FlightLogger data.</p>
     {error && <p className="credential-error" role="alert">{error}</p>}
     <div className="credential-actions"><button className="primary-button" disabled={busy || !apiKey.trim()}>{busy ? 'Verifying connection…' : replacement ? 'Replace API key' : 'Connect FlightLogger'}</button>
       {onCancel && <button type="button" className="refresh-button" onClick={onCancel} disabled={busy}>Cancel</button>}</div>
