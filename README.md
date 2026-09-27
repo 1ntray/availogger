@@ -2,6 +2,8 @@
 
 An operational portal for pilot students. Instructor Availability, read-only Duty Ops and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
 
+Duty Ops also supports give-away and direct-swap agreements with `duty_ops.swap`. These record agreement in Studentportal; FlightLogger assignments remain unchanged. Apply new migration `0004_duty_ops_swaps.sql` to local/preview before testing. See [Duty Ops shift exchange](docs/duty-ops-swaps.md).
+
 ## Deployment status
 
 Production `master` auto-deploys Pages. The `develop` branch includes read-only Duty Ops and D1 authorization; UI pull requests target **develop**, not master. CI checks pushes to both `master` and `develop`, plus pull requests. Required migrations (`0002_duty_ops.sql` and `0003_authorization.sql`) must be applied to the target database before code that depends on them is activated. UI work does not perform migrations or production deployment. See the setup guides for separate production/preview resources and live verification.
@@ -51,7 +53,7 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Transport, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Transport/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 

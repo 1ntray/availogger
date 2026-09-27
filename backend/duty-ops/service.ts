@@ -96,9 +96,9 @@ export async function saveAssignments(db: D1Database, user: ApplicationUser, pro
   ]);
 }
 
-async function syncAndRead(db: D1Database, user: ApplicationUser, token: string, window: DutyWindow, hash: string): Promise<DutyOpsResponse> {
+async function syncAndRead(db: D1Database, user: ApplicationUser, token: string, window: DutyWindow, hash: string, maxRequests: number): Promise<DutyOpsResponse> {
   let state = await states(db, user.id, hash);
-  const client = new FlightLoggerClient(token, undefined, DUTY_OPS_MAX_REQUESTS);
+  const client = new FlightLoggerClient(token, undefined, maxRequests);
   let warning: string | null = null;
   let failure: unknown;
   if (!fresh(state.global, window)) {
@@ -143,15 +143,15 @@ async function syncAndRead(db: D1Database, user: ApplicationUser, token: string,
     sync: { stale: discovery.stale || assignments.stale || !!warning, warning, discovery, assignments } };
 }
 
-export async function loadDutyOps(db: D1Database, user: ApplicationUser, token: string, window: DutyWindow): Promise<DutyOpsResponse> {
+export async function loadDutyOps(db: D1Database, user: ApplicationUser, token: string, window: DutyWindow, maxRequests = DUTY_OPS_MAX_REQUESTS): Promise<DutyOpsResponse> {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
   const hash = [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
-  const key = `${user.id}:${hash}:${window.startsAt}:${window.endsAt}`;
+  const key = `${user.id}:${hash}:${window.startsAt}:${window.endsAt}:${maxRequests}`;
   let requests = pending.get(db);
   if (!requests) { requests = new Map(); pending.set(db, requests); }
   const active = requests.get(key);
   if (active) return active;
-  const work = syncAndRead(db, user, token, window, hash);
+  const work = syncAndRead(db, user, token, window, hash, maxRequests);
   // Only coalesce in-flight requests; D1 remains the freshness authority.
   if (requests.size < 128) requests.set(key, work);
   try { return await work; } finally { if (requests.get(key) === work) requests.delete(key); }
