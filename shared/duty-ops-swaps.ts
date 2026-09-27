@@ -15,3 +15,10 @@ export interface ExchangeRequest {
 export interface ExchangesResponse {
   currentUserId: string; requests: ExchangeRequest[]; lockedShiftIds: string[]; nextCursor: string | null;
 }
+export interface ExchangeHistoryEntry {
+  id: string; type: ExchangeType; counterparty: ExchangeUser;
+  givenShift: ExchangeShift | null; receivedShift: ExchangeShift | null; acceptedAt: string;
+}
+export interface ExchangeHistoryResponse {
+  entries: ExchangeHistoryEntry[]; nextCursor: string | null;
+}

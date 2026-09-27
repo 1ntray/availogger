@@ -2,7 +2,7 @@
 
 An operational portal for pilot students. Instructor Availability, read-only Duty Ops and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
 
-Duty Ops also supports give-away and direct-swap agreements with `duty_ops.swap`. These record agreement in Studentportal; FlightLogger assignments remain unchanged. Apply new migration `0004_duty_ops_swaps.sql` to local/preview before testing. See [Duty Ops shift exchange](docs/duty-ops-swaps.md).
+Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) is available with `duty_ops.view`. Additive migration `0006_duty_ops_effective_assignments.sql` is applied through the ordered release workflow; use `npm run db:migrate:local` for local development.
 
 ## Deployment status
 
@@ -48,7 +48,8 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/onboarding` | Mandatory personal FlightLogger connection |
 | `/` | Today's Duty Ops, next personal shift when today is empty, and quick navigation |
 | `/availability` | Working Instructor Availability |
-| `/duty-ops` | Today, My shifts and date-grouped Duty Ops schedule |
+| `/duty-ops` | Effective Today/My shifts/Schedule and active exchanges |
+| `/duty-ops/swap-history` | Personal accepted exchange history |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
@@ -208,6 +209,6 @@ The old standalone Worker was deleted after the user verified production cached/
 
 ## Next phase and limitations
 
-Validate read-only Duty Ops in staging with multiple students, then design swaps using the stable local shift/assignment IDs and existing authorization foundation. Schedule editing, swaps, fuel, transport, cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
+Validate effective Duty Ops assignments and chained exchanges in preview with multiple students. Explicit FlightLogger reconciliation/APPLIED state is a possible next phase; automatic FlightLogger editing, fuel, cohorts, personal flight schedules, AI and notifications remain unimplemented. Future push: `Access identity -> D1 user -> device subscriptions -> Pages Functions -> Web Push`; no subscription tables/VAPID keys/handlers yet.
 
 No disconnect/delete-account UI, automatic key rotation or continuous upstream health check. Revoked tokens may retain 24-hour cached availability. Duty Ops identities can remain partial/stale until students synchronize, and shared discovery assumes the verified program-student visibility. The portal can only show data the personal FlightLogger key permits. Before deploying Duty Ops to another environment, verify its required migrations and read-only behavior with multiple students in staging.

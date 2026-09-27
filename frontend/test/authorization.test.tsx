@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', api);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-async function render() { await act(async () => root.render(<MemoryRouter initialEntries={['/admin/users']}><App /></MemoryRouter>)); }
+async function render(path = '/admin/users') { await act(async () => root.render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)); }
 async function selectUser() {
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes(student.email))!.click());
 }
@@ -48,6 +48,15 @@ async function changePermission(value: string) {
 async function save() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
 
 describe('admin access editor', () => {
+  it('allows the personal history route with view permission but no swap permission', async () => {
+    currentPermissions = baseline;
+    const original = api.getMockImplementation()!;
+    api.mockImplementation(async (path: string) => path === '/api/duty-ops/swaps/history' ? Response.json({ entries: [], nextCursor: null }) : original(path));
+    await render('/duty-ops/swap-history');
+    expect(host.querySelector('h1')!.textContent).toBe('Swap history');
+    expect(host.textContent).toContain('No accepted exchanges yet');
+    expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
+  });
   it('loads real user access, distinguishes inherited/explicit permissions, and refreshes on a successful save', async () => {
     await render(); await selectUser();
     expect(host.textContent).toContain('Inherited from role');

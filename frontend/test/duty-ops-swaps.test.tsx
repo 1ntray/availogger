@@ -84,8 +84,7 @@ describe('Duty Ops shift exchange UI', () => {
     data.requests = [makeRequest()]; await render(); await click('Take shift');
     expect(dialog().textContent).toContain('Take this Duty Ops shift?'); await click('Take shift', dialog());
     expect(writes).toHaveLength(1); expect(writes[0].path).toBe('/api/duty-ops/swaps/request/claim');
-    expect(host.textContent).toContain('Exchange agreed'); expect(host.textContent).toContain('FlightLogger is not updated automatically');
-    expect(host.textContent).toContain('Agreed with Anna Student.');
+    expect(host.textContent).not.toContain('Take shift'); expect(host.textContent).not.toContain('Exchange agreed');
     expect(host.textContent).not.toContain('Confirm owner');
   });
   it('shows multiple offers and confirms both shifts before choosing one', async () => {
@@ -98,10 +97,9 @@ describe('Duty Ops shift exchange UI', () => {
     expect(dialog().textContent).toContain('Anna Student’s shift'); expect(dialog().textContent).toContain('Tue 29 Sept · 12:00–18:00');
     expect(writes).toHaveLength(0); await click('Confirm exchange', dialog());
     expect(writes[0].path).toBe('/api/duty-ops/swaps/request/proposals/proposal/accept');
-    expect(host.textContent).toContain('Not selected'); expect(host.textContent).toContain('Exchange agreed');
+    expect(host.textContent).not.toContain('Not selected'); expect(host.textContent).not.toContain('Exchange agreed');
     expect([...host.querySelectorAll('button')].some(b => /Choose this swap|Cancel request|Withdraw offer/.test(b.textContent!))).toBe(false);
-    expect(host.textContent).toContain('FlightLogger is not updated automatically');
-    // Schedule remains the original FlightLogger assignment.
+    // This isolated component cannot replace its parent's read model; the page reloads it.
     expect(host.querySelector('.duty-row')!.textContent).toContain('Simon Student');
   });
   it('offers only eligible owned unreserved shifts', async () => {
@@ -116,14 +114,14 @@ describe('Duty Ops shift exchange UI', () => {
   it('confirms owner cancellation and releases controls afterward', async () => {
     data.requests = [makeRequest({ requester: { id: 'me', firstName: null, lastName: null }, requestedShift: own })]; data.lockedShiftIds = ['own'];
     await render(); await click('Cancel request'); expect(writes).toHaveLength(0);
-    await click('Cancel request', dialog()); expect(host.textContent).toContain('Cancelled');
+    await click('Cancel request', dialog()); expect(host.textContent).not.toContain('Cancelled');
     expect(host.textContent).toContain('Exchange shift');
   });
   it('permits only the current proposer to withdraw open offers', async () => {
     data.requests = [makeRequest({ type: 'DIRECT_SWAP', proposals: [makeProposal({ proposer: { id: 'me', firstName: 'Simon', lastName: null }, offeredShift: own })] })];
     data.lockedShiftIds = ['own']; await render(); await click('Withdraw offer'); await click('Withdraw offer', dialog());
     expect(writes[0].path).toBe('/api/duty-ops/swaps/request/proposals/proposal/withdraw');
-    expect(host.textContent).toContain('Withdrawn');
+    expect(host.textContent).not.toContain('Withdrawn');
   });
   it('keeps stale/conflicting acceptance errors visible without claiming success', async () => {
     data.requests = [makeRequest()]; await render();

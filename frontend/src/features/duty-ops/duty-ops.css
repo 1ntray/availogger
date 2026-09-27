@@ -19,6 +19,12 @@
 .duty-participants { font-size: 13px; margin: 5px 0 0; color: #48615b; line-height: 1.5; }
 .duty-status { font-weight: 400; font-size: 12px; color: #8b5143; }
 .duty-empty, .duty-loading { color: #60767c; font-size: 14px; margin: 14px 0; }
+.duty-navigation { display: flex; flex-wrap: wrap; gap: var(--portal-space-4); margin: 0 0 20px; border-bottom: 1px solid var(--portal-border); }
+.duty-navigation a { padding: 10px 0; text-decoration: none; font-size: 13px; color: var(--portal-muted); border-bottom: 2px solid transparent; }
+.duty-navigation a[aria-current="page"] { color: var(--portal-accent); border-bottom-color: var(--portal-accent); font-weight: 650; }
+.duty-source { display: block; font-size: 11px; font-weight: 650; color: var(--portal-control-text); }
+.duty-source-inline { margin-left: 12px; font-size: 11px; color: var(--portal-muted); }
+.duty-source-secondary, .duty-source-secondary .duty-source { color: var(--portal-muted); }
 .duty-alert { border-left: 3px solid #ad614d; padding: 10px 12px; margin: 16px 0; font-size: 13px; background: #fff8f4; color: #744c40; line-height: 1.6; }
 @media (max-width: 700px) {
   .duty-summary { grid-template-columns: minmax(0, 1fr); gap: 26px; }

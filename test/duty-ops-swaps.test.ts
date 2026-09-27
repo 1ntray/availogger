@@ -1,3 +1,4 @@
+import { listSwapHistory } from '../backend/duty-ops/swap-history';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDatabase, seedCredential, testEncryptionKey } from './d1-fixture';
 import { acceptProposal, cancelExchange, claimGiveAway, createExchange, createProposal, listExchanges, withdrawProposal } from '../backend/duty-ops/swaps';
@@ -85,12 +86,12 @@ describe('Duty Ops give-away agreements', () => {
     const schedule = { startsAt: '2026-09-26T05:00:00.000Z', endsAt: '2026-09-26T10:00:00.000Z' };
     await expect(createExchange(fixture.db, alice, await shift(alice, schedule), 'DIRECT_SWAP', schedule)).rejects.toMatchObject({ status: 409 });
   });
-  it('prevents incompatible open and accepted requests on the same assignment', async () => {
+  it('prevents incompatible open requests and rejects the former holder after acceptance', async () => {
     const { id } = await request();
     await expect(request('DIRECT_SWAP')).rejects.toMatchObject({ status: 409 });
     await claimGiveAway(fixture.db, bob, id);
     await expect(request()).rejects.toMatchObject({ status: 409 });
-    expect((await listExchanges(fixture.db, alice)).lockedShiftIds).toContain(a);
+    expect((await listExchanges(fixture.db, alice)).lockedShiftIds).not.toContain(a);
   });
   it('disallows self-claims, duplicate FlightLogger identity and already-assigned recipients', async () => {
     const { id } = await request();
@@ -212,7 +213,8 @@ describe('direct swaps and transaction safety', () => {
   it('retains accepted dates and audit when FlightLogger discovery removes the source booking', async () => {
     const { id } = await request(); await claimGiveAway(fixture.db, bob, id);
     await saveDiscovery(fixture.db, [], dutyWindow(new URL('https://portal.test')), now.toISOString());
-    expect((await listExchanges(fixture.db, alice)).requests[0]).toMatchObject({ status: 'ACCEPTED', requestedShift: { id: null, ...times } });
+    expect((await listSwapHistory(fixture.db, alice, null)).entries[0]).toMatchObject({ givenShift: { id: null, ...times } });
+    expect((await listExchanges(fixture.db, alice)).requests).toEqual([]);
     expect(await rows('duty_ops_swap_events')).toHaveLength(2);
   });
   it('paginates relevant requests without exposing unrelated closed history', async () => {
