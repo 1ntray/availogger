@@ -52,27 +52,7 @@ p { line-height: 1.55; }
 }
 .current-user svg { width: 16px; height: 16px; flex-shrink: 0; }
 .account-identity { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.account-control { position: relative; min-width: 0; max-width: 50%; }
-.current-user:hover, .current-user[aria-expanded="true"], .current-user.active { background: var(--portal-header-hover); border-color: #ffffff50; }
-.account-chevron { display: flex; flex-shrink: 0; }
-.account-chevron svg { width: 12px; height: 12px; }
-.current-user[aria-expanded="true"] .account-chevron { transform: rotate(180deg); }
-/* This navigation surface extends the header control, with no card shadow. */
-.account-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--portal-space-1));
-  width: 100%;
-  min-width: 160px;
-  padding: var(--portal-space-1);
-  border: 1px solid var(--portal-header-border);
-  border-radius: var(--portal-radius);
-  background: var(--portal-navy);
-  color: var(--portal-header-text);
-}
-.account-panel a { min-height: var(--portal-touch-height); }
-.account-panel a:hover, .account-panel a.active { background: var(--portal-header-hover); color: var(--portal-header-text); }
-.account-panel a:focus-visible { outline-offset: -3px; background: var(--portal-header-hover); }
+.account-control { min-width: 0; max-width: 50%; }
 .sidebar {
   position: sticky;
   top: 64px;
@@ -83,7 +63,7 @@ p { line-height: 1.55; }
   padding: 20px 12px;
 }
 .sidebar nav { display: grid; gap: 4px; }
-.sidebar nav a, .more-panel nav a, .account-panel a {
+.sidebar nav a, .more-panel nav a {
   display: flex;
   align-items: center;
   gap: var(--portal-space-3);
@@ -94,7 +74,6 @@ p { line-height: 1.55; }
   font-size: 14px;
   font-weight: 600;
 }
-.account-panel a { gap: var(--portal-space-2); padding: var(--portal-space-2) 10px; color: var(--portal-header-text); }
 .sidebar nav a:hover, .more-panel nav a:hover { background: var(--portal-nav-hover); }
 .sidebar nav a.active { background: var(--portal-nav-active); color: var(--portal-nav-active-text); box-shadow: inset 3px 0 var(--portal-focus); }
 .portal-content { min-width: 0; width: 100%; max-width: 1600px; margin: 0 auto; padding: 28px 28px 48px; outline: none; }
