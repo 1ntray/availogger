@@ -19,7 +19,7 @@ export function PortalRoutes() {
     <Route path="duty-ops" element={<DutyOpsPage />} />
     <Route path="transport" element={<TransportPage />} />
     <Route path="settings" element={<SettingsPage />} />
-    <Route path="*" element={<section><p className="eyebrow">Studentportal</p><h1>Page not found</h1><p className="subtitle">This page is not part of the portal.</p><Link className="action-link" to="/">Return home →</Link></section>} />
+    <Route path="*" element={<section><h1>Page not found</h1><Link className="action-link" to="/">Return home →</Link></section>} />
     </Route></Route>
   </Route></Routes>;
 }

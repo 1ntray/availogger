@@ -15,7 +15,7 @@ beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: com
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('portal routes', () => {
   it.each([
-    ['/', 'Welcome to Studentportal'], ['/availability', 'Instructor availability'],
+    ['/', 'Home'], ['/availability', 'Instructor availability'],
     ['/duty-ops', 'Duty Ops'], ['/transport', 'Transport'], ['/settings', 'Settings'],
     ['/missing', 'Page not found'],
   ])('renders %s with the portal navigation', (route, heading) => {
@@ -33,7 +33,7 @@ describe('portal routes', () => {
   });
   it('home links to implemented and planned tools without fake operational data', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
-    expect(html).toContain('No scheduled portal items to show yet.');
+    expect(html).toContain('Nothing scheduled');
     expect(html).toContain('href="/duty-ops"');
     expect(html).toContain('href="/transport"');
   });
