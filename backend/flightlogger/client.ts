@@ -1,6 +1,7 @@
-import { CURRENT_USER_QUERY, CURRENT_USER_PROFILE_QUERY, DUTY_OPS_QUERY, FLYVASK_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
+import { CURRENT_USER_QUERY, CURRENT_USER_PROFILE_QUERY, DUTY_OPS_QUERY, FLYVASK_QUERY, MY_FLIGHTS_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
 import { parseDutyMeeting, parseSelfProfile, type DutyMeeting, type FlightLoggerProfile } from './duty-ops';
 import { parseFlyvaskMeeting, type FlyvaskMeeting } from './flyvask';
+import { parseStudentFlight, type StudentFlight } from './flights';
 import type { AvailabilityPeriod, Instructor } from './types';
 
 const ENDPOINT = 'https://api.flightlogger.net/graphql';
@@ -132,6 +133,10 @@ export class FlightLoggerClient {
 
   async flyvask(from: string, to: string, all: boolean): Promise<FlyvaskMeeting[]> {
     return this.meetings(FLYVASK_QUERY, parseFlyvaskMeeting, 'Flyvask', from, to, all);
+  }
+
+  async flights(from: string, to: string): Promise<StudentFlight[]> {
+    return this.meetings(MY_FLIGHTS_QUERY, parseStudentFlight, 'flight', from, to, false);
   }
 
   private async meetings<T extends { id: string; startsAt: string; endsAt: string }>(query: string, parser: (value: unknown) => T | null,

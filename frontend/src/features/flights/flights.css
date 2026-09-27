@@ -1,0 +1,23 @@
+.flights-page,.fuel-shift-page { max-width: 1000px; }
+.flights-heading,.fuel-shift-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.flights-heading h1,.fuel-shift-heading h1 { margin:0; }
+.flights-page button,.fuel-shift-page button { border:1px solid var(--portal-border); background:var(--portal-surface); color:var(--portal-control-text); border-radius:var(--portal-radius); min-height:var(--portal-touch-height); padding:8px 12px; font:inherit; font-size:13px; }
+.flights-page button:hover,.fuel-shift-page button:hover { background:var(--portal-control-hover); }
+.flights-page button:disabled,.fuel-shift-page button:disabled { opacity:.6; }
+.flight-list,.fuel-task-list { list-style:none; margin:14px 0; padding:0; border-top:1px solid var(--portal-border); }
+.flight-row,.fuel-task-row { padding:14px 2px; border-bottom:1px solid var(--portal-border); }
+.flight-row-head,.fuel-task-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 14px; }
+.flight-row-head strong,.fuel-task-head strong { font-size:15px; }
+.flight-row time,.fuel-task-row time { font-variant-numeric:tabular-nums; }
+.flight-meta,.fuel-meta { color:var(--portal-muted); font-size:13px; margin:5px 0; line-height:1.5; }
+.flight-status { font-size:12px; font-weight:650; color:var(--portal-accent); }
+.flight-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+.fuel-form { display:grid; gap:10px; max-width:360px; margin:12px 0; padding:12px; border:1px solid var(--portal-border); border-radius:var(--portal-radius); background:var(--portal-surface); }
+.fuel-form label { display:grid; gap:4px; font-size:13px; }
+.fuel-form select,.fuel-form input { min-height:40px; padding:7px; border:1px solid var(--portal-control-border); border-radius:var(--portal-radius); font:inherit; }
+.fuel-form-actions { display:flex; gap:8px; }
+.fuel-notice { font-size:13px; color:var(--portal-muted); }
+.fuel-error { font-size:13px; color:#8b5143; }
+.fuel-task-section h2 { margin:20px 0 0; padding-bottom:8px; border-bottom:1px solid var(--portal-border); font-size:18px; }
+.fuel-task-row.is-due { border-left:3px solid var(--portal-accent); padding-left:10px; }
+@media(max-width:560px){.flights-heading,.fuel-shift-heading{align-items:flex-start}.flight-row,.fuel-task-row{padding-left:0;padding-right:0}}

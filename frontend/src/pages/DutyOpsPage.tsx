@@ -73,7 +73,7 @@ export function DutyOpsPage() {
     {sections && data && <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} onBalanceChanged={setBalance}>
       <div className="duty-summary">
         <section aria-labelledby="duty-today"><h2 id="duty-today">Today</h2>{sections.today.length ? <ShiftList shifts={sections.today} /> : <p className="duty-empty">Nothing scheduled</p>}</section>
-        <section aria-labelledby="duty-mine"><h2 id="duty-mine">My shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming shifts</p>}</section>
+        <section aria-labelledby="duty-mine"><h2 id="duty-mine">My shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate renderAction={shift => <><Link className="action-link" to={`/duty-ops/shifts/${shift.id}`}>Open shift tasks →</Link><ExchangeShiftActions shift={shift} /></>} /> : <p className="duty-empty">No upcoming shifts</p>}</section>
       </div>
       <section aria-labelledby="duty-schedule"><h2 id="duty-schedule">Schedule</h2>
         {sections.schedule.length ? sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} /></section>) : <p className="duty-empty">Nothing scheduled</p>}

@@ -68,3 +68,27 @@ export const FLYVASK_QUERY = `
     }
   }
 `;
+
+export const MY_FLIGHTS_QUERY = `
+  query MyFlights($from: DateTime!, $to: DateTime!, $after: String) {
+    bookings(from: $from, to: $to, all: false, overlap: true,
+      subtypes: [SINGLE_STUDENT, MULTI_STUDENT], first: 50, after: $after) {
+      nodes {
+        __typename
+        ... on SingleStudentBooking {
+          id startsAt endsAt flightStartsAt flightEndsAt status
+          aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
+          departureAirport { id name } arrivalAirport { id name }
+          student { id firstName lastName } instructor { id firstName lastName }
+        }
+        ... on MultiStudentBooking {
+          id startsAt endsAt flightStartsAt flightEndsAt status
+          aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
+          departureAirport { id name } arrivalAirport { id name }
+          students { id firstName lastName } instructor { id firstName lastName }
+        }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;
