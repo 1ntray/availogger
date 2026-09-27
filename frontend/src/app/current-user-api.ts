@@ -3,6 +3,8 @@ import { isPermissionKey, isRoleKey, type PermissionKey, type RoleKey } from '..
 export type CurrentUser = {
   email: string;
   subject: string;
+  firstName?: string | null;
+  lastName?: string | null;
   onboardingComplete: boolean;
   hasFlightLoggerCredential: boolean;
   flightLoggerUserId: string | null;
@@ -25,6 +27,8 @@ export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser>
   if (!response.ok) throw new Error('Your account could not be loaded. Try again shortly.');
   if (typeof body !== 'object' || body === null || !('email' in body) || !('subject' in body) ||
       typeof body.email !== 'string' || !body.email || typeof body.subject !== 'string' || !body.subject ||
+      !('firstName' in body) || (body.firstName !== null && typeof body.firstName !== 'string') ||
+      !('lastName' in body) || (body.lastName !== null && typeof body.lastName !== 'string') ||
       !('onboardingComplete' in body) || typeof body.onboardingComplete !== 'boolean' ||
       !('hasFlightLoggerCredential' in body) || typeof body.hasFlightLoggerCredential !== 'boolean' ||
       body.onboardingComplete !== body.hasFlightLoggerCredential ||
@@ -33,7 +37,7 @@ export async function loadCurrentUser(signal: AbortSignal): Promise<CurrentUser>
       !('roles' in body) || !Array.isArray(body.roles) || !body.roles.every(isRoleKey)) {
     throw new Error('The account service returned an unexpected response.');
   }
-  return { email: body.email, subject: body.subject, onboardingComplete: body.onboardingComplete,
+  return { email: body.email, subject: body.subject, firstName: body.firstName, lastName: body.lastName, onboardingComplete: body.onboardingComplete,
     hasFlightLoggerCredential: body.hasFlightLoggerCredential, flightLoggerUserId: body.flightLoggerUserId,
     permissions: body.permissions, roles: body.roles };
 }

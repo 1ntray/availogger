@@ -6,6 +6,8 @@ Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.
 
 [Flyvask](docs/flyvask.md) adds FlightLogger schedule discovery, effective Studentportal assignments, chained **direct swaps only**, and personal history. Meeting comments identify Flyvask; classroom is metadata. Migration `0007_flyvask.sql` grants `flyvask.view` and `flyvask.swap` to STUDENT/ADMIN and adds independent persistence. FlightLogger stays read-only.
 
+[Brakkevakt](docs/brakkevakt.md) is a portal-owned, two-student weekly dormitory roster with manager editing, direct swaps and personal history. Its `0010_brakkevakt.sql` migration follows the merged Flights/Fuel `0009` migration; it does not depend on FlightLogger schedule data or Duty Ops credits. Stored student names now lead the portal account and Admin user displays, with email retained as secondary admin/account metadata.
+
 ## Deployment status
 
 After the [release automation setup](docs/database-updates.md), GitHub Actions owns deployment: merge to **develop** → tests/build → preview D1 migration → Pages preview; merge to **master** → tests/build → production D1 migration → Pages production. Each release uses one exact SHA. Tests/build or migration failure blocks deployment. Automatic releases default to disabled until `AUTO_RELEASE_PREVIEW` / `AUTO_RELEASE_PRODUCTION` are enabled and independent Pages Git deployments are turned off. Keep existing Git deployments during bootstrap; follow the guide's safe switch order. PR CI remains local; normal releases require no manual migration.
@@ -56,6 +58,9 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/flights` | Own synchronized flights and fuel requests |
 | `/flyvask` | My Flyvask, effective schedule and active direct swaps |
 | `/flyvask/swap-history` | Personal accepted Flyvask swap history |
+| `/brakkevakt` | Current/upcoming dormitory duty and direct swaps |
+| `/brakkevakt/swap-history` | Personal accepted Brakkevakt swaps |
+| `/brakkevakt/manage` | Permission-protected weekly roster editor |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
@@ -70,7 +75,7 @@ All routes run behind the existing Access middleware and return `Cache-Control: 
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
+| `GET /api/me` | Verified `email`, `subject`, nullable `firstName`/`lastName`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
 | `POST /api/onboarding/flightlogger` | JSON `{ "apiKey": "..." }`; validate, encrypt and connect/replace the current user's credential |
 | `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Requires `availability.view`; current user's calendar, validated inclusive range of 1–62 days |
 | `GET /api/duty-ops` | Requires `duty_ops.view`; D1-backed shared shifts, current-user assignments, known participants and separate freshness metadata; optional paired dates, maximum 93 days |

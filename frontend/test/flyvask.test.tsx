@@ -28,7 +28,7 @@ beforeEach(()=>{
   permissions=['flyvask.view','flyvask.swap']; data=structuredClone(initialData); requests=[]; locks=[]; entries=[entry];
   host=document.createElement('div');document.body.append(host);root=createRoot(host);
   api=vi.fn(async(path:string,init:RequestInit={})=>{
-    if(path==='/api/me') return Response.json({email:'student@test',subject:'me',onboardingComplete:true,hasFlightLoggerCredential:true,flightLoggerUserId:'fl-me',roles:['STUDENT'],permissions});
+    if(path==='/api/me') return Response.json({email:'student@test',subject:'me',firstName:'Simon',lastName:null,onboardingComplete:true,hasFlightLoggerCredential:true,flightLoggerUserId:'fl-me',roles:['STUDENT'],permissions});
     if(init.method==='POST') return Response.json({id:'request'});
     if(path==='/api/flyvask') return Response.json(data);
     if(path.startsWith('/api/flyvask/swaps/history')) return Response.json({entries,nextCursor:null});

@@ -6,6 +6,9 @@ import AvailabilityPage from '../pages/AvailabilityPage';
 import { DutyOpsPage } from '../pages/DutyOpsPage';
 import { DutySwapHistoryPage } from '../pages/DutySwapHistoryPage';
 import { DutyCreditsPage } from '../pages/DutyCreditsPage';
+import { BrakkevaktPage } from '../pages/BrakkevaktPage';
+import { BrakkevaktHistoryPage } from '../pages/BrakkevaktHistoryPage';
+import { BrakkevaktManagePage } from '../pages/BrakkevaktManagePage';
 import { FlyvaskPage } from '../pages/FlyvaskPage';
 import { FlightsPage } from '../pages/FlightsPage';
 import { DutyShiftPage } from '../pages/DutyShiftPage';
@@ -30,6 +33,13 @@ export function PortalRoutes() {
       <Route path="duty-ops/shifts/:shiftId" element={<DutyShiftPage />} />
       <Route path="duty-ops/swap-history" element={<DutySwapHistoryPage />} />
       <Route path="duty-ops/credits" element={<DutyCreditsPage />} />
+    </Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.brakkevaktView} />}>
+      <Route path="brakkevakt" element={<BrakkevaktPage />} />
+      <Route path="brakkevakt/swap-history" element={<BrakkevaktHistoryPage />} />
+    </Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.brakkevaktManageSchedule} />}>
+      <Route path="brakkevakt/manage" element={<BrakkevaktManagePage />} />
     </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.flightsView} />}><Route path="flights" element={<FlightsPage />} /></Route>
     <Route element={<RequirePermission permission={PERMISSIONS.transportView} />}><Route path="transport" element={<TransportPage />} /></Route>

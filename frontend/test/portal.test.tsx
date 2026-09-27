@@ -9,7 +9,7 @@ import { loadCurrentUser } from '../src/app/current-user-api';
 import * as account from '../src/app/CurrentUser';
 import type { PermissionKey } from '../../shared/authorization';
 
-const completed = { email: 'student@example.com', subject: 'verified-subject', onboardingComplete: true,
+const completed = { email: 'student@example.com', subject: 'verified-subject', firstName: 'Student', lastName: 'Example', onboardingComplete: true,
   hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user', roles: ['STUDENT'] as ['STUDENT'],
   permissions: ['availability.view', 'duty_ops.view', 'flights.view', 'fuel.request', 'transport.view'] as PermissionKey[] };
 beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: completed, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() }));

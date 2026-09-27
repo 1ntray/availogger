@@ -51,7 +51,9 @@ p { line-height: 1.55; }
   text-overflow: ellipsis;
 }
 .current-user svg { width: 16px; height: 16px; flex-shrink: 0; }
-.account-identity { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.account-identity { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: column; line-height: 1.2; }
+.account-identity strong, .account-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-identity small { opacity: .72; font-size: 11px; font-weight: 400; }
 .account-control { min-width: 0; max-width: 50%; }
 .sidebar {
   position: sticky;

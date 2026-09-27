@@ -4,6 +4,7 @@ import { navigation, visibleNavigation } from './navigation';
 import { Icon } from './Icon';
 import { useCurrentUser } from './CurrentUser';
 import { usePermissions } from './permissions';
+import { displayName } from '../../../shared/display-name';
 
 export function AppShell() {
   const { user, loading, error, retry } = useCurrentUser();
@@ -32,7 +33,7 @@ export function AppShell() {
       <Link className="brand" to="/" aria-label="Luftfartsfag Studentportal home"><span className="brand-mark">LF</span><div><strong>Luftfartsfag</strong><span>Studentportal</span></div></Link>
       <div className="account-control">
         <div className="current-user" title={user?.email}>
-          <Icon name="account" /><span className="account-identity">{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</span>
+          <Icon name="account" /><span className="account-identity">{user ? <><strong>{displayName(user)}</strong><small>{user.email}</small></> : loading ? 'Loading account…' : 'Account unavailable'}</span>
         </div>
       </div>
     </header>

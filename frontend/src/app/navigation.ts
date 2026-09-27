@@ -6,6 +6,7 @@ export const navigation = [
   { path: '/flights', label: 'Flights', icon: 'flights', permission: PERMISSIONS.flightsView },
   { path: '/transport', label: 'Transport', icon: 'transport', permission: PERMISSIONS.transportView },
   { path: '/flyvask', label: 'Flyvask', icon: 'wash', permission: PERMISSIONS.flyvaskView },
+  { path: '/brakkevakt', label: 'Brakkevakt', icon: 'calendar', permission: PERMISSIONS.brakkevaktView },
   { path: '/availability', label: 'Availability', icon: 'calendar', permission: PERMISSIONS.availabilityView },
   { path: '/settings', label: 'Settings', icon: 'settings' },
   { path: '/admin/users', label: 'Admin', icon: 'account', permission: PERMISSIONS.adminManageUsers },
