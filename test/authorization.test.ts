@@ -41,7 +41,7 @@ async function endpoint(handler: unknown, actor = admin, target = student.id, me
 describe('roles and effective permissions', () => {
   it('assigns STUDENT once on account creation with only baseline permissions', async () => {
     expect(await getUserRoles(fixture.db, student)).toEqual(['STUDENT']);
-    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view']);
+    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flights.view', 'flyvask.swap', 'flyvask.view', 'fuel.request', 'transport.book_university_cars', 'transport.view']);
     expect(await hasPermission(fixture.db, student, 'availability.view')).toBe(false);
     expect(await hasPermission(fixture.db, student, 'future.view' as never)).toBe(false);
     await fixture.db.prepare('DELETE FROM user_roles WHERE user_id = ?').bind(student.id).run();
@@ -66,9 +66,9 @@ describe('roles and effective permissions', () => {
   it('explicit ALLOW grants missing access and removing the override restores role default', async () => {
     await owner();
     await updateUserAccess(fixture.db, admin, student.id, await update(student, { overrides: { 'availability.view': 'ALLOW', 'transport.view': 'DENY' } }));
-    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['availability.view', 'brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars']);
+    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['availability.view', 'brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flights.view', 'flyvask.swap', 'flyvask.view', 'fuel.request', 'transport.book_university_cars']);
     await updateUserAccess(fixture.db, admin, student.id, await update(student, { overrides: {} }));
-    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view']);
+    expect(await getEffectivePermissions(fixture.db, student)).toEqual(['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flights.view', 'flyvask.swap', 'flyvask.view', 'fuel.request', 'transport.book_university_cars', 'transport.view']);
   });
   it('newly catalogued permissions stay denied until explicitly granted', async () => {
     await fixture.db.prepare("INSERT INTO permissions VALUES ('future.view', 'Future feature')").run();
@@ -203,7 +203,7 @@ describe('admin API security and audit transactions', () => {
     }
     const me = await (await endpoint(meEndpoint, student)).json();
     expect(me).toMatchObject({ onboardingComplete: false, hasFlightLoggerCredential: false,
-      roles: ['STUDENT'], permissions: ['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view'] });
+      roles: ['STUDENT'], permissions: ['brakkevakt.swap', 'brakkevakt.view', 'duty_ops.view', 'flights.view', 'flyvask.swap', 'flyvask.view', 'fuel.request', 'transport.book_university_cars', 'transport.view'] });
     expect((await endpoint(availabilityEndpoint, student)).status).toBe(403);
     await updateUserAccess(fixture.db, admin, student.id, await update(student, { overrides: { 'availability.view': 'ALLOW' } }));
     expect((await endpoint(availabilityEndpoint, student)).status).toBe(409); // Authorized, now needs onboarding.

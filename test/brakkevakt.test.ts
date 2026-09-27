@@ -45,15 +45,21 @@ async function api(handler: (context: never) => Promise<Response> | Response, ac
 }
 
 describe('Brakkevakt migration and Oslo calendar', () => {
-  it('applies after 0008 on populated users without altering their existing records or credits', async () => {
-    const earlier = await createTestDatabase(true, '0008_duty_ops_credits.sql');
+  it.each(['0008_duty_ops_credits.sql', '0009_flights_fuel.sql'])('applies after populated %s without altering existing records', async through => {
+    const earlier = await createTestDatabase(true, through);
     try {
       const existing = await resolveApplicationUser(earlier.db, { subject: 'before-brakkevakt', email: 'existing@private.test' });
       await earlier.db.prepare("UPDATE users SET flightlogger_first_name = 'Existing' WHERE id = ?").bind(existing.id).run();
+      if (through.startsWith('0009')) {
+        await earlier.db.prepare(`INSERT INTO flights (id, flightlogger_booking_id, booking_type, starts_at, ends_at, status, last_synced_at)
+          VALUES ('fixture-flight', 'fl-booking', 'SingleStudentBooking', '2026-10-05T08:00:00Z', '2026-10-05T09:00:00Z', 'OPEN', '2026-09-28T08:00:00Z')`).run();
+        await earlier.db.prepare("INSERT INTO flight_students VALUES ('fixture-flight', ?, '2026-09-28T08:00:00Z')").bind(existing.id).run();
+      }
       const before = await earlier.db.prepare('SELECT * FROM users WHERE id = ?').bind(existing.id).first();
       await applyTestMigration(earlier.db, '0010_brakkevakt.sql');
       expect(await earlier.db.prepare('SELECT * FROM users WHERE id = ?').bind(existing.id).first()).toEqual(before);
       expect(await earlier.db.prepare('SELECT COUNT(*) n FROM duty_ops_credit_transactions').first<number>('n')).toBe(0);
+      if (through.startsWith('0009')) expect(await earlier.db.prepare("SELECT user_id FROM flight_students WHERE flight_id = 'fixture-flight'").first('user_id')).toBe(existing.id);
       expect((await earlier.db.prepare("SELECT permission_key FROM effective_user_permissions WHERE user_id=? AND permission_key LIKE 'brakkevakt.%'")
         .bind(existing.id).all<{ permission_key: string }>()).results.map(r => r.permission_key).sort()).toEqual(['brakkevakt.swap', 'brakkevakt.view']);
     } finally { await earlier.dispose(); }

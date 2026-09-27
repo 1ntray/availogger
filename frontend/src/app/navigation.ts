@@ -3,6 +3,7 @@ import { PERMISSIONS, type PermissionKey } from '../../../shared/authorization';
 export const navigation = [
   { path: '/', label: 'Home', icon: 'home' },
   { path: '/duty-ops', label: 'Duty Ops', icon: 'duty', permission: PERMISSIONS.dutyOpsView },
+  { path: '/flights', label: 'Flights', icon: 'flights', permission: PERMISSIONS.flightsView },
   { path: '/transport', label: 'Transport', icon: 'transport', permission: PERMISSIONS.transportView },
   { path: '/flyvask', label: 'Flyvask', icon: 'wash', permission: PERMISSIONS.flyvaskView },
   { path: '/brakkevakt', label: 'Brakkevakt', icon: 'calendar', permission: PERMISSIONS.brakkevaktView },

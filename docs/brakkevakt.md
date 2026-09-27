@@ -18,4 +18,4 @@ History stores accepted week dates and counterparty identities separately from a
 
 ## Migration and release
 
-`0010_brakkevakt.sql` adds only Brakkevakt tables, constraints, indexes and role grants. It has no dependency on the parallel Flights/Fuel schema. It must follow `0009_flights_fuel.sql` on `develop` before this PR is merged. Follow the ordered [migration → application deployment workflow](database-updates.md); do not manually migrate preview or production. Local verification can apply 0010 after 0008 while the parallel work is pending, then must be repeated against a populated post-0009 database before merge readiness.
+`0010_brakkevakt.sql` adds only Brakkevakt tables, constraints, indexes and role grants. It has no dependency on the Flights/Fuel schema. It follows the merged `0009_flights_fuel.sql` migration. Follow the ordered [migration → application deployment workflow](database-updates.md); do not manually migrate preview or production. Migration tests cover both the original 0008 base and a populated post-0009 database.
