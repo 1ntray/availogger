@@ -27,7 +27,8 @@ beforeEach(async () => {
   await fixture.db.prepare('DELETE FROM duty_ops_shifts').run();
   await fixture.db.prepare('DELETE FROM duty_ops_sync_state').run();
   user = await seedCredential(fixture.db);
-  own = [raw()]; shared = [raw()];
+  own = [raw('booking-1', [null, { id: profile.id, firstName: 'Test', lastName: 'Student' }, null])];
+  shared = [raw()];
   upstream = vi.fn(async (_url: unknown, init: RequestInit) => {
     const body = JSON.parse(init.body as string);
     if (body.query.includes('CurrentUserProfile')) return Response.json({ data: { user: profile } });
