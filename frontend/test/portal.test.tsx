@@ -35,7 +35,7 @@ describe('portal routes', () => {
   });
   it('home links to implemented and planned tools without fake operational data', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
-    expect(html).toContain('Nothing scheduled');
+    expect(html).toContain('Loading Duty Ops');
     expect(html).toContain('href="/duty-ops"');
     expect(html).toContain('href="/transport"');
   });
