@@ -7,7 +7,7 @@ const paths: Record<IconName, string> = {
   duty: 'M8 5H5v16h14V5h-3M9 3h6v4H9zM8 12h8M8 16h5',
   calendar: 'M5 5h14v16H5zM8 3v4M16 3v4M5 10h14M9 14h2M13 14h2M9 17h2',
   transport: 'M4 15V9l2-5h12l2 5v6M4 9h16M4 15h16M6 15v4M18 15v4M7 12h2M15 12h2',
-  settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+  settings: 'M9.5 2h5l.5 3 1.5.9 2.9-1 2.5 4.3-2.4 2V13l2.4 2-2.5 4.3-2.9-1-1.5.9-.5 3h-5l-.5-3-1.5-.9-2.9 1-2.5-4.3 2.4-2v-1.8l-2.4-2 2.5-4.3 2.9 1L9 5z M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
   more: 'M5 11h2v2H5zM11 11h2v2h-2zM17 11h2v2h-2z',
   account: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2',
   'arrow-right': 'M5 12h14M14 7l5 5-5 5',
