@@ -60,7 +60,7 @@ describe('Transport migration and API boundary', () => {
   it('seeds only two neutral cars with unknown locations and grants booking without driver privileges', async () => {
     const response = await cars();
     expect(response.vehicles.map(car => [car.name, car.reported, car.expected.location])).toEqual([['Car 1', null, null], ['Car 2', null, null]]);
-    expect(await getEffectivePermissions(db(), alice)).toEqual(['duty_ops.view', 'flyvask.swap', 'flyvask.view', 'transport.book_university_cars', 'transport.view']);
+    expect(await getEffectivePermissions(db(), alice)).toEqual(['duty_ops.view', 'flights.view', 'flyvask.swap', 'flyvask.view', 'fuel.request', 'transport.book_university_cars', 'transport.view']);
     expect(await db().prepare('SELECT COUNT(*) FROM transport_vehicle_location_events').first('COUNT(*)')).toBe(0);
   });
   it('requires a verified identity and view permission on every endpoint', async () => {

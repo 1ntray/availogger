@@ -11,14 +11,15 @@ import type { PermissionKey } from '../../shared/authorization';
 
 const completed = { email: 'student@example.com', subject: 'verified-subject', onboardingComplete: true,
   hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user', roles: ['STUDENT'] as ['STUDENT'],
-  permissions: ['availability.view', 'duty_ops.view', 'transport.view'] as PermissionKey[] };
+  permissions: ['availability.view', 'duty_ops.view', 'flights.view', 'fuel.request', 'transport.view'] as PermissionKey[] };
 beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: completed, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() }));
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('portal routes', () => {
   it.each([
     ['/', 'Home'], ['/availability', 'Instructor availability'],
-    ['/duty-ops', 'Duty Ops'], ['/transport', 'Transport'], ['/settings', 'Settings'],
+    ['/duty-ops', 'Duty Ops'], ['/duty-ops/shifts/00000000-0000-0000-0000-000000000001', 'Shift tasks'],
+    ['/flights', 'Flights'], ['/transport', 'Transport'], ['/settings', 'Settings'],
     ['/missing', 'Page not found'],
   ])('renders %s with the portal navigation', (route, heading) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={[route]}><PortalRoutes /></MemoryRouter>);

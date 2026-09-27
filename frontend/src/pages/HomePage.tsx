@@ -9,6 +9,7 @@ import { HomeDutyOps } from '../features/duty-ops/HomeDutyOps';
 
 const modules = [
   { path: '/duty-ops', label: 'Duty Ops', icon: 'duty', comingSoon: false, permission: PERMISSIONS.dutyOpsView },
+  { path: '/flights', label: 'Flights', icon: 'flights', comingSoon: false, permission: PERMISSIONS.flightsView },
   { path: '/flyvask', label: 'Flyvask', icon: 'wash', comingSoon: false, permission: PERMISSIONS.flyvaskView },
   { path: '/transport', label: 'Transport', icon: 'transport', comingSoon: true, permission: PERMISSIONS.transportView },
   { path: '/availability', label: 'Instructor availability', icon: 'calendar', comingSoon: false, permission: PERMISSIONS.availabilityView },
