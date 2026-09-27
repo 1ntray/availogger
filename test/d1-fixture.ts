@@ -15,7 +15,7 @@ export async function createTestDatabase(initializeAuthorization = true) {
   const db = await runtime.getD1Database('DB') as unknown as D1Database;
   const directory = new URL('../migrations/', import.meta.url);
   for (const file of readdirSync(directory).filter(file => file.endsWith('.sql')).sort()) {
-    if (!initializeAuthorization && file === '0003_authorization.sql') continue;
+    if (!initializeAuthorization && file >= '0003') continue;
     const schema = readFileSync(new URL(file, directory), 'utf8');
     // Trigger bodies contain semicolons; preserve the explicit SQL boundaries.
     const statements = schema.includes('-- statement-breakpoint')

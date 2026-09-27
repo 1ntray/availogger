@@ -1,6 +1,6 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability and read-only Duty Ops are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation; Transport remains planned. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. Instructor Availability, read-only Duty Ops and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
 
 Duty Ops also supports give-away and direct-swap agreements with `duty_ops.swap`. These record agreement in Studentportal; FlightLogger assignments remain unchanged. Apply new migration `0004_duty_ops_swaps.sql` to local/preview before testing. See [Duty Ops shift exchange](docs/duty-ops-swaps.md).
 
