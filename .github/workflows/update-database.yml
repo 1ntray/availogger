@@ -1,0 +1,64 @@
+name: Update database
+run-name: Database-only recovery for ${{ github.ref_name }} at ${{ github.sha }}
+
+# Break-glass only; selected branch fixes target and migration revision.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studentportal-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      environment: ${{ steps.plan.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Reject untrusted refs and select fixed database
+        id: plan
+        run: node scripts/release-target.mjs
+
+  migrate:
+    name: Database-only recovery
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ needs.plan.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Validate migrations locally first
+        run: |
+          npm run check
+          npm test
+      - name: List, apply and verify migrations only
+        id: migrate
+        env:
+          CI: 'true'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/release-tools.mjs database-only
+      - name: Recovery summary
+        if: always()
+        env:
+          MIGRATE_STATUS: ${{ steps.migrate.outcome }}
+        run: |
+          echo "Database-only recovery: $GITHUB_REF at $GITHUB_SHA; migration result: $MIGRATE_STATUS." >> "$GITHUB_STEP_SUMMARY"
+          echo "Pages was not deployed. Prefer Release Studentportal for normal recovery." >> "$GITHUB_STEP_SUMMARY"

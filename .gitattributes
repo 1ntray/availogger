@@ -1,0 +1,2 @@
+# Keep migrations on LF for D1 remote trigger compatibility on Windows.
+migrations/*.sql text eol=lf
