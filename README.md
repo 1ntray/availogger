@@ -51,7 +51,7 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Availability/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Transport, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Transport/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 

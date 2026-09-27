@@ -9,8 +9,8 @@ import { HomeDutyOps } from '../features/duty-ops/HomeDutyOps';
 
 const modules = [
   { path: '/duty-ops', label: 'Duty Ops', icon: 'duty', comingSoon: false, permission: PERMISSIONS.dutyOpsView },
-  { path: '/availability', label: 'Instructor availability', icon: 'calendar', comingSoon: false, permission: PERMISSIONS.availabilityView },
   { path: '/transport', label: 'Transport', icon: 'transport', comingSoon: true, permission: PERMISSIONS.transportView },
+  { path: '/availability', label: 'Instructor availability', icon: 'calendar', comingSoon: false, permission: PERMISSIONS.availabilityView },
 ] as const;
 
 export function HomePage() {
