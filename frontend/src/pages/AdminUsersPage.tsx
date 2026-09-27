@@ -4,6 +4,7 @@ import { usePermissions } from '../app/permissions';
 import { loadAccessCatalogue, loadPortalUsers, loadUserAccess, saveUserAccess,
   type AccessCatalogue, type PortalUser } from '../features/authorization/admin-api';
 import { PERMISSIONS, type PermissionOverrides, type RoleKey, type UserAccess } from '../../../shared/authorization';
+import { displayName } from '../../../shared/display-name';
 import '../features/authorization/admin.css';
 
 export function AdminUsersPage() {
@@ -71,14 +72,14 @@ export function AdminUsersPage() {
       <section className="admin-user-list" aria-label="Portal users">
         <label htmlFor="user-search">Find user</label><input id="user-search" type="search" value={search} onChange={event => setSearch(event.target.value)} />
         <p className="small-note">Users appear after their first portal sign-in.</p>
-        <ul>{users.filter(user => user.email.toLowerCase().includes(search.toLowerCase())).map(user => <li key={user.id}>
+        <ul>{users.filter(user => `${displayName(user, user.email)} ${user.email}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim())).map(user => <li key={user.id}>
           <button type="button" aria-pressed={selected === user.id} disabled={saving} onClick={() => setSelected(user.id)}>
-            <strong>{user.email}</strong><span>{user.roles.join(', ') || 'No role'} · {user.permissions.length} permissions</span>
+            <strong>{displayName(user, user.email)}</strong><span>{user.firstName || user.lastName ? <>{user.email}<br /></> : null}{user.roles.join(', ') || 'No role'} · {user.permissions.length} permissions</span>
           </button></li>)}</ul>
         {!users.length && <p>No portal users yet.</p>}
       </section>
       <section className="admin-editor" aria-label="User access">{!selected ? <p>Select a user to manage access.</p> : !access ? <p role="status">Loading access…</p> : <form onSubmit={save}>
-        <h2>{access.user.email}</h2>
+        <h2>{displayName(access.user, access.user.email)}</h2><p className="small-note">{access.user.email}</p>
         <fieldset disabled={saving}><legend>Roles</legend>{catalogue.roles.map(role => <label className="admin-role" key={role.key}>
           <input type="checkbox" checked={roles.includes(role.key)} disabled={role.key === 'ADMIN' && !canManagePermissions}
             onChange={event => setRoles(value => event.target.checked ? [...value, role.key] : value.filter(key => key !== role.key))} />{role.name}

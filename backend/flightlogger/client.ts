@@ -1,5 +1,7 @@
-import { CURRENT_USER_QUERY, CURRENT_USER_PROFILE_QUERY, DUTY_OPS_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
+import { CURRENT_USER_QUERY, CURRENT_USER_PROFILE_QUERY, DUTY_OPS_QUERY, FLYVASK_QUERY, MY_FLIGHTS_QUERY, INSTRUCTORS_QUERY, INSTRUCTORS_WITH_AVAILABILITY_QUERY, MORE_AVAILABILITY_QUERY } from './queries';
 import { parseDutyMeeting, parseSelfProfile, type DutyMeeting, type FlightLoggerProfile } from './duty-ops';
+import { parseFlyvaskMeeting, type FlyvaskMeeting } from './flyvask';
+import { parseStudentFlight, type StudentFlight } from './flights';
 import type { AvailabilityPeriod, Instructor } from './types';
 
 const ENDPOINT = 'https://api.flightlogger.net/graphql';
@@ -126,19 +128,32 @@ export class FlightLoggerClient {
   }
 
   async dutyOps(from: string, to: string, all: boolean): Promise<DutyMeeting[]> {
-    const meetings = new Map<string, DutyMeeting>();
+    return this.meetings(DUTY_OPS_QUERY, parseDutyMeeting, 'Duty Ops', from, to, all);
+  }
+
+  async flyvask(from: string, to: string, all: boolean): Promise<FlyvaskMeeting[]> {
+    return this.meetings(FLYVASK_QUERY, parseFlyvaskMeeting, 'Flyvask', from, to, all);
+  }
+
+  async flights(from: string, to: string): Promise<StudentFlight[]> {
+    return this.meetings(MY_FLIGHTS_QUERY, parseStudentFlight, 'flight', from, to, false);
+  }
+
+  private async meetings<T extends { id: string; startsAt: string; endsAt: string }>(query: string, parser: (value: unknown) => T | null,
+    label: string, from: string, to: string, all: boolean): Promise<T[]> {
+    const meetings = new Map<string, T>();
     const cursors = new Set<string>();
     let after: string | null = null;
     let count = 0;
     do {
-      const data = await this.query(DUTY_OPS_QUERY, { from, to, all, after });
-      const page = connection(data.bookings, parseDutyMeeting);
+      const data = await this.query(query, { from, to, all, after });
+      const page = connection(data.bookings, parser);
       count += page.nodes.length;
       if (page.nodes.length > 50 || count > 1500) throw new FlightLoggerError('The meeting schedule exceeds the supported size.');
       for (const meeting of page.nodes) {
         if (!meeting) continue;
         const existing = meetings.get(meeting.id);
-        if (existing && JSON.stringify(existing) !== JSON.stringify(meeting)) throw new FlightLoggerError('FlightLogger returned conflicting Duty Ops records.');
+        if (existing && JSON.stringify(existing) !== JSON.stringify(meeting)) throw new FlightLoggerError(`FlightLogger returned conflicting ${label} records.`);
         if (meeting.startsAt < to && meeting.endsAt > from) meetings.set(meeting.id, meeting);
       }
       after = nextCursor(page.pageInfo, after);

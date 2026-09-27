@@ -9,7 +9,7 @@ import { CredentialForm } from '../src/features/flightlogger/CredentialForm';
 vi.mock('../src/pwa/PwaProvider', () => ({ PwaProvider: ({ children }: { children: ReactNode }) => children,
   usePwa: () => ({ canInstall: false, installed: false, installing: false, needsUpdate: false, error: '', install: vi.fn(), update: vi.fn() }) }));
 
-const state = { email: 'student@example.test', subject: 'verified-subject', onboardingComplete: false,
+const state = { email: 'student@example.test', subject: 'verified-subject', firstName: null, lastName: null, onboardingComplete: false,
   hasFlightLoggerCredential: false, flightLoggerUserId: null as string | null,
   permissions: ['duty_ops.view', 'transport.view'], roles: ['STUDENT'] };
 const connected = { ...state, onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user' };

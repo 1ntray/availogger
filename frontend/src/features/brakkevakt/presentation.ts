@@ -1,0 +1,12 @@
+import { displayName } from '../../../../shared/display-name';
+import type { BrakkevaktPerson, BrakkevaktWeek } from '../../../../shared/brakkevakt';
+const fmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const full = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+export const personName = (person: BrakkevaktPerson) => displayName(person);
+export function addDays(day: string, count: number) { const date = new Date(`${day}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + count); return date.toISOString().slice(0, 10); }
+export function weekLabel(weekStart: string, year = false) {
+  const start = new Date(`${weekStart}T12:00:00Z`), end = new Date(`${addDays(weekStart, 6)}T12:00:00Z`);
+  return `${year ? full.format(start) : fmt.format(start)} – ${year ? full.format(end) : fmt.format(end)}`;
+}
+export function partner(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id !== userId)?.user; }
+export function ownAssignment(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id === userId); }

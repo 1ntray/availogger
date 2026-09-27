@@ -1,6 +1,6 @@
 import type { AccessUpdate, PermissionKey, RoleKey, UserAccess } from '../../../../shared/authorization';
 
-export interface PortalUser { id: string; email: string; roles: RoleKey[]; permissions: PermissionKey[] }
+export interface PortalUser { id: string; email: string; firstName: string | null; lastName: string | null; roles: RoleKey[]; permissions: PermissionKey[] }
 export interface AccessCatalogue {
   permissions: { key: PermissionKey; description: string; privileged: boolean }[];
   roles: { key: RoleKey; name: string; permissions: PermissionKey[] }[];

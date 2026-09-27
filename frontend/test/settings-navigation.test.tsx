@@ -13,7 +13,7 @@ async function click(element: Element) { await act(async () => { element.dispatc
 beforeEach(async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   window.scrollTo = vi.fn();
-  vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: { email: 'student@example.test', subject: 'test', onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'test', roles: ['STUDENT'], permissions: ['duty_ops.view', 'transport.view'] }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
+  vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: { email: 'student@example.test', subject: 'test', firstName: 'Student', lastName: 'Example', onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'test', roles: ['STUDENT'], permissions: ['duty_ops.view', 'transport.view'] }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   await act(async () => root.render(<MemoryRouter><Routes><Route element={<AppShell />}><Route path="*" element={<Location />} /></Route></Routes></MemoryRouter>));
 });
@@ -22,7 +22,7 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi
 describe('Settings navigation', () => {
   it('shows Settings in the sidebar and keeps the header identity non-interactive', () => {
     expect(host.querySelector('.sidebar a[href="/settings"]')?.textContent).toBe('Settings');
-    expect(host.querySelector('.current-user')?.textContent).toBe('student@example.test');
+    expect(host.querySelector('.current-user')?.textContent).toBe('Student Examplestudent@example.test');
     expect(host.querySelector('.current-user')?.tagName).toBe('DIV');
     expect(host.querySelector('[aria-controls="account-navigation"]')).toBeNull();
   });

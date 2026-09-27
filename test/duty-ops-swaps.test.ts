@@ -1,6 +1,6 @@
 import { listSwapHistory } from '../backend/duty-ops/swap-history';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDatabase, seedCredential, testEncryptionKey } from './d1-fixture';
+import { createTestDatabase, seedCredential, testEncryptionKey, resetCreditLedger } from './d1-fixture';
 import { acceptProposal, cancelExchange, claimGiveAway, createExchange, createProposal, listExchanges, withdrawProposal } from '../backend/duty-ops/swaps';
 import { exchangeEndpoint } from '../backend/duty-ops/swap-api';
 import { dutyWindow } from '../backend/duty-ops/window';
@@ -30,6 +30,7 @@ async function shift(user: ApplicationUser, schedule = times, status = 'OPEN') {
 }
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now);
+  await resetCreditLedger(fixture.db);
   await fixture.db.batch([
     fixture.db.prepare("UPDATE duty_ops_swap_requests SET type = 'GIVE_AWAY', accepted_proposal_id = NULL"),
     ...['duty_ops_swap_events', 'duty_ops_swap_reservations', 'duty_ops_swap_proposals', 'duty_ops_swap_requests', 'users', 'duty_ops_shifts', 'duty_ops_sync_state']

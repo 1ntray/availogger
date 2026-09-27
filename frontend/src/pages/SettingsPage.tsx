@@ -2,6 +2,7 @@ import { useCurrentUser } from '../app/CurrentUser';
 import { usePwa } from '../pwa/PwaProvider';
 import { useState } from 'react';
 import { CredentialForm } from '../features/flightlogger/CredentialForm';
+import { displayName } from '../../../shared/display-name';
 
 export function SettingsPage() {
   const { user, loading } = useCurrentUser();
@@ -11,7 +12,8 @@ export function SettingsPage() {
     <div className="settings-list">
       <section className="settings-section">
         <h2>Account</h2>
-        <div><p className="field-label">Signed in as</p><p className="account-email">{user?.email || (loading ? 'Loading account…' : 'Account unavailable')}</p></div>
+        <div><p className="field-label">Signed in as</p><p className="account-email">{user ? displayName(user) : loading ? 'Loading account…' : 'Account unavailable'}</p>
+          {user && <p className="small-note">{user.email}</p>}</div>
       </section>
       <section className="settings-section">
         <h2>FlightLogger</h2>

@@ -63,7 +63,7 @@ Requests use bounded strict JSON, parameterized SQL, existing same-origin/CSRF p
 
 ## Active workspace and personal history
 
-`/duty-ops` has compact secondary navigation: **Overview / Swap history**. Its Shift exchange section is active work only: OPEN requests and permitted OPEN proposals. Accepted, cancelled, withdrawn and not-selected activity does not clutter it. Invalid OPEN requests/offers remain manageable by their owners, with an ineligible label and cancellation/withdrawal.
+`/duty-ops` has compact secondary navigation: **Overview / Swap history / Credits**. Its Shift exchange section is active work only: OPEN requests and permitted OPEN proposals. Accepted, cancelled, withdrawn and not-selected activity does not clutter it. Invalid OPEN requests/offers remain manageable by their owners, with an ineligible label and cancellation/withdrawal.
 
 `/duty-ops/swap-history` is a bookmarkable personal view of accepted agreements. Give-aways say Gave shift to / Took shift from. Direct swaps show You gave / You received from the viewing student's perspective. Each chain link stays a separate entry. Acceptance and shift times use Europe/Oslo and semantic time elements. Student is the fallback for missing trusted stored names.
 
@@ -103,4 +103,4 @@ npm run functions:build
 
 Tests include populated v1 upgrade, chains/catch-up, multi-person memberships, concurrent claims/selections, audit rollback, unchanged raw snapshots, permission/CSRF handling, personal history pagination/privacy/deleted shifts and effective Duty Ops/Home presentation. Browser verification covers desktop, narrow laptop and phone widths without horizontal overflow.
 
-Future work may add explicit APPLIED/reconciliation state and FlightLogger mutations, with a separate consent/audit design. This phase adds no writes to FlightLogger, notifications, scheduling, admin approval, credit or recommendation system.
+The [Duty Ops credits guide](duty-ops-credits.md) describes the additive coverage ledger, floor and credits UI. Future work may add explicit APPLIED/reconciliation state and FlightLogger mutations, with a separate consent/audit design. This phase adds no writes to FlightLogger, notifications, scheduling, admin approval or recommendation system.

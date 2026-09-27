@@ -1,8 +1,12 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability, read-only Duty Ops and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. Instructor Availability, read-only Duty Ops, [Flights and fuel requests](docs/flights-fuel.md), and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
 
-Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) is available with `duty_ops.view`. Additive migration `0006_duty_ops_effective_assignments.sql` is applied through the ordered release workflow; use `npm run db:migrate:local` for local development.
+Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) and [Duty Ops credits](docs/duty-ops-credits.md) are available with `duty_ops.view`. Accepted give-aways transfer ±1 credit in an immutable ledger; direct swaps have no credit effect. Migration `0008_duty_ops_credits.sql` follows merged Flyvask migration 0007 through the ordered release workflow; use `npm run db:migrate:local` for local development.
+
+[Flyvask](docs/flyvask.md) adds FlightLogger schedule discovery, effective Studentportal assignments, chained **direct swaps only**, and personal history. Meeting comments identify Flyvask; classroom is metadata. Migration `0007_flyvask.sql` grants `flyvask.view` and `flyvask.swap` to STUDENT/ADMIN and adds independent persistence. FlightLogger stays read-only.
+
+[Brakkevakt](docs/brakkevakt.md) is a portal-owned, two-student weekly dormitory roster with manager editing, direct swaps and personal history. Its `0010_brakkevakt.sql` migration follows the merged Flights/Fuel `0009` migration; it does not depend on FlightLogger schedule data or Duty Ops credits. Stored student names now lead the portal account and Admin user displays, with email retained as secondary admin/account metadata.
 
 ## Deployment status
 
@@ -12,7 +16,7 @@ See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this 
 
 ## Architecture
 
-The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults to Duty Ops and Transport view. Review the authorization migration and bootstrap-secret setup before activating this branch.
+The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults include Duty Ops/Transport view, university car bookings, Flyvask view/swaps, and own flight view/fuel requests. Explicit overrides remain authoritative.
 
 ```text
 Wix main website: luftfartsfag.no (unchanged)
@@ -49,12 +53,19 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | `/` | Today's Duty Ops, next personal shift when today is empty, and quick navigation |
 | `/availability` | Working Instructor Availability |
 | `/duty-ops` | Effective Today/My shifts/Schedule and active exchanges |
+| `/duty-ops/shifts/:shiftId` | Effective team's fuel tasks for a shift |
 | `/duty-ops/swap-history` | Personal accepted exchange history |
+| `/flights` | Own synchronized flights and fuel requests |
+| `/flyvask` | My Flyvask, effective schedule and active direct swaps |
+| `/flyvask/swap-history` | Personal accepted Flyvask swap history |
+| `/brakkevakt` | Current/upcoming dormitory duty and direct swaps |
+| `/brakkevakt/swap-history` | Personal accepted Brakkevakt swaps |
+| `/brakkevakt/manage` | Permission-protected weekly roster editor |
 | `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
 | `/admin/users` | Permission-protected portal user access editor |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Transport/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Flights/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Transport, Flyvask, Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 
@@ -64,7 +75,7 @@ All routes run behind the existing Access middleware and return `Cache-Control: 
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET /api/me` | Verified `email`, `subject`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
+| `GET /api/me` | Verified `email`, `subject`, nullable `firstName`/`lastName`, `onboardingComplete`, `hasFlightLoggerCredential`, nullable `flightLoggerUserId`, effective `permissions`, role keys |
 | `POST /api/onboarding/flightlogger` | JSON `{ "apiKey": "..." }`; validate, encrypt and connect/replace the current user's credential |
 | `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Requires `availability.view`; current user's calendar, validated inclusive range of 1–62 days |
 | `GET /api/duty-ops` | Requires `duty_ops.view`; D1-backed shared shifts, current-user assignments, known participants and separate freshness metadata; optional paired dates, maximum 93 days |

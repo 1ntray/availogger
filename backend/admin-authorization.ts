@@ -11,7 +11,7 @@ const permissionSql = 'SELECT permission_key FROM effective_user_permissions WHE
 export async function getUserAccess(db: D1Database, userId: string): Promise<UserAccess> {
   // D1 batch gives all editor data and the revision from one transaction.
   const result = await db.batch([
-    db.prepare('SELECT id, email FROM users WHERE id = ?').bind(userId),
+    db.prepare('SELECT id, email, flightlogger_first_name AS firstName, flightlogger_last_name AS lastName FROM users WHERE id = ?').bind(userId),
     db.prepare(roleSql).bind(userId),
     db.prepare(permissionSql).bind(userId),
     db.prepare(`SELECT DISTINCT rp.permission_key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
@@ -34,7 +34,7 @@ export async function getUserAccess(db: D1Database, userId: string): Promise<Use
 export async function listPortalUsers(db: D1Database) {
   // Explicit projections keep credentials, Access subjects and JWTs out of admin responses.
   const result = await db.batch([
-    db.prepare('SELECT id, email FROM users ORDER BY email, id'),
+    db.prepare('SELECT id, email, flightlogger_first_name AS firstName, flightlogger_last_name AS lastName FROM users ORDER BY email, id'),
     db.prepare('SELECT ur.user_id, r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id ORDER BY r.key'),
     db.prepare('SELECT user_id, permission_key FROM effective_user_permissions ORDER BY permission_key'),
   ]);

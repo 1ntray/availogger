@@ -52,3 +52,43 @@ export const DUTY_OPS_QUERY = `
     }
   }
 `;
+
+export const FLYVASK_QUERY = `
+  query Flyvask($from: DateTime!, $to: DateTime!, $all: Boolean!, $after: String) {
+    bookings(from: $from, to: $to, all: $all, overlap: true, subtypes: [MEETING], first: 50, after: $after) {
+      nodes {
+        __typename
+        ... on MeetingBooking {
+          id startsAt endsAt status comment externalReference
+          classroom { id name }
+          participants { id firstName lastName }
+        }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;
+
+export const MY_FLIGHTS_QUERY = `
+  query MyFlights($from: DateTime!, $to: DateTime!, $after: String) {
+    bookings(from: $from, to: $to, all: false, overlap: true,
+      subtypes: [SINGLE_STUDENT, MULTI_STUDENT], first: 50, after: $after) {
+      nodes {
+        __typename
+        ... on SingleStudentBooking {
+          id startsAt endsAt flightStartsAt flightEndsAt status
+          aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
+          departureAirport { id name } arrivalAirport { id name }
+          student { id firstName lastName } instructor { id firstName lastName }
+        }
+        ... on MultiStudentBooking {
+          id startsAt endsAt flightStartsAt flightEndsAt status
+          aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
+          departureAirport { id name } arrivalAirport { id name }
+          students { id firstName lastName } instructor { id firstName lastName }
+        }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;

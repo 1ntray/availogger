@@ -1,0 +1,14 @@
+.brakkevakt-week { border-bottom: 1px solid var(--portal-border); padding: 12px 0; min-width: 0; }
+.brakkevakt-week time { font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; }
+.brakkevakt-week p { margin: 6px 0; font-size: 13px; }
+.brakkevakt-current { border-left: 3px solid var(--portal-accent); padding-left: 10px; }
+.brakkevakt-mine { background: #ecf4ef; }
+.brakkevakt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; margin-bottom: 28px; }
+.brakkevakt-grid > section { min-width: 0; }
+.brakkevakt-manage-row { display: grid; grid-template-columns: minmax(130px, 1fr) repeat(2, minmax(145px, 1fr)) auto; align-items: end; gap: 10px; border-bottom: 1px solid var(--portal-border); padding: 12px 0; }
+.brakkevakt-manage-row label { display: grid; gap: 5px; min-width: 0; font-size: 12px; }
+.brakkevakt-manage-row select, .brakkevakt-generator input { min-width: 0; width: 100%; box-sizing: border-box; min-height: 44px; border: 1px solid var(--portal-border); border-radius: 6px; padding: 8px; font: inherit; }
+.brakkevakt-generator { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 16px; }
+.brakkevakt-generator label { display: grid; gap: 5px; font-size: 12px; }
+.brakkevakt-manage-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 760px) { .brakkevakt-grid { grid-template-columns: 1fr; gap: 24px; } .brakkevakt-manage-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .brakkevakt-manage-row > strong, .brakkevakt-manage-actions { grid-column: 1 / -1; } }
