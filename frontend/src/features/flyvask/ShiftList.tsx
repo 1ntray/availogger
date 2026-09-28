@@ -1,6 +1,7 @@
 import { dateLabel, participantLabel, timeLabel } from './presentation';
 import type { FlyvaskShift } from './types';
 import type { ReactNode } from 'react';
+import { AttentionDetail } from '../../app/AttentionDetail';
 
 export function ShiftList({ shifts, showDate = false, renderAction }: { shifts: FlyvaskShift[]; showDate?: boolean; renderAction?: (shift: FlyvaskShift) => ReactNode }) {
   return <ul>{shifts.map(s => <li key={s.id} className={`duty-row ${s.participants.some(p => p.isCurrentUser) ? 'is-mine' : ''} ${s.status === 'CANCELLED' ? 'is-cancelled' : ''}`}>
@@ -10,10 +11,8 @@ export function ShiftList({ shifts, showDate = false, renderAction }: { shifts: 
       {s.status === 'CANCELLED' && <span className="duty-status">Cancelled</span>}
       {s.status === 'COMPLETED' && <span className="duty-status">Completed</span>}
       {s.status === 'PARTIALLY_COMPLETED' && <span className="duty-status">Partially completed</span>}
-    </div>{s.assignmentsDiffer && s.flightlogger ? <div className="duty-assignment-sources">
-      <p className="duty-participants"><span className="duty-source">Studentportal</span>{participantLabel(s)}</p>
-      <p className="duty-participants duty-source-secondary"><span className="duty-source">FlightLogger</span>{participantLabel(s.flightlogger)}</p>
-    </div> : <p className="duty-participants">{participantLabel(s)}<span className="duty-source-inline">FlightLogger</span></p>}
+    </div><p className="duty-participants">{participantLabel(s)}</p>
+    {s.assignmentsDiffer && s.flightlogger && <AttentionDetail label="Assignments differ from FlightLogger"><p>Studentportal is the current assignment. FlightLogger records: {participantLabel(s.flightlogger)}</p></AttentionDetail>}
     {s.classroomName && <p className="exchange-note">{s.classroomName}</p>}
     {renderAction?.(s)}
   </li>)}</ul>;

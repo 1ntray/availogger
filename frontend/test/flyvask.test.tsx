@@ -47,8 +47,8 @@ describe('Flyvask navigation and schedule',()=>{
   });
   it('loads a real route and hides controls without swap permission',async()=>{
     permissions=['flyvask.view'];await render();expect(host.querySelector('h1')!.textContent).toBe('Flyvask');
-    expect(host.querySelector('aside a[href="/flyvask"]')).not.toBeNull();expect(host.querySelector('nav[aria-label="Flyvask views"] a[aria-current="page"]')!.textContent).toBe('Overview');
-    expect(host.textContent).toContain('My Flyvask');expect(host.textContent).not.toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask']);
+    expect(host.querySelector('aside a[href="/flyvask"]')).not.toBeNull();expect(host.querySelector('nav[aria-label="Flyvask views"]')).toBeNull();
+    expect(host.textContent).toContain('Schedule');expect(host.textContent).not.toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask']);
   });
   it('shows only look-for-swap, publishes immediately with no type selector or give-away',async()=>{
     await render();await click('Look for swap');
@@ -56,10 +56,10 @@ describe('Flyvask navigation and schedule',()=>{
     expect(post[0]).toBe('/api/flyvask/swaps');expect(JSON.parse(post[1].body)).toEqual({shiftId:'a',startsAt:a.startsAt,endsAt:a.endsAt});
     expect(host.textContent).not.toMatch(/Give away|Take shift|Exchange type/);expect(host.querySelector('[name="exchange-type"]')).toBeNull();
   });
-  it('uses effective My Flyvask and source labels/counts without inferring masked identities',async()=>{
+  it('shows effective own Flyvask inline with source labels/counts without inferring masked identities',async()=>{
     data.shifts=[{...a,participants:[anna],assignmentsDiffer:true},{...b,participants:[me],assignmentsDiffer:true}];await render();
-    const mine=host.querySelector('section[aria-labelledby="flyvask-mine"]')!; expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);
-    expect(mine.textContent).toContain('StudentportalSimon · 13 others');expect(mine.textContent).toContain('FlightLoggerAnna · 13 others');expect(mine.querySelector('.sr-only')!.textContent).toBe('Your shift');
+    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!; expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);
+    expect(mine.querySelector('.duty-participants')!.textContent).toBe('Simon · 13 others');expect(mine.querySelector('.attention-detail')!.textContent).toContain('FlightLogger records: Anna · 13 others');expect(mine.querySelector('details')!.hasAttribute('open')).toBe(false);expect(mine.querySelector('.sr-only')!.textContent).toBe('Your shift');
     expect(mine.textContent).toContain('Hangar UTSA');expect(mine.textContent).not.toContain('17 Oct');
   });
   it('does not enable past, cancelled, started or non-own shifts for exchange',async()=>{
@@ -68,7 +68,9 @@ describe('Flyvask navigation and schedule',()=>{
   });
   it('shows compact unchanged source and useful stale/error states',async()=>{
     data.sync.stale=true;data.sync.warning='Refresh failed. Showing previously synchronized Flyvask data.';await render();
-    expect(host.querySelectorAll('.duty-source-inline').length).toBeGreaterThan(0);expect(host.textContent).toContain(data.sync.warning);expect(host.querySelector('.duty-assignment-sources')).toBeNull();
+    expect(host.querySelectorAll('.duty-row .attention-detail')).toHaveLength(0);
+    expect(host.querySelector('.attention-detail summary')!.textContent).toContain('Schedule may be out of date');
+    expect(host.querySelector('.attention-detail')!.textContent).toContain(data.sync.warning);
   });
   it('rejects malformed source metadata rather than rendering a partial schedule',()=>{
     expect(isFlyvaskData(data)).toBe(true);expect(isFlyvaskData({...data,shifts:[{...a,classroomName:42}]})).toBe(false);expect(isFlyvaskData({...data,shifts:[{...a,flightlogger:undefined}]})).toBe(false);
@@ -83,7 +85,7 @@ describe('Flyvask direct swap workspace',()=>{
     await render();const choices=[...host.querySelectorAll<HTMLButtonElement>('.duty-exchanges button')].filter(b=>b.textContent==='Choose this swap');expect(choices).toHaveLength(2);await act(async()=>choices[0].click());
     const dialog=host.querySelector('dialog')!;expect(dialog.textContent).toContain('Your Flyvask');expect(dialog.textContent).toContain('Anna’s Flyvask');expect(dialog.textContent).toContain('Sat 17 Oct');expect(dialog.textContent).toContain('Sat 24 Oct');expect(dialog.textContent).toContain('FlightLogger is not updated automatically');
     await click('Confirm swap');expect(api.mock.calls.find(([,init])=>init?.method==='POST')![0]).toBe('/api/flyvask/swaps/request/proposals/proposal/accept');
-    const mine=host.querySelector('section[aria-labelledby="flyvask-mine"]')!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).not.toContain('17 Oct');expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')!.textContent).not.toContain('Choose this swap');
+    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')!.textContent).not.toContain('Choose this swap');
   });
   it('offers only an eligible effective own shift, never source-only or locked memberships',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];
@@ -106,15 +108,15 @@ describe('Flyvask direct swap workspace',()=>{
 
 describe('Flyvask personal history',()=>{
   it('is bookmarkable, view-only, accepted-only and user oriented with stored semantic times',async()=>{
-    permissions=['flyvask.view'];await render('/flyvask/swap-history');expect(host.querySelector('h1')!.textContent).toBe('Flyvask swap history');
-    expect(host.querySelector('nav[aria-label="Flyvask views"] a[aria-current="page"]')!.textContent).toBe('Swap history');expect(host.textContent).toContain('Swapped with Anna');expect(host.textContent).toContain('You gave');expect(host.textContent).toContain('You received');
-    expect([...host.querySelectorAll('.swap-history-shifts time')].map(t=>t.getAttribute('datetime'))).toEqual([a.startsAt,b.startsAt]);expect(host.textContent).toContain('FlightLogger is not updated automatically');
-    expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask/swaps/history']);expect(host.querySelectorAll('.swap-history-shifts > div')).toHaveLength(2);
+    permissions=['flyvask.view'];await render('/flyvask/swap-history');expect(host.querySelector('h1')!.textContent).toBe('My activity');
+    expect(host.querySelector('nav[aria-label="Activity filter"]')).not.toBeNull();expect(host.textContent).toContain('Swapped with Anna');expect(host.textContent).toContain('Gave');expect(host.textContent).toContain('Received');
+    expect(host.querySelector('.activity-list time')?.getAttribute('datetime')).toBe(entry.acceptedAt);
+    expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask/swaps/history']);expect(host.querySelectorAll('.activity-list > li')).toHaveLength(1);
   });
   it('loads next keyset page and shows separate chain links with graceful name fallback',async()=>{
     let page=0; const original=api.getMockImplementation()!;
     api.mockImplementation(async(path:string,init:RequestInit={})=>path.startsWith('/api/flyvask/swaps/history')?Response.json(page++?{entries:[{...entry,id:'second',counterparty:{id:'bob',firstName:null,lastName:null},givenShift:b,receivedShift:a}],nextCursor:null}:{entries:[entry],nextCursor:'cursor|id'}):original(path,init));
-    await render('/flyvask/swap-history');await click('Load more history');expect(host.querySelectorAll('.swap-history > li')).toHaveLength(2);expect(host.textContent).toContain('Swapped with Student');
+    await render('/flyvask/swap-history');await click('Load more Flyvask');expect(host.querySelectorAll('.activity-list > li')).toHaveLength(2);expect(host.textContent).toContain('Swapped with Student');
     const call=api.mock.calls.find(([path])=>path.includes('?cursor='))!;expect(call[0]).toBe('/api/flyvask/swaps/history?cursor=cursor%7Cid');expect(call[1]).toMatchObject({cache:'no-store',credentials:'same-origin'});
   });
 });

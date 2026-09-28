@@ -29,6 +29,7 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged 
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [offeredId, setOfferedId] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const saving = useRef(false);
   const lifecycle = useRef(0);
   const today = osloDate(new Date(now));
@@ -42,8 +43,9 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged 
   }, [enabled, refreshKey, version, today, user?.subject]);
   useEffect(() => {
     if (dialog && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
+    if (!dialog && opener.current?.isConnected) { opener.current.focus(); opener.current = null; }
   }, [dialog]);
-  const open = (next: DialogState) => { setError(''); setOfferedId(''); setDialog(next); };
+  const open = (next: DialogState) => { opener.current = document.activeElement as HTMLElement; setError(''); setOfferedId(''); setDialog(next); };
   const eligible = shifts.filter(s => s.status === 'OPEN' && Date.parse(s.startsAt) > now && s.participants.some(p => p.isCurrentUser) && !data?.lockedShiftIds.includes(s.id));
   async function mutate(operation: () => Promise<void>) {
     if (saving.current) return;

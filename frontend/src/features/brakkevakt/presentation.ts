@@ -8,5 +8,11 @@ export function weekLabel(weekStart: string, year = false) {
   const start = new Date(`${weekStart}T12:00:00Z`), end = new Date(`${addDays(weekStart, 6)}T12:00:00Z`);
   return `${year ? full.format(start) : fmt.format(start)} – ${year ? full.format(end) : fmt.format(end)}`;
 }
+export function weekNumber(weekStart: string) {
+  const thursday = new Date(`${addDays(weekStart, 3)}T12:00:00Z`);
+  const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1, 12));
+  return Math.floor((thursday.getTime() - yearStart.getTime()) / 604800000) + 1;
+}
+export function weekTitle(weekStart: string) { return `Week ${weekNumber(weekStart)} · ${weekLabel(weekStart, true)}`; }
 export function partner(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id !== userId)?.user; }
 export function ownAssignment(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id === userId); }

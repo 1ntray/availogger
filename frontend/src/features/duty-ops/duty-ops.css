@@ -9,7 +9,15 @@
 .duty-ops h2 { font-size: 18px; margin: 0; padding-bottom: 10px; border-bottom: 1px solid #cbd9d4; }
 .duty-ops h3 { font-size: 13px; font-weight: 650; margin: 22px 0 6px; color: #48615b; }
 .duty-ops ul { list-style: none; padding: 0; margin: 0; }
-.duty-row { padding: 12px 12px; border-bottom: 1px solid #e1e8e4; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+.duty-row { position: relative; padding: 12px 12px; border-bottom: 1px solid #e1e8e4; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+.duty-row:has(.duty-row-link):hover { background: var(--portal-control-hover); }
+.duty-row-link { position: static; display: inline-block; min-width: 44px; min-height: 44px; padding: 12px; color: var(--portal-accent); text-decoration: none; }
+.duty-row-link::after { content: ''; position: absolute; inset: 0; }
+.duty-meta details { position: relative; }
+.duty-meta summary { cursor: pointer; }
+.duty-meta details span { display: block; margin-top: 4px; }
+.duty-heading-actions { display: flex; align-items: center; gap: 8px; }
+.duty-heading-actions a { font-size: 13px; color: var(--portal-accent); text-decoration: none; }
 .duty-row:last-child { border-bottom: 0; }
 .duty-row.is-mine { border-left-color: #328767; background: #ecf4ef; }
 .duty-row.is-cancelled { color: #60767c; }

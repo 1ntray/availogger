@@ -11,44 +11,44 @@ import type { PermissionKey } from '../../shared/authorization';
 
 const completed = { email: 'student@example.com', subject: 'verified-subject', firstName: 'Student', lastName: 'Example', onboardingComplete: true,
   hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user', roles: ['STUDENT'] as ['STUDENT'],
-  permissions: ['availability.view', 'duty_ops.view', 'flights.view', 'fuel.request', 'transport.view'] as PermissionKey[] };
+  permissions: ['availability.view', 'duty_ops.view', 'flights.view', 'flyvask.view', 'brakkevakt.view', 'fuel.request'] as PermissionKey[] };
 beforeEach(() => vi.spyOn(account, 'useCurrentUser').mockReturnValue({ user: completed, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() }));
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('portal routes', () => {
   it.each([
-    ['/', 'Home'], ['/availability', 'Instructor availability'],
-    ['/duty-ops', 'Duty Ops'], ['/duty-ops/shifts/00000000-0000-0000-0000-000000000001', 'Shift tasks'],
-    ['/flights', 'Flights'], ['/transport', 'Transport'], ['/settings', 'Settings'],
+    ['/', 'Home'], ['/admin/availability', 'Instructor availability'],
+    ['/duty-ops', 'Duty Ops'], ['/duty-ops/shifts/00000000-0000-0000-0000-000000000001', 'Duty Ops shift'],
+    ['/flights', 'Flights'], ['/flyvask', 'Flyvask'], ['/brakkevakt', 'Brakkevakt'], ['/settings', 'Settings'], ['/activity', 'My activity'], ['/admin', 'Administration'],
     ['/missing', 'Page not found'],
   ])('renders %s with the portal navigation', (route, heading) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={[route]}><PortalRoutes /></MemoryRouter>);
     expect(html).toContain(`<h1>${heading}</h1>`);
     expect(html).toContain('Luftfartsfag');
     expect(html).toContain('aria-label="Mobile navigation"');
-    expect(html).toContain('href="/availability"');
+    expect(html).not.toContain('href="/transport"');
     expect(html).not.toContain('Availogger');
-    if (route !== '/missing') expect(html).toContain('aria-current="page"');
+    if (['/', '/flights', '/duty-ops', '/flyvask', '/brakkevakt'].includes(route)) expect(html).toContain('aria-current="page"');
   });
   it('retains the availability controls and loading state after extraction', () => {
-    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/availability']}><PortalRoutes /></MemoryRouter>);
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/availability']}><PortalRoutes /></MemoryRouter>);
     for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next dates', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
   });
-  it('home links to implemented and planned tools without fake operational data', () => {
+  it('Home starts with the personal schedule without duplicate quick-access cards', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
-    expect(html).toContain('Loading Duty Ops');
+    expect(html).toContain('Loading schedule');
     expect(html).toContain('href="/duty-ops"');
-    expect(html).toContain('href="/transport"');
+    expect(html).not.toContain('Quick access');
   });
   it('hides forbidden modules in desktop/mobile navigation and Home, and guards manual routes', () => {
     vi.mocked(account.useCurrentUser).mockReturnValue({ user: { ...completed, permissions: [] }, loading: false, error: '', retry: vi.fn(), refresh: vi.fn() });
     const home = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);
-    for (const path of ['/availability', '/transport', '/duty-ops', '/admin/users']) {
+    for (const path of ['/admin/availability', '/duty-ops', '/admin/users']) {
       expect(home).not.toContain(`href="${path}"`);
       const page = renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><PortalRoutes /></MemoryRouter>);
       expect(page).toContain('<h1>Access denied</h1>');
     }
-    expect(home).toContain('href="/settings"');
+    expect(home).toContain('aria-controls="account-menu"');
   });
 });
 

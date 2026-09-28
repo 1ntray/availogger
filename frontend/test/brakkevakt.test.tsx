@@ -48,14 +48,17 @@ describe('Brakkevakt portal UI', () => {
     await click(button);
     expect(api.mock.calls.some(([path, init]) => path === '/api/brakkevakt/swaps' && init?.method === 'POST'
       && JSON.parse(init.body).assignmentId === 'slot-a')).toBe(true);
-    expect(host.querySelector('a[href="/brakkevakt/swap-history"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/brakkevakt/swap-history"]')).toBeNull();
+    expect(host.querySelectorAll('.brakkevakt-week')).toHaveLength(2);
     expect(host.querySelector('a[href="/brakkevakt/manage"]')).toBeNull();
   });
   it('allows a designated student manager to prepare 10 unsaved weeks from a name-only roster', async () => {
     permissions.push('brakkevakt.manage_schedule');
     await render('/brakkevakt/manage');
     expect(host.querySelector('h1')?.textContent).toBe('Manage Brakkevakt');
-    expect(host.querySelector('a[href="/brakkevakt/manage"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/brakkevakt"]')).not.toBeNull();
+    expect(host.querySelector('input[type="date"]')).toBeNull();
+    expect(host.querySelector('.brakkevakt-generator select')).not.toBeNull();
     expect(host.querySelectorAll('.brakkevakt-manage-row')).toHaveLength(2);
     await click([...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Generate rows')!);
     expect(host.querySelectorAll('.brakkevakt-manage-row')).toHaveLength(10);
@@ -67,7 +70,7 @@ describe('Brakkevakt portal UI', () => {
     expect(displayName({ firstName: null, lastName: null })).toBe('Student');
     expect(displayName({ firstName: 'Alice', lastName: null })).toBe('Alice');
     await render('/brakkevakt/swap-history');
-    expect(host.textContent).toContain('No accepted swaps yet');
+    expect(host.textContent).toContain('No accepted activity yet');
     expect(api.mock.calls.some(([path]) => path === '/api/brakkevakt/swaps/history')).toBe(true);
   });
 });

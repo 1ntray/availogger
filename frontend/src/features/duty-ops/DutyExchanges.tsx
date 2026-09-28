@@ -20,7 +20,7 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   return <button className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'create', shift })}>Exchange shift</button>;
 }
 
-export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, onBalanceChanged }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void }) {
+export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, onBalanceChanged, showBoard = true }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void; showBoard?: boolean }) {
   const { user } = useCurrentUser();
   const enabled = user?.permissions?.includes(PERMISSIONS.dutyOpsSwap) === true;
   const [data, setData] = useState<ExchangesResponse | null>(null);
@@ -31,6 +31,7 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [offeredId, setOfferedId] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const saving = useRef(false);
   const lifecycle = useRef(0);
   const today = osloDate(new Date(now));
@@ -58,8 +59,9 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
   const atFloor = balance !== undefined && balance <= -2;
   useEffect(() => {
     if (dialog && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
+    if (!dialog && opener.current?.isConnected) { opener.current.focus(); opener.current = null; }
   }, [dialog]);
-  const open = (next: DialogState) => { setError(''); setOfferedId(''); setDialog(next); };
+  const open = (next: DialogState) => { opener.current = document.activeElement as HTMLElement; setError(''); setOfferedId(''); setDialog(next); };
   const eligible = shifts.filter(s => s.status === 'OPEN' && Date.parse(s.startsAt) > now && s.participants.some(p => p.isCurrentUser) && !data?.lockedShiftIds.includes(s.id));
   async function confirm() {
     if (!dialog || saving.current) return;
@@ -121,11 +123,12 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
   const mine = active.filter(r => r.requester.id === data?.currentUserId || r.proposals.some(p => p.proposer.id === data?.currentUserId));
   const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, open }}>{children}
-    {enabled && <section className="duty-exchanges" aria-labelledby="exchange-title"><h2 id="exchange-title">Shift exchange</h2>
+    {enabled && showBoard && <section className="duty-exchanges" aria-labelledby="exchange-title"><h2 id="exchange-title">Shift exchange</h2>
       {loading && <p role="status" className="duty-loading">Loading exchanges…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
-      {data && <><h3>Available exchanges</h3>{available.length ? <ul>{available.map(renderRequest)}</ul> : <p className="duty-empty">No open exchanges</p>}
-        <h3>My exchanges</h3>{mine.length ? <ul>{mine.map(renderRequest)}</ul> : <p className="duty-empty">No exchanges yet</p>}
+      {data && <>{available.length > 0 && <><h3>Available exchanges</h3><ul>{available.map(renderRequest)}</ul></>}
+        {mine.length > 0 && <><h3>My exchanges</h3><ul>{mine.map(renderRequest)}</ul></>}
+        {!available.length && !mine.length && <p className="duty-empty">No open exchanges</p>}
         {data.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more exchanges</button>}
       </>}
     </section>}
@@ -135,8 +138,7 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
         {dialog.kind === 'create' ? <><p className="exchange-time">{shiftLabel(dialog.shift)}</p><div className="exchange-choices">
           <label><input type="radio" name="exchange-type" checked={dialog.type === 'GIVE_AWAY'} onChange={() => setDialog({ ...dialog, type: 'GIVE_AWAY' })} disabled={busy || atFloor} />Give away</label>
           <label><input type="radio" name="exchange-type" checked={dialog.type === 'DIRECT_SWAP'} onChange={() => setDialog({ ...dialog, type: 'DIRECT_SWAP' })} disabled={busy} />Look for swap</label>
-        </div>{atFloor && <p className="exchange-note">Your balance is {creditSign(balance!)}. Cover another student’s shift to earn a credit before giving away a shift. Your balance must be above -2. Direct swaps remain available.</p>}
-        {dialog.type === 'GIVE_AWAY' && <><p className="exchange-note">Publishing lets another student take this shift without another confirmation from you.</p><p className="exchange-note">When someone takes your shift, you spend 1 credit: {creditSign(balance!)} → {creditSign(balance! - 1)}.</p></>}</>
+        </div><div className="exchange-decision-note">{atFloor ? <p className="exchange-note">Your balance is {creditSign(balance!)}. Cover another student's shift before giving one away. Direct swaps remain available.</p> : dialog.type === 'GIVE_AWAY' ? <><p className="exchange-note">Your current balance: {creditSign(balance!)} · After this shift is taken: {creditSign(balance! - 1)}</p><p className="exchange-note">Another student can take the shift without further confirmation.</p></> : null}</div></>
           : dialog.kind === 'accept' ? <><p><strong>Your shift</strong><br />{shiftLabel(dialog.request.requestedShift)}</p>
             <p><strong>{userName(dialog.proposal.proposer)}’s shift</strong><br />{shiftLabel(dialog.proposal.offeredShift)}</p>
             <p className="exchange-note">Agreed in Studentportal. FlightLogger is not updated automatically.</p></>

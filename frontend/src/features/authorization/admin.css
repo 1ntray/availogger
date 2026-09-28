@@ -16,6 +16,11 @@
 .admin-permission { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #d7e1df; padding: 12px 0; font-size: 14px; }
 .admin-permission small { display: block; margin-top: 4px; }
 .admin-permission select { flex-shrink: 0; }
+.admin-permission-group { margin: 12px 0 20px; }
+.admin-permission-group h3 { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--portal-border); font-size: 13px; }
+.admin-effective { display: inline-block; margin-top: 5px; font-size: 12px; font-weight: 700; }
+.admin-effective.is-allowed { color: var(--portal-nav-active-text); }
+.admin-effective.is-denied { color: #855447; }
 .admin-users select:focus-visible { outline: 3px solid #238568; outline-offset: 3px; }
 .admin-users button:disabled, .admin-users select:disabled { opacity: .6; }
 @media (max-width: 700px) { .admin-columns { grid-template-columns: 1fr; } .admin-permission { flex-wrap: wrap; gap: 8px; } }

@@ -8,7 +8,7 @@ import { dateLabel, flyvaskSections } from '../features/flyvask/presentation';
 import type { FlyvaskData } from '../features/flyvask/types';
 import { ShiftList } from '../features/flyvask/ShiftList';
 import { FlyvaskExchanges, ExchangeShiftActions } from '../features/flyvask/FlyvaskExchanges';
-import { FlyvaskNavigation } from '../features/flyvask/FlyvaskNavigation';
+import { AttentionDetail } from '../app/AttentionDetail';
 import '../features/duty-ops/duty-ops.css';
 import '../features/flyvask/flyvask.css';
 
@@ -38,18 +38,13 @@ export function FlyvaskPage() {
   const sections = data ? flyvaskSections(data.shifts, now) : null;
   return <section className="duty-ops">
     <div className="duty-heading"><h1>Flyvask</h1><button aria-label="Reload Flyvask" disabled={loading} onClick={() => setReload(n => n + 1)}>Reload</button></div>
-    <FlyvaskNavigation />
-    {data && <div className="duty-meta"><span>Europe/Oslo</span>
-      <span>FlightLogger schedule: <time dateTime={data.sync.discovery.lastSyncedAt} title={cacheTimeInOslo(data.sync.discovery.lastSyncedAt)}>{cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)}</time></span>
-      <span>FlightLogger assignments: <time dateTime={data.sync.assignments.lastSyncedAt} title={cacheTimeInOslo(data.sync.assignments.lastSyncedAt)}>{cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</time></span>
-    </div>}
+    {data && <div className="duty-meta"><span>Europe/Oslo · Updated <time dateTime={data.sync.assignments.lastSyncedAt} title={cacheTimeInOslo(data.sync.assignments.lastSyncedAt)}>{cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</time></span><details><summary>Sync details</summary><span>Schedule: {cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)} · Assignments: {cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</span></details></div>}
     {loading && <p className="duty-loading" role="status">Loading Flyvask…</p>}
     {error && <p className="duty-alert" role="alert">{error}</p>}
-    {data?.sync.stale && <p className="duty-alert" role="status">{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p>}
+    {data?.sync.stale && <div role="status"><AttentionDetail label="Schedule may be out of date"><p>{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p></AttentionDetail></div>}
     {sections && data && <FlyvaskExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
-      <section aria-labelledby="flyvask-mine"><h2 id="flyvask-mine">My Flyvask</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming Flyvask</p>}</section>
       <section className="flyvask-schedule" aria-labelledby="flyvask-schedule"><h2 id="flyvask-schedule">Schedule</h2>
-        {sections.schedule.length ? sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} /></section>) : <p className="duty-empty">Nothing scheduled</p>}
+        {sections.schedule.length ? sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>) : <p className="duty-empty">Nothing scheduled</p>}
       </section>
     </FlyvaskExchanges>}
   </section>;
