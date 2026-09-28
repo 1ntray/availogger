@@ -14,5 +14,14 @@ export function weekNumber(weekStart: string) {
   return Math.floor((thursday.getTime() - yearStart.getTime()) / 604800000) + 1;
 }
 export function weekTitle(weekStart: string) { return `Week ${weekNumber(weekStart)} · ${weekLabel(weekStart, true)}`; }
+const shortDay = new Intl.DateTimeFormat('en-GB', { day: 'numeric', timeZone: 'UTC' });
+const shortMonth = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+export function compactWeekTitle(weekStart: string, referenceYear = new Date().getUTCFullYear()) {
+  const start = new Date(`${weekStart}T12:00:00Z`);
+  const end = new Date(`${addDays(weekStart, 6)}T12:00:00Z`);
+  const startLabel = `${shortDay.format(start)}${start.getUTCMonth() !== end.getUTCMonth() ? ` ${shortMonth.format(start)}` : ''}`;
+  const year = end.getUTCFullYear() !== referenceYear || start.getUTCFullYear() !== end.getUTCFullYear() ? ` ${end.getUTCFullYear()}` : '';
+  return `Week ${weekNumber(weekStart)} · ${startLabel}–${shortDay.format(end)} ${shortMonth.format(end)}${year}`;
+}
 export function partner(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id !== userId)?.user; }
 export function ownAssignment(week: BrakkevaktWeek, userId: string) { return week.assignments.find(a => a.user.id === userId); }

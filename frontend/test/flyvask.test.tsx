@@ -85,7 +85,7 @@ describe('Flyvask direct swap workspace',()=>{
     await render();const choices=[...host.querySelectorAll<HTMLButtonElement>('.duty-exchanges button')].filter(b=>b.textContent==='Choose this swap');expect(choices).toHaveLength(2);await act(async()=>choices[0].click());
     const dialog=host.querySelector('dialog')!;expect(dialog.textContent).toContain('Your Flyvask');expect(dialog.textContent).toContain('Anna’s Flyvask');expect(dialog.textContent).toContain('Sat 17 Oct');expect(dialog.textContent).toContain('Sat 24 Oct');expect(dialog.textContent).toContain('FlightLogger is not updated automatically');
     await click('Confirm swap');expect(api.mock.calls.find(([,init])=>init?.method==='POST')![0]).toBe('/api/flyvask/swaps/request/proposals/proposal/accept');
-    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')!.textContent).not.toContain('Choose this swap');
+    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();
   });
   it('offers only an eligible effective own shift, never source-only or locked memberships',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];

@@ -98,7 +98,7 @@ describe('continuous availability window', () => {
   });
   it('reload requests the same range, and retains useful statuses and no scrolling instruction', async () => {
     const [from, to] = request();
-    await click(button('Reload view'));
+    await click(button('Refresh availability'));
     expect(request().slice(0, 2)).toEqual([from, to]);
     expect(load).toHaveBeenCalledTimes(2);
     for (const text of ['Europe/Oslo', 'Updated 30 minutes ago', 'Available', 'Unavailable', 'No information']) expect(host.textContent).toContain(text);
@@ -120,7 +120,7 @@ describe('continuous availability window', () => {
   });
   it('retains errors and retries, and refreshes onboarding on the existing required response', async () => {
     load.mockRejectedValueOnce(new Error('Unavailable service'));
-    await click(button('Reload view'));
+    await click(button('Refresh availability'));
     expect(host.querySelector('[role="alert"]')!.textContent).toContain('Unavailable service');
     load.mockRejectedValueOnce(new OnboardingRequiredError());
     await click(host.querySelector<HTMLButtonElement>('.message button')!);

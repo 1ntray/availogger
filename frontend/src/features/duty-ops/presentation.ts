@@ -15,15 +15,13 @@ export function participantLabel(shift: Pick<DutyShift, 'participants' | 'partic
   return names.join(' · ') || 'No participants recorded';
 }
 export function dutySections(shifts: DutyShift[], now: number) {
-  const today = osloDate(new Date(now));
   const ordered = [...shifts].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
-  const todays = ordered.filter(s => osloDate(new Date(s.startsAt)) <= today && osloDate(new Date(Date.parse(s.endsAt) - 1)) >= today);
-  const upcoming = ordered.filter(s => Date.parse(s.endsAt) > now);
+  const upcoming = ordered.filter(s => Date.parse(s.endsAt) > now && s.status !== 'CANCELLED' && s.status !== 'COMPLETED');
+  const onDutyNow = upcoming.filter(s => Date.parse(s.startsAt) <= now);
   const groups = new Map<string, DutyShift[]>();
-  for (const s of upcoming) {
+  for (const s of upcoming.filter(shift => !shift.participants.some(p => p.isCurrentUser))) {
     const key = osloDate(new Date(s.startsAt));
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }
-  const todayIds = new Set(todays.map(shift => shift.id));
-  return { today: todays, mine: upcoming.filter(s => !todayIds.has(s.id) && s.status !== 'CANCELLED' && s.participants.some(p => p.isCurrentUser)), schedule: [...groups] };
+  return { onDutyNow, mine: upcoming.filter(s => Date.parse(s.startsAt) > now && s.participants.some(p => p.isCurrentUser)), schedule: [...groups] };
 }

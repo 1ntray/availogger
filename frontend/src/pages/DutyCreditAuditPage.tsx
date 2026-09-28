@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { BackLink, PageHeader, RefreshControl } from '../app/controls';
 import type { CreditStandingsResponse } from '../../../shared/duty-ops-credits';
 import { loadCreditStandings, creditSign } from '../features/duty-ops/credit-api';
 import { userName } from '../features/duty-ops/exchange-presentation';
@@ -17,8 +17,8 @@ export function DutyCreditAuditPage() {
     });
     return () => controller.abort();
   }, [reload]);
-  return <section className="duty-ops duty-credits"><Link className="action-link" to="/admin">← Administration</Link>
-    <div className="duty-heading"><h1>Duty Ops credit audit</h1><button onClick={() => setReload(n => n + 1)}>Reload</button></div>
+  return <section className="duty-ops duty-credits"><BackLink to="/admin">Administration</BackLink>
+    <PageHeader title="Duty Ops credit audit"><RefreshControl label="credit audit" onRefresh={() => setReload(n => n + 1)} retry={!!error} /></PageHeader>
     {error && <p role="alert" className="duty-alert">{error}</p>}
     {!data && !error && <p role="status">Loading balances…</p>}
     {data && <><section className="credit-section"><h2>Top contributors</h2><ol className="credit-contributors">{data.topContributors.map(row => <li key={row.student.id}><span>{userName(row.student)}</span><strong>{creditSign(row.balance)}</strong><small>{row.coveredCount} covered</small></li>)}</ol></section>

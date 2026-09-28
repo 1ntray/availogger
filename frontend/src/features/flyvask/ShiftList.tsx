@@ -13,7 +13,7 @@ export function ShiftList({ shifts, showDate = false, renderAction }: { shifts: 
       {s.status === 'PARTIALLY_COMPLETED' && <span className="duty-status">Partially completed</span>}
     </div><p className="duty-participants">{participantLabel(s)}</p>
     {s.assignmentsDiffer && s.flightlogger && <AttentionDetail label="Assignments differ from FlightLogger"><p>Studentportal is the current assignment. FlightLogger records: {participantLabel(s.flightlogger)}</p></AttentionDetail>}
-    {s.classroomName && <p className="exchange-note">{s.classroomName}</p>}
-    {renderAction?.(s)}
+    {s.classroomName && <span className="flyvask-place">{s.classroomName}</span>}
+    <div className="duty-row-actions">{renderAction?.(s)}</div>
   </li>)}</ul>;
 }

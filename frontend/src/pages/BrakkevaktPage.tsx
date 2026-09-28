@@ -5,7 +5,8 @@ import { PERMISSIONS } from '../../../shared/authorization';
 import { displayName } from '../../../shared/display-name';
 import type { BrakkevaktSchedule, BrakkevaktWeek, BrakkevaktSwaps, BrakkevaktSwapRequest, BrakkevaktSwapProposal } from '../../../shared/brakkevakt';
 import { loadSchedule, loadSwaps, mutateSwap } from '../features/brakkevakt/api';
-import { addDays, ownAssignment, partner, personName, weekLabel, weekTitle } from '../features/brakkevakt/presentation';
+import { addDays, compactWeekTitle, ownAssignment, personName, weekLabel } from '../features/brakkevakt/presentation';
+import { ActionButton, PageHeader, RefreshControl } from '../app/controls';
 import { Link } from 'react-router';
 import '../features/duty-ops/duty-ops.css';
 import '../features/duty-ops/exchanges.css';
@@ -68,14 +69,14 @@ export function BrakkevaktPage() {
     finally { saving.current = false; setBusy(false); }
   }
   function Week({ week, action = false }: { week: BrakkevaktWeek; action?: boolean }) {
-    const assignment = data && ownAssignment(week, data.currentUserId), paired = data && partner(week, data.currentUserId);
+    const assignment = data && ownAssignment(week, data.currentUserId);
     return <li className={`brakkevakt-week${week.weekStart === data?.currentWeekStart ? ' brakkevakt-current' : ''}${assignment ? ' brakkevakt-mine' : ''}`}>
-      <time dateTime={week.weekStart}>{weekTitle(week.weekStart)}</time>
+      <time dateTime={week.weekStart} title={weekLabel(week.weekStart, true)}>{compactWeekTitle(week.weekStart)}</time>
       <p>{week.assignments.map(a => personName(a.user)).join(' · ')}</p>
-      {assignment && action && <><p className="exchange-note">Together with {paired ? personName(paired) : 'Student'}</p>
+      {assignment && action && <>
         {canSwap && addDays(week.weekStart, 7) > today && (swaps?.lockedAssignmentIds.includes(assignment.id)
           ? <p className="exchange-note">Assignment has an active swap</p>
-          : <button disabled={busy || !swaps} onClick={() => void mutate('', { assignmentId: assignment.id })}>Look for swap</button>)}</>}
+          : <ActionButton disabled={busy || !swaps} onClick={() => void mutate('', { assignmentId: assignment.id })}>Look for swap</ActionButton>)}</>}
     </li>;
   }
   function renderRequest(request: BrakkevaktSwapRequest) {
@@ -96,16 +97,15 @@ export function BrakkevaktPage() {
   const ownRequests = swaps?.requests.filter(r => r.requester.id === swaps.currentUserId || r.proposals.some(p => p.proposer.id === swaps.currentUserId)) ?? [];
   const available = swaps?.requests.filter(r => r.requester.id !== swaps.currentUserId && r.eligible && !ownRequests.includes(r)) ?? [];
   return <section className="duty-ops brakkevakt">
-    <div className="duty-heading"><h1>Brakkevakt</h1><div className="duty-heading-actions">{user?.permissions.includes(PERMISSIONS.brakkevaktManageSchedule) && <Link to="/brakkevakt/manage">Manage schedule</Link>}<button onClick={() => setReload(v => v + 1)} disabled={loading}>Reload</button></div></div>
-    {loading && <p role="status" className="duty-loading">Loading Brakkevakt…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
+    <PageHeader title="Brakkevakt"><div className="duty-heading-actions">{user?.permissions.includes(PERMISSIONS.brakkevaktManageSchedule) && <Link to="/brakkevakt/manage">Manage schedule</Link>}<RefreshControl label="Brakkevakt" onRefresh={() => setReload(v => v + 1)} loading={loading} retry={!!error} /></div></PageHeader>
+    {loading && !data && <p role="status" className="duty-loading">Loading Brakkevakt…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
     {data && <><section><h2>This week</h2>{current ? <ul><Week week={current} action /></ul> : <p className="duty-empty">No one scheduled this week</p>}</section>
-      <section><h2>Upcoming</h2>{upcoming.length ? <ul>{upcoming.map(w => <Week key={w.id} week={w} action />)}</ul> : <p className="duty-empty">No upcoming weeks scheduled</p>}</section>
+      {upcoming.length > 0 && <section><h2>Upcoming</h2><ul>{upcoming.map(w => <Week key={w.id} week={w} action />)}</ul></section>}
     </>}
-    {canSwap && <section className="duty-exchanges" aria-labelledby="brakkevakt-swap-title"><h2 id="brakkevakt-swap-title">Direct swaps</h2>
+    {canSwap && (swapError || available.length > 0 || ownRequests.length > 0 || swaps?.nextCursor) && <section className="duty-exchanges" aria-labelledby="brakkevakt-swap-title"><h2 id="brakkevakt-swap-title">Direct swaps</h2>
       {swapError && !dialog && <p role="alert" className="duty-alert">{swapError}</p>}
       {swaps && <>{available.length > 0 && <><h3>Available swaps</h3><ul>{available.map(renderRequest)}</ul></>}
         {ownRequests.length > 0 && <><h3>My swaps</h3><ul>{ownRequests.map(renderRequest)}</ul></>}
-        {!available.length && !ownRequests.length && <p className="duty-empty">No open swaps</p>}
         {swaps.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more swaps</button>}</>}
     </section>}
     {dialog && <dialog ref={dialogRef} className="exchange-dialog" aria-labelledby="brakkevakt-dialog-title" onCancel={e => { e.preventDefault(); if (!busy) setDialog(null); }}>
@@ -117,8 +117,8 @@ export function BrakkevaktPage() {
         </select></label>}
         {dialog.kind === 'accept' && <p>You give {weekLabel(dialog.request.requestedWeekStart)} and receive {weekLabel(dialog.proposal.offeredWeekStart)} from {displayName(dialog.proposal.proposer)}.</p>}
         {swapError && <p role="alert" className="duty-alert">{swapError}</p>}
-        <div className="exchange-actions"><button type="button" disabled={busy} onClick={() => setDialog(null)}>Back</button>
-          <button type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'propose' ? 'Propose swap' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Cancel request'}</button></div>
+        <div className="exchange-actions"><ActionButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>Back</ActionButton>
+          <ActionButton variant="primary" type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'propose' ? 'Propose swap' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Cancel request'}</ActionButton></div>
       </form></dialog>}
   </section>;
 }

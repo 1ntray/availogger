@@ -61,7 +61,8 @@ describe('Home composition', () => {
     mock({ flights: [dueFlight], duty: [{ ...shift, startsAt: '2026-09-27T08:00:00Z', participants: [{ userId: 'anna', firstName: 'Anna', lastName: 'Berg', isCurrentUser: false }] }] }); await render();
     expect(host.textContent).toContain('Needs attention');
     expect(host.textContent).toContain('Fuel needs review');
-    expect(host.textContent).toContain('Duty Ops for your next flight');
+    expect(host.querySelector('.home-item-context')?.textContent).toContain('Duty Ops: Anna Berg');
+    expect(host.querySelector('a[href^="/duty-ops/shifts/"]')).toBeNull();
   });
   it('keeps available content when one module fails', async () => {
     const fetcher = mock({ flights: [flight] });
@@ -79,6 +80,22 @@ describe('Home composition', () => {
     mock({ brakkevakt: [week] }); await render();
     expect(host.querySelector('.home-schedule')?.textContent).toContain('Brakkevakt');
     expect(host.querySelector('.home-schedule')?.textContent).toContain('With Anna Berg');
+    expect(host.querySelector('.home-schedule')?.textContent).not.toContain('Nothing upcoming');
     expect(host.querySelector('.home-context')?.textContent).not.toContain('Brakkevakt this week');
+  });
+  it('keeps all near-term commitments before limiting distant items', async () => {
+    const entries = Array.from({ length: 10 }, (_, index) => ({ ...flight, id: `today-${index}`, startsAt: new Date(Date.parse(now) + (index + 1) * 3600000).toISOString(), endsAt: new Date(Date.parse(now) + (index + 2) * 3600000).toISOString() }));
+    mock({ flights: entries }); await render();
+    expect(host.querySelectorAll('.home-day:first-of-type li')).toHaveLength(10);
+    expect(host.textContent).not.toContain('Loading schedule…');
+  });
+  it('places a future Brakkevakt week in weekly context', async () => {
+    const week = { id: 'future', weekStart: '2026-09-28', revision: 1, assignments: [
+      { id: 'one', slot: 1, user: { id: 'me', firstName: 'Student', lastName: 'One' } },
+      { id: 'two', slot: 2, user: { id: 'anna', firstName: 'Anna', lastName: 'Berg' } },
+    ] };
+    mock({ brakkevakt: [week] }); await render();
+    expect(host.querySelector('.home-week h3')?.textContent).toBe('Week 40 · 28 Sep–4 Oct');
+    expect(host.querySelector('.home-day h3')?.textContent).not.toBe('Today');
   });
 });
