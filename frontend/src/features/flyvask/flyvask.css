@@ -2,5 +2,4 @@
 .flyvask-schedule .duty-row { padding: 10px 8px; }
 .flyvask-schedule .duty-row-top { justify-content: space-between; }
 .flyvask-schedule .duty-participants { margin-top: 2px; }
-.flyvask-place { display: block; margin-top: 2px; font-size: 12px; color: var(--portal-muted); }
 .flyvask-schedule .duty-row-actions:empty { display: none; }
