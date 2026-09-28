@@ -19,9 +19,14 @@ const flights={from:'2026-09-20',to:'2026-11-20',timeZone:'Europe/Oslo',sync:{la
 const tasks={shift:{id:'shift-1',startsAt:new Date(Date.now()-3600_000).toISOString(),endsAt:end},tasks:[{id:'request-1',flightId:'flight-1',
   flightStartsAt:future,attentionFrom:new Date(Date.now()+3600_000).toISOString(),aircraft:flight.aircraft,pilot:'Pilot Test',requested:'Full mains',status:'PENDING',
   earlierFlight:{endsAt:new Date(Date.now()+1800_000).toISOString(),timeSource:'booking',pilot:null}}]};
+const duty = { from: '2026-09-20', to: '2026-11-20', timeZone: 'Europe/Oslo', shifts: [{ ...tasks.shift, status: 'OPEN', participantCount: 1,
+  participants: [{ userId: 'me', firstName: 'Simon', lastName: null, isCurrentUser: true }],
+  flightlogger: { participantCount: 1, participants: [{ userId: 'other', firstName: 'Anna', lastName: null, isCurrentUser: false }] }, assignmentsDiffer: true }],
+  sync: { stale: false, warning: null, discovery: { lastSyncedAt: new Date().toISOString(), stale: false, from: future, to: end }, assignments: { lastSyncedAt: new Date().toISOString(), stale: false, from: future, to: end } } };
 beforeEach(()=>{vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);permissions=[PERMISSIONS.flightsView,PERMISSIONS.fuelRequest];
   host=document.createElement('div');document.body.append(host);root=createRoot(host);
   api=vi.fn(async(path:string,init:RequestInit)=>path==='/api/flights'?Response.json(flights)
+    :path==='/api/duty-ops'?Response.json(duty)
     :path.endsWith('/complete')?Response.json({status:'COMPLETED',completedAt:new Date().toISOString(),completedBy:'Duty Ops student'})
     :path.includes('/tasks')?Response.json(tasks):Response.json({id:'request-1',status:'PENDING'}));vi.stubGlobal('fetch',api);});
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();});
@@ -47,6 +52,8 @@ describe('flights and fuel UI',()=>{
       <Route path="/duty-ops/shifts/:shiftId" element={<DutyShiftPage />} /></Routes></MemoryRouter>));
     expect(host.textContent).toContain('Known earlier flight expected back');
     expect(host.textContent).toContain('booking end');
+    expect(host.textContent).toContain('Simon');
+    expect(host.querySelector('.attention-detail summary')?.textContent).toContain('Assignments differ from FlightLogger');
     expect(host.querySelectorAll('button').length).toBe(2); // Reload and Complete.
     await act(async()=>[...host.querySelectorAll('button')].find(b=>b.textContent==='Complete')!.click());
     expect(api.mock.calls.some(([path])=>path.endsWith('/complete'))).toBe(true);

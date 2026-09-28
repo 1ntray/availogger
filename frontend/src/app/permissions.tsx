@@ -10,3 +10,7 @@ export function RequirePermission({ permission }: { permission: PermissionKey })
   const { hasPermission } = usePermissions();
   return hasPermission(permission) ? <Outlet /> : <section><h1>Access denied</h1><p>You do not have access to this feature.</p></section>;
 }
+export function RequireAnyPermission({ permissions }: { permissions: readonly PermissionKey[] }) {
+  const { hasPermission } = usePermissions();
+  return permissions.some(hasPermission) ? <Outlet /> : <section><h1>Access denied</h1><p>You do not have access to this feature.</p></section>;
+}
