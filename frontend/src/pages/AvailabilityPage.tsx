@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadAvailability, OnboardingRequiredError } from '../api';
 import { useCurrentUser } from '../app/CurrentUser';
-import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
 import { addDays, dateKey, datesInRange, dateWindow, osloDate } from '../dates';
 import { useCalendarWidth } from '../use-calendar-width';
 import type { AvailabilityResponse, AvailabilityStatus } from '../types';
-import { Icon } from '../app/Icon';
+import { RefreshControl } from '../app/controls';
 
 const dayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' });
 const monthFormatter = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -75,7 +74,7 @@ function AvailabilityPage() {
 
   return <section className="availability-page">
       <h1>Instructor availability</h1>
-      <div className="availability-meta"><p>Times shown in Europe/Oslo</p>{data && !loading && !error && <p className="cache-age">{data.cachedAt ? <time dateTime={data.cachedAt} title={cacheTimeInOslo(data.cachedAt)}>{cacheAgeLabel(data.cachedAt, now)}</time> : 'Update time unavailable'}</p>}</div>
+      <div className="availability-meta"><p>Times shown in Europe/Oslo</p></div>
 
       <div className="toolbar">
         <div className="date-window-nav" aria-label="Date window navigation">
@@ -84,7 +83,7 @@ function AvailabilityPage() {
           <button aria-label="Next dates" onClick={() => setViewStartDate(addDays(range.to, 1))} disabled={dayCount === null}>›</button>
         </div>
         <button className="today-button" onClick={() => setViewStartDate(today)} disabled={viewStartDate === today}>Today</button>
-        <button className="refresh-button" aria-label="Reload view" onClick={() => setRefreshKey(value => value + 1)} disabled={loading}><Icon name="reload" /><span className="reload-label">Reload view</span></button>
+        <RefreshControl label="availability" onRefresh={() => setRefreshKey(value => value + 1)} loading={loading} retry={!!error} updatedAt={data?.cachedAt} now={now} />
         <label className="search-box"><span className="sr-only">Find instructor</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Find instructor…" type="search" /></label>
       </div>
 

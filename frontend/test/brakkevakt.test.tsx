@@ -26,6 +26,7 @@ beforeEach(() => {
       onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-a', roles: ['STUDENT'], permissions });
     if (path === '/api/brakkevakt') return Response.json(schedule);
     if (path === '/api/brakkevakt/roster') return Response.json({ students: users });
+    if (path.startsWith('/api/brakkevakt/schedule/') && init.method === 'PUT') return Response.json({ revision: 1 });
     if (path === '/api/brakkevakt/swaps') return init.method === 'POST' ? Response.json({ id: 'request' }) : Response.json({ currentUserId: 'a', requests: [], lockedAssignmentIds: [], nextCursor: null });
     if (path === '/api/brakkevakt/swaps/history') return Response.json({ entries: [], nextCursor: null });
     throw new Error(`Unexpected API ${path}`);
@@ -41,7 +42,8 @@ describe('Brakkevakt portal UI', () => {
     await render();
     expect(host.querySelector('h1')?.textContent).toBe('Brakkevakt');
     expect(host.textContent).toContain('Alice Andersson · Bob Berg');
-    expect(host.textContent).toContain('Together with Bob Berg');
+    expect(host.textContent).toContain('Week 40 · 28 Sep–4 Oct');
+    expect(host.textContent).not.toContain('Together with Bob Berg');
     expect(host.textContent).toContain('Carl Carlsson · Student');
     expect(host.querySelector('section.brakkevakt')?.textContent).not.toContain('alice@private.test');
     const button = [...host.querySelectorAll<HTMLButtonElement>('.brakkevakt-week button')].find(b => b.textContent === 'Look for swap')!;
@@ -60,11 +62,22 @@ describe('Brakkevakt portal UI', () => {
     expect(host.querySelector('input[type="date"]')).toBeNull();
     expect(host.querySelector('.brakkevakt-generator select')).not.toBeNull();
     expect(host.querySelectorAll('.brakkevakt-manage-row')).toHaveLength(2);
-    await click([...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Generate rows')!);
+    await click([...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Generate weeks')!);
     expect(host.querySelectorAll('.brakkevakt-manage-row')).toHaveLength(10);
     expect(host.querySelector('option[value="a"]')?.textContent).toBe('Alice Andersson');
     expect(host.querySelector('option[value="d"]')?.textContent).toBe('Student');
     expect(api.mock.calls.some(([path, init]) => path.includes('/schedule/') && init?.method === 'PUT')).toBe(false);
+  });
+  it('saves only completed changed weeks from the manager', async () => {
+    permissions.push('brakkevakt.manage_schedule'); await render('/brakkevakt/manage');
+    const save = [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Save changes')!;
+    expect(save.disabled).toBe(true);
+    const first = host.querySelector<HTMLSelectElement>('.brakkevakt-manage-row select')!;
+    await act(async () => { first.value = 'c'; first.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(save.disabled).toBe(false);
+    await click(save);
+    expect(api.mock.calls.filter(([path, init]) => path.includes('/schedule/') && init?.method === 'PUT')).toHaveLength(1);
+    expect(save.disabled).toBe(true);
   });
   it('shows only personal history and neutral missing-name fallback', async () => {
     expect(displayName({ firstName: null, lastName: null })).toBe('Student');

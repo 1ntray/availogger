@@ -3,10 +3,11 @@ import { useCurrentUser } from '../app/CurrentUser';
 import { PERMISSIONS } from '../../../shared/authorization';
 import { changeFuel,loadFlights,type Flight,type FlightsData,type FuelChoice } from '../features/flights/api';
 import { AttentionDetail } from '../app/AttentionDetail';
+import { ActionButton, PageHeader, RefreshControl } from '../app/controls';
 import '../features/flights/flights.css';
 
-const time=(value:string|null)=>value?new Intl.DateTimeFormat('en',{timeZone:'Europe/Oslo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'Time not set';
-const shortTime=(value:string|null)=>value?new Intl.DateTimeFormat('en',{timeZone:'Europe/Oslo',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'—';
+const time=(value:string|null)=>value?new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)):'Time not set';
+const shortTime=(value:string|null)=>value?new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)):'—';
 function label(flight:Flight){const r=flight.request;
   return !r?'No fuel request':r.status==='NEEDS_REVIEW'?'Needs review':r.status==='COMPLETED'?
     r.appliesToCurrentAircraft?'Completed':'Completed for previous aircraft':r.status==='PENDING'?'Pending':'Cancelled';}
@@ -28,7 +29,7 @@ function FuelForm({flight,onChanged,onClose}:{flight:Flight;onChanged:()=>void;o
       :<><label>Quantity<input type="number" min="0.1" max="1000" step="any" required value={quantity} onChange={e=>setQuantity(e.target.value)} /></label>
         <label>Unit<select value={unit} onChange={e=>setUnit(e.target.value as 'L'|'US_GAL')}><option value="L">L</option><option value="US_GAL">US gal</option></select></label></>}
     {error&&<p className="fuel-error" role="alert">{error}</p>}
-    <div className="fuel-form-actions"><button disabled={busy||kind==='PRESET'&&!preset} type="submit">Save request</button><button type="button" onClick={onClose}>Close</button></div>
+    <div className="fuel-form-actions"><ActionButton variant="primary" disabled={busy||kind==='PRESET'&&!preset} type="submit">Save request</ActionButton><ActionButton variant="ghost" onClick={onClose}>Close</ActionButton></div>
   </form>;
 }
 export function FlightsPage(){
@@ -42,9 +43,8 @@ export function FlightsPage(){
   const cancel=async(flight:Flight)=>{if(!window.confirm('Cancel this fuel request?'))return;setBusy(flight.id);setError('');
     try{await changeFuel(flight.id,'DELETE');setReload(n=>n+1);}catch(cause){setError(cause instanceof Error?cause.message:'Could not cancel.');}finally{setBusy(null);}};
   const upcoming=data?.flights.filter(f=>Date.parse(f.endsAt)>Date.now()&&f.status!=='CANCELLED')??[];
-  return <section className="flights-page"><div className="flights-heading"><h1>Flights</h1><button disabled={loading} onClick={()=>setReload(n=>n+1)}>Reload</button></div>
-    <p className="flight-meta">Europe/Oslo</p>
-    {loading&&<p role="status">Loading flights…</p>}{error&&<p className="fuel-error" role="alert">{error}</p>}
+  return <section className="flights-page"><PageHeader title="Flights"><RefreshControl label="flights" onRefresh={()=>setReload(n=>n+1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.lastSyncedAt} /></PageHeader>
+    {loading&&!data&&<p role="status">Loading flights…</p>}{error&&<p className="fuel-error" role="alert">{error}</p>}
     {data?.sync.stale&&<div role="status"><AttentionDetail label="Flights may be out of date"><p>{data.sync.warning??'Showing previously synchronized flights.'}</p></AttentionDetail></div>}
     <h2>Upcoming flights</h2>{!loading&&!upcoming.length&&<p className="fuel-notice">No upcoming flights in the synchronized window.</p>}
     <ul className="flight-list">{upcoming.map(f=><li className="flight-row" key={f.id}>

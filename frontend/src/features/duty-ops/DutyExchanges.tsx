@@ -7,6 +7,7 @@ import { creditSign } from './credit-api';
 import type { DutyShift } from './types';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import './exchanges.css';
+import { ActionButton } from '../../app/controls';
 
 type DialogState = { kind: 'create'; shift: DutyShift; type?: 'GIVE_AWAY' | 'DIRECT_SWAP' }
   | { kind: 'claim' | 'cancel' | 'propose'; request: ExchangeRequest }
@@ -17,10 +18,10 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   const state = useContext(ExchangeContext);
   if (!state?.enabled || shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now || !shift.participants.some(p => p.isCurrentUser)) return null;
   if (state.data?.lockedShiftIds.includes(shift.id)) return <p className="exchange-note">Shift has an active exchange</p>;
-  return <button className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'create', shift })}>Exchange shift</button>;
+  return <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'create', shift })}>Exchange shift</ActionButton>;
 }
 
-export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, onBalanceChanged, showBoard = true }: { children: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void; showBoard?: boolean }) {
+export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, onChanged, onBalanceChanged, showBoard = true }: { children: ReactNode; afterBoard?: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void; showBoard?: boolean }) {
   const { user } = useCurrentUser();
   const enabled = user?.permissions?.includes(PERMISSIONS.dutyOpsSwap) === true;
   const [data, setData] = useState<ExchangesResponse | null>(null);
@@ -97,7 +98,7 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
     const own = request.requester.id === data!.currentUserId;
     return <li key={request.id} className="exchange-row">
       <div className="exchange-row-heading"><strong>{request.type === 'GIVE_AWAY' ? 'Give away' : 'Swap request'}</strong>
-        <span>{!request.eligible ? 'Currently unavailable' : 'Open'}</span></div>
+        {!request.eligible && <span>Currently unavailable</span>}</div>
       <p className="exchange-time">{shiftLabel(request.requestedShift)}</p>
       <p className="exchange-note">Offered by {own ? 'you' : userName(request.requester)}</p>
       {own && request.ineligibleReason === 'CREDIT_FLOOR' && <p className="exchange-note">Your balance must be above -2 before someone can take this shift. Cover another student’s shift to earn a credit.</p>}
@@ -123,15 +124,15 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
   const mine = active.filter(r => r.requester.id === data?.currentUserId || r.proposals.some(p => p.proposer.id === data?.currentUserId));
   const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, open }}>{children}
-    {enabled && showBoard && <section className="duty-exchanges" aria-labelledby="exchange-title"><h2 id="exchange-title">Shift exchange</h2>
+    {enabled && showBoard && (loading || error || active.length > 0 || data?.nextCursor) && <section className="duty-exchanges" aria-labelledby="exchange-title"><h2 id="exchange-title">Exchanges</h2>
       {loading && <p role="status" className="duty-loading">Loading exchanges…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
-      {data && <>{available.length > 0 && <><h3>Available exchanges</h3><ul>{available.map(renderRequest)}</ul></>}
-        {mine.length > 0 && <><h3>My exchanges</h3><ul>{mine.map(renderRequest)}</ul></>}
-        {!available.length && !mine.length && <p className="duty-empty">No open exchanges</p>}
+      {data && <>{available.length > 0 && <>{mine.length > 0 && <h3>Available</h3>}<ul>{available.map(renderRequest)}</ul></>}
+        {mine.length > 0 && <>{available.length > 0 && <h3>Mine</h3>}<ul>{mine.map(renderRequest)}</ul></>}
         {data.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more exchanges</button>}
       </>}
     </section>}
+    {afterBoard}
     {dialog && <dialog ref={dialogRef} className="exchange-dialog" aria-labelledby="exchange-dialog-title" onCancel={e => { e.preventDefault(); if (!busy) setDialog(null); }}>
       <h3 id="exchange-dialog-title">{dialog.kind === 'create' ? 'Exchange shift' : dialog.kind === 'accept' ? 'Confirm exchange' : dialog.kind === 'claim' ? 'Take this Duty Ops shift?' : dialog.kind === 'cancel' ? 'Cancel request?' : dialog.kind === 'withdraw' ? 'Withdraw offer?' : 'Offer one of my shifts'}</h3>
       <form onSubmit={e => { e.preventDefault(); void confirm(); }}>
@@ -148,10 +149,10 @@ export function DutyExchanges({ children, shifts, now, refreshKey, onChanged, on
               <option value="">Choose a shift</option>{eligible.filter(s => s.id !== dialog.request.requestedShift.id).map(s => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
             </select></label>}</>}
         {error && <p role="alert" className="duty-alert">{error}</p>}
-        <div className="exchange-actions"><button type="button" disabled={busy} onClick={() => setDialog(null)}>Back</button>
-          <button type="submit" disabled={busy || (dialog.kind === 'create' && (!dialog.type || (dialog.type === 'GIVE_AWAY' && atFloor))) || (dialog.kind === 'propose' && !offeredId)}>
+        <div className="exchange-actions"><ActionButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>Back</ActionButton>
+          <ActionButton variant="primary" type="submit" disabled={busy || (dialog.kind === 'create' && (!dialog.type || (dialog.type === 'GIVE_AWAY' && atFloor))) || (dialog.kind === 'propose' && !offeredId)}>
             {busy ? 'Saving…' : dialog.kind === 'create' ? 'Publish request' : dialog.kind === 'accept' ? 'Confirm exchange' : dialog.kind === 'claim' ? 'Take shift' : dialog.kind === 'cancel' ? 'Cancel request' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Offer shift'}
-          </button></div>
+          </ActionButton></div>
       </form>
     </dialog>}
   </ExchangeContext.Provider>;

@@ -14,7 +14,9 @@ export function ShiftList({ shifts, showDate = false, renderAction, linkToShift 
       {s.status === 'PARTIALLY_COMPLETED' && <span className="duty-status">Partially completed</span>}
     </div><p className="duty-participants">{participantLabel(s)}</p>
     {s.assignmentsDiffer && s.flightlogger && <AttentionDetail label="Assignments differ from FlightLogger"><p>Studentportal is the current assignment. FlightLogger records: {participantLabel(s.flightlogger)}</p></AttentionDetail>}
-    {linkToShift && <Link className="duty-row-link" to={`/duty-ops/shifts/${encodeURIComponent(s.id)}`} aria-label={`Open Duty Ops shift ${dateLabel(s.startsAt)} ${timeLabel(s)}`}><span aria-hidden="true">→</span></Link>}
-    {renderAction?.(s)}
+    <div className="duty-row-actions">
+      {renderAction?.(s)}
+      {linkToShift && s.participants.some(p => p.isCurrentUser) && <Link className="duty-row-link" to={`/duty-ops/shifts/${encodeURIComponent(s.id)}`} aria-label={`Open your Duty Ops shift ${dateLabel(s.startsAt)} ${timeLabel(s)}`}>Open shift</Link>}
+    </div>
   </li>)}</ul>;
 }

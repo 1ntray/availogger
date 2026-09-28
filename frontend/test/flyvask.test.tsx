@@ -60,7 +60,7 @@ describe('Flyvask navigation and schedule',()=>{
     data.shifts=[{...a,participants:[anna],assignmentsDiffer:true},{...b,participants:[me],assignmentsDiffer:true}];await render();
     const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!; expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);
     expect(mine.querySelector('.duty-participants')!.textContent).toBe('Simon · 13 others');expect(mine.querySelector('.attention-detail')!.textContent).toContain('FlightLogger records: Anna · 13 others');expect(mine.querySelector('details')!.hasAttribute('open')).toBe(false);expect(mine.querySelector('.sr-only')!.textContent).toBe('Your shift');
-    expect(mine.textContent).toContain('Hangar UTSA');expect(mine.textContent).not.toContain('17 Oct');
+    expect(mine.textContent).not.toContain('Hangar UTSA');expect(mine.textContent).not.toContain('17 Oct');
   });
   it('does not enable past, cancelled, started or non-own shifts for exchange',async()=>{
     data.shifts=[{...a,status:'CANCELLED'},{...a,id:'started',startsAt:new Date(now).toISOString(),endsAt:'2026-09-27T12:00:00.000Z'},b];await render();
@@ -85,7 +85,7 @@ describe('Flyvask direct swap workspace',()=>{
     await render();const choices=[...host.querySelectorAll<HTMLButtonElement>('.duty-exchanges button')].filter(b=>b.textContent==='Choose this swap');expect(choices).toHaveLength(2);await act(async()=>choices[0].click());
     const dialog=host.querySelector('dialog')!;expect(dialog.textContent).toContain('Your Flyvask');expect(dialog.textContent).toContain('Anna’s Flyvask');expect(dialog.textContent).toContain('Sat 17 Oct');expect(dialog.textContent).toContain('Sat 24 Oct');expect(dialog.textContent).toContain('FlightLogger is not updated automatically');
     await click('Confirm swap');expect(api.mock.calls.find(([,init])=>init?.method==='POST')![0]).toBe('/api/flyvask/swaps/request/proposals/proposal/accept');
-    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')!.textContent).not.toContain('Choose this swap');
+    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();
   });
   it('offers only an eligible effective own shift, never source-only or locked memberships',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];

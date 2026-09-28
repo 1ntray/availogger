@@ -6,6 +6,7 @@ import { shiftLabel, userName } from './exchange-presentation';
 import type { FlyvaskShift } from './types';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import '../duty-ops/exchanges.css';
+import { ActionButton } from '../../app/controls';
 
 type DialogState = { kind: 'cancel' | 'propose'; request: ExchangeRequest }
   | { kind: 'accept' | 'withdraw'; request: ExchangeRequest; proposal: ExchangeProposal };
@@ -15,7 +16,7 @@ export function ExchangeShiftActions({ shift }: { shift: FlyvaskShift }) {
   const state = useContext(ExchangeContext);
   if (!state?.enabled || shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now || !shift.participants.some(p => p.isCurrentUser)) return null;
   if (state.data?.lockedShiftIds.includes(shift.id)) return <p className="exchange-note">Shift has an active swap</p>;
-  return <button className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.publish(shift)}>Look for swap</button>;
+  return <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.publish(shift)}>Look for swap</ActionButton>;
 }
 
 export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged }: { children: ReactNode; shifts: FlyvaskShift[]; now: number; refreshKey: number; onChanged?: () => void }) {
@@ -80,7 +81,7 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged 
   function renderRequest(request: ExchangeRequest) {
     const own = request.requester.id === data!.currentUserId;
     return <li key={request.id} className="exchange-row">
-      <div className="exchange-row-heading"><strong>Looking for swap</strong><span>{!request.eligible ? 'No longer eligible' : 'Open'}</span></div>
+      <div className="exchange-row-heading"><strong>Looking for swap</strong>{!request.eligible && <span>No longer eligible</span>}</div>
       <p className="exchange-time">{shiftLabel(request.requestedShift)}</p>
       <p className="exchange-note">Offered by {own ? 'you' : userName(request.requester)}</p>
       <div className="exchange-actions">{own ? <button disabled={busy} onClick={() => open({ kind: 'cancel', request })}>Cancel request</button>
@@ -98,11 +99,11 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged 
   const mine = active.filter(r => r.requester.id === data?.currentUserId || r.proposals.some(p => p.proposer.id === data?.currentUserId));
   const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, publish }}>{children}
-    {enabled && <section className="duty-exchanges" aria-labelledby="flyvask-exchange-title"><h2 id="flyvask-exchange-title">Shift exchange</h2>
+    {enabled && (loading || error || active.length > 0 || data?.nextCursor) && <section className="duty-exchanges" aria-labelledby="flyvask-exchange-title"><h2 id="flyvask-exchange-title">Shift exchange</h2>
       {loading && <p role="status" className="duty-loading">Loading swaps…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
-      {data && <><h3>Available swaps</h3>{available.length ? <ul>{available.map(renderRequest)}</ul> : <p className="duty-empty">No open swaps</p>}
-        <h3>My swaps</h3>{mine.length ? <ul>{mine.map(renderRequest)}</ul> : <p className="duty-empty">No active swaps</p>}
+      {data && <>{available.length > 0 && <>{mine.length > 0 && <h3>Available</h3>}<ul>{available.map(renderRequest)}</ul></>}
+        {mine.length > 0 && <>{available.length > 0 && <h3>Mine</h3>}<ul>{mine.map(renderRequest)}</ul></>}
         {data.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more swaps</button>}</>}
     </section>}
     {dialog && <dialog ref={dialogRef} className="exchange-dialog" aria-labelledby="flyvask-dialog-title" onCancel={e => { e.preventDefault(); if (!busy) setDialog(null); }}>
@@ -116,8 +117,8 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged 
               <option value="">Choose a shift</option>{eligible.filter(s => s.id !== dialog.request.requestedShift.id).map(s => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
             </select></label>}</>}
         {error && <p role="alert" className="duty-alert">{error}</p>}
-        <div className="exchange-actions"><button type="button" disabled={busy} onClick={() => setDialog(null)}>Back</button>
-          <button type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'cancel' ? 'Cancel request' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Offer shift'}</button>
+        <div className="exchange-actions"><ActionButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>Back</ActionButton>
+          <ActionButton variant="primary" type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'cancel' ? 'Cancel request' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Offer shift'}</ActionButton>
         </div>
       </form>
     </dialog>}
