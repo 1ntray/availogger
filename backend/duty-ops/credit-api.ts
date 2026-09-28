@@ -7,7 +7,7 @@ import { creditStandings, creditSummary, listCredits, reconcileCoverage } from '
 type Context = { request: Request; env: PagesEnv; data: AccessData };
 export function creditEndpoint(context: Context, standings = false): Promise<Response> | Response {
   if (context.request.method !== 'GET') return methodNotAllowed('GET');
-  return withAuthorizedUser(context, PERMISSIONS.dutyOpsView, async (db, actor) => {
+  return withAuthorizedUser(context, standings ? PERMISSIONS.dutyOpsManageSchedule : PERMISSIONS.dutyOpsView, async (db, actor) => {
     const params = new URL(context.request.url).searchParams;
     if ([...params.keys()].some(key => standings || !['cursor', 'summary'].includes(key)) || params.getAll('cursor').length > 1 || params.getAll('summary').length > 1 ||
       (params.has('summary') && (params.get('summary') !== '1' || params.has('cursor')))) {

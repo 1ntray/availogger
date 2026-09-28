@@ -9,6 +9,9 @@
 .exchange-proposals > li { padding: 10px 0; border-top: 1px solid var(--portal-border, #d7e1df); font-size: 13px; }
 .duty-ops .exchange-shift-action { margin-top: 8px; }
 .exchange-dialog { max-width: 460px; width: calc(100% - 32px); max-height: calc(100dvh - 48px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); color: var(--portal-control-text); background: var(--portal-surface); }
+.exchange-dialog form { display: flex; flex-direction: column; min-height: 180px; }
+.exchange-dialog .exchange-actions:last-child { margin-top: auto; padding-top: 18px; }
+.exchange-decision-note { min-height: 70px; }
 .exchange-dialog::backdrop { background: rgb(20 35 44 / 45%); }
 .duty-ops .exchange-dialog h3 { margin: 0 0 14px; font-size: 17px; }
 .exchange-dialog p { overflow-wrap: anywhere; }

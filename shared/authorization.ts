@@ -11,10 +11,6 @@ export const PERMISSIONS = {
   brakkevaktManageSchedule: 'brakkevakt.manage_schedule',
   flightsView: 'flights.view',
   fuelRequest: 'fuel.request',
-  transportView: 'transport.view',
-  transportBookUniversityCars: 'transport.book_university_cars',
-  transportOfferPrivateRide: 'transport.offer_private_ride',
-  transportManageUniversityCars: 'transport.manage_university_cars',
   adminManageUsers: 'admin.manage_users',
   adminManagePermissions: 'admin.manage_permissions',
 } as const;
@@ -31,10 +27,6 @@ export const permissionDefinitions: readonly { key: PermissionKey; description: 
   { key: PERMISSIONS.brakkevaktManageSchedule, description: 'Manage Brakkevakt schedule', privileged: true },
   { key: PERMISSIONS.flightsView, description: 'View own flights', privileged: false },
   { key: PERMISSIONS.fuelRequest, description: 'Request fuel for own flights', privileged: false },
-  { key: PERMISSIONS.transportView, description: 'View Transport', privileged: false },
-  { key: PERMISSIONS.transportBookUniversityCars, description: 'Book university cars', privileged: false },
-  { key: PERMISSIONS.transportOfferPrivateRide, description: 'Offer private rides', privileged: false },
-  { key: PERMISSIONS.transportManageUniversityCars, description: 'Manage university cars', privileged: true },
   { key: PERMISSIONS.adminManageUsers, description: 'Manage users', privileged: true },
   { key: PERMISSIONS.adminManagePermissions, description: 'Manage permissions', privileged: true },
 ];

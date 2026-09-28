@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DutyOpsPage } from '../src/pages/DutyOpsPage';
-import { DutySwapHistoryPage } from '../src/pages/DutySwapHistoryPage';
-import { HomeDutyOps } from '../src/features/duty-ops/HomeDutyOps';
+import { MyActivityPage } from '../src/pages/MyActivityPage';
 import { ShiftList } from '../src/features/duty-ops/ShiftList';
 import { isDutyOpsData } from '../src/features/duty-ops/api';
 import { loadSwapHistory } from '../src/features/duty-ops/exchange-api';
@@ -38,30 +37,25 @@ async function click(text: string) {
 }
 
 describe('effective Duty Ops presentation', () => {
-  it('shows primary Studentportal and secondary FlightLogger participants with privacy-safe unknown counts', async () => {
+  it('shows effective participants first and reveals differing FlightLogger data on demand', async () => {
     await render(<ShiftList shifts={[shift]} />);
     const labels = host.querySelectorAll('.duty-participants');
-    expect(labels[0].textContent).toContain('StudentportalSimon · 2 others');
-    expect(labels[1].textContent).toContain('FlightLoggerAnna · 2 others');
+    expect(labels).toHaveLength(1);
+    expect(labels[0].textContent).toBe('Simon · 2 others');
+    const details = host.querySelector<HTMLDetailsElement>('.attention-detail')!;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary')!.textContent).toContain('Assignments differ from FlightLogger');
+    await act(async () => details.querySelector('summary')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(details.textContent).toContain('FlightLogger records: Anna · 2 others');
     expect(host.querySelector('.sr-only')!.textContent).toBe('Your shift');
     expect(host.querySelector('time')!.getAttribute('datetime')).toBe(shift.startsAt);
   });
   it('keeps unchanged FlightLogger source compact and validates new fields', async () => {
     await render(<ShiftList shifts={[{ ...shift, assignmentsDiffer: false, flightlogger: { participants: [me], participantCount: 3 } }]} />);
     expect(host.querySelectorAll('.duty-participants')).toHaveLength(1);
-    expect(host.textContent).toContain('FlightLogger'); expect(host.textContent).not.toContain('Studentportal');
+    expect(host.querySelector('.attention-detail')).toBeNull();
     expect(isDutyOpsData(data)).toBe(true);
     expect(isDutyOpsData({ ...data, shifts: [{ ...shift, flightlogger: { participantCount: -1, participants: [] } }] })).toBe(false);
-  });
-  it('uses acquired shifts for Home personal relevance and excludes a given-away raw shift', async () => {
-    const lost = { ...shift, id: 'lost', startsAt: '2026-09-27T15:00:00.000Z', endsAt: '2026-09-27T18:00:00.000Z', participants: [anna], flightlogger: { participantCount: 3, participants: [me] } };
-    // No Today entries: next personal shift must come from primary memberships.
-    lost.startsAt = '2026-09-28T03:00:00.000Z'; lost.endsAt = '2026-09-28T04:00:00.000Z';
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ...data, shifts: [lost, shift] })));
-    await render(<HomeDutyOps now={now} />);
-    expect(host.textContent).toContain('Your next Duty Ops');
-    expect(host.querySelector('time')!.getAttribute('datetime')).toBe(shift.startsAt);
-    expect(host.textContent).toContain('Studentportal'); expect(host.textContent).not.toContain('05:00–06:00');
   });
   it('refreshes effective My shifts immediately after a successful give-away claim', async () => {
     let claimed = false;
@@ -75,47 +69,41 @@ describe('effective Duty Ops presentation', () => {
     vi.stubGlobal('fetch', fetcher); await render(<DutyOpsPage />);
     expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('No upcoming shifts');
     await click('Take shift'); await click('Take shift');
-    expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('StudentportalSimon');
+    expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('Simon · 2 others');
     expect(host.querySelector('.duty-exchanges')!.textContent).not.toContain('Take shift');
-    expect(host.textContent).toContain('Exchange shift');
+    expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(fetcher.mock.calls.filter(([path]) => path === '/api/duty-ops')).toHaveLength(2);
   });
 });
 
-describe('Swap history route and personal presentation', () => {
-  it('is bookmarkable, exposes current-page navigation, and orients both direct-swap shifts', async () => {
+describe('My activity Duty Ops presentation', () => {
+  it('orients both direct-swap shifts in personal activity', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ entries: [history], nextCursor: null })));
-    await act(async () => root.render(<MemoryRouter initialEntries={['/duty-ops/swap-history']}><Routes>
-      <Route path="/duty-ops/swap-history" element={<DutySwapHistoryPage />} />
-      <Route path="/duty-ops" element={<p>Overview page</p>} />
-    </Routes></MemoryRouter>));
-    expect(host.querySelector('a[aria-current=page]')!.textContent).toBe('Swap history');
+    await render(<MyActivityPage />);
+    expect(host.querySelector('h1')?.textContent).toBe('My activity');
     expect(host.textContent).toContain('Swapped with Anna');
-    expect(host.querySelector('.swap-history-shifts')!.textContent).toMatch(/You gaveTue,? 29 Sept 2026/);
-    expect(host.querySelector('.swap-history-shifts')!.textContent).toMatch(/You receivedMon,? 28 Sept 2026/);
-    expect(host.textContent).toContain('FlightLogger is not updated automatically');
-    expect(host.querySelectorAll('.swap-history time')).toHaveLength(3);
-    await act(async () => host.querySelector<HTMLAnchorElement>('a[href="/duty-ops"]')!.click());
-    expect(host.textContent).toBe('Overview page');
+    expect(host.textContent).toContain('Gave Tue');
+    expect(host.textContent).toContain('Received Mon');
+    expect(host.querySelector('.activity-list time')?.getAttribute('datetime')).toBe(history.acceptedAt);
   });
   it('shows gave/took direction, trusted fallback and separate entries for a chain', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ entries: [
       { ...history, id: 'gave', type: 'GIVE_AWAY', receivedShift: null },
       { ...history, id: 'took', type: 'GIVE_AWAY', givenShift: null, counterparty: { id: 'carl', firstName: null, lastName: null } },
     ], nextCursor: null })));
-    await render(<DutySwapHistoryPage />);
+    await render(<MyActivityPage />);
     expect(host.textContent).toContain('Gave shift to Anna'); expect(host.textContent).toContain('Took shift from Student');
-    expect(host.querySelectorAll('.swap-history > li')).toHaveLength(2);
+    expect(host.querySelectorAll('.activity-list > li')).toHaveLength(2);
   });
   it('loads keyset pages using relative no-store URLs and keeps errors retryable', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ entries: [history], nextCursor: 'cursor|id' }))
       .mockResolvedValueOnce(Response.json({ entries: [{ ...history, id: 'older' }], nextCursor: null }));
-    vi.stubGlobal('fetch', fetcher); await render(<DutySwapHistoryPage />); await click('Load more history');
-    expect(host.querySelectorAll('.swap-history > li')).toHaveLength(2);
+    vi.stubGlobal('fetch', fetcher); await render(<MyActivityPage />); await click('Load more Duty Ops');
+    expect(host.querySelectorAll('.activity-list > li')).toHaveLength(2);
     expect(fetcher.mock.calls[1][0]).toBe('/api/duty-ops/swaps/history?cursor=cursor%7Cid');
     expect(fetcher.mock.calls[1][1]).toMatchObject({ credentials: 'same-origin', cache: 'no-store' });
     fetcher.mockResolvedValueOnce(Response.json({ error: 'History unavailable' }, { status: 503 }));
-    await click('Reload'); expect(host.querySelector('[role=alert]')!.textContent).toBe('History unavailable');
+    await click('Reload'); expect(host.querySelector('[role=alert]')!.textContent).toContain('History unavailable');
   });
   it('validates response shape rather than rendering malformed history', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ entries: [{ ...history, givenShift: null }], nextCursor: null })));

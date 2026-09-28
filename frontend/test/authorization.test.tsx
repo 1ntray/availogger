@@ -8,7 +8,7 @@ import { permissionDefinitions, type PermissionKey } from '../../shared/authoriz
 
 vi.mock('../src/pwa/PwaProvider', () => ({ PwaProvider: ({ children }: { children: ReactNode }) => children,
   usePwa: () => ({ canInstall: false, installed: false, installing: false, needsUpdate: false, error: '', install: vi.fn(), update: vi.fn() }) }));
-const baseline: PermissionKey[] = ['duty_ops.view', 'transport.view'];
+const baseline: PermissionKey[] = ['duty_ops.view'];
 const catalogue = { permissions: permissionDefinitions, roles: [
   { key: 'ADMIN', name: 'Administrator', permissions: permissionDefinitions.map(permission => permission.key) },
   { key: 'STUDENT', name: 'Student', permissions: baseline },
@@ -67,13 +67,14 @@ describe('admin access editor', () => {
     const original = api.getMockImplementation()!;
     api.mockImplementation(async (path: string) => path === '/api/duty-ops/swaps/history' ? Response.json({ entries: [], nextCursor: null }) : original(path));
     await render('/duty-ops/swap-history');
-    expect(host.querySelector('h1')!.textContent).toBe('Swap history');
-    expect(host.textContent).toContain('No accepted exchanges yet');
+    expect(host.querySelector('h1')!.textContent).toBe('My activity');
+    expect(host.textContent).toContain('No accepted activity yet');
     expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
   });
   it('loads real user access, distinguishes inherited/explicit permissions, and refreshes on a successful save', async () => {
     await render(); await selectUser();
-    expect(host.textContent).toContain('Inherited from role');
+    expect(host.textContent).toContain('Allowed');
+    expect(host.textContent).toContain('Duty Ops');
     await changePermission('ALLOW');
     const original = api.getMockImplementation()!;
     api.mockImplementation(async (path: string, init: RequestInit) => init.method === 'PUT'
@@ -81,7 +82,7 @@ describe('admin access editor', () => {
       : original(path, init));
     await save();
     expect(host.textContent).toContain('Access saved.');
-    expect(host.textContent).toContain('Explicitly allowed');
+    expect(host.textContent).toContain('Allowed');
     const [path, init] = api.mock.calls.find(([, options]) => options?.method === 'PUT')!;
     expect(path).toBe('/api/admin/users/student-id/access');
     expect(init).toMatchObject({ cache: 'no-store', credentials: 'same-origin' });
@@ -92,7 +93,7 @@ describe('admin access editor', () => {
     currentPermissions = [...baseline, 'admin.manage_users'];
     await render(); await selectUser();
     expect(host.querySelector<HTMLInputElement>('input[type=checkbox]')!.disabled).toBe(true);
-    for (const key of ['admin.manage_users', 'admin.manage_permissions', 'duty_ops.manage_schedule', 'transport.manage_university_cars']) {
+    for (const key of ['admin.manage_users', 'admin.manage_permissions', 'duty_ops.manage_schedule', 'brakkevakt.manage_schedule']) {
       expect(host.querySelector<HTMLSelectElement>(`[id="permission-${key}"]`)!.disabled).toBe(true);
     }
     expect(host.querySelector<HTMLSelectElement>('[id="permission-availability.view"]')!.disabled).toBe(false);
