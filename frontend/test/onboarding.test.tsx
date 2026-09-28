@@ -11,7 +11,7 @@ vi.mock('../src/pwa/PwaProvider', () => ({ PwaProvider: ({ children }: { childre
 
 const state = { email: 'student@example.test', subject: 'verified-subject', firstName: null, lastName: null, onboardingComplete: false,
   hasFlightLoggerCredential: false, flightLoggerUserId: null as string | null,
-  permissions: ['duty_ops.view', 'transport.view'], roles: ['STUDENT'] };
+  permissions: [], roles: ['STUDENT'] };
 const connected = { ...state, onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-user' };
 let root: Root;
 let host: HTMLDivElement;
@@ -66,14 +66,14 @@ describe('mandatory FlightLogger onboarding', () => {
     expect(host.textContent).not.toContain('API reference');
     expect(host.textContent).not.toContain('Help Center');
   });
-  it.each(['/', '/availability', '/duty-ops', '/transport', '/settings'])('redirects an incomplete user from %s', async path => {
+  it.each(['/', '/admin/availability', '/duty-ops', '/activity', '/settings'])('redirects an incomplete user from %s', async path => {
     await render(path);
     expect(host.querySelector('output')!.textContent).toBe('/onboarding');
     expect(host.querySelector('h1')!.textContent).toBe('Connect FlightLogger');
     expect(host.querySelector('.portal-shell')).toBeNull();
     expect(api).toHaveBeenCalledTimes(1);
   });
-  it.each(['/duty-ops', '/transport', '/settings'])('preserves completed-user portal navigation at %s', async path => {
+  it.each(['/duty-ops', '/activity', '/settings'])('preserves completed-user portal navigation at %s', async path => {
     api.mockImplementation(async () => Response.json(connected)); await render(path);
     expect(host.querySelector('output')!.textContent).toBe(path);
     expect(host.querySelector('[aria-label="Main navigation"]')).not.toBeNull();

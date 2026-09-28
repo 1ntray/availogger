@@ -63,14 +63,14 @@ describe('Duty Ops shift exchange UI', () => {
   it.each([-2, -3])('disables give-away at balance %s and keeps direct swaps usable', async balance => {
     data.currentUserCreditBalance = balance; await render(); await click('Exchange shift');
     expect(dialog().querySelector<HTMLInputElement>('input')!.disabled).toBe(true);
-    expect(dialog().textContent).toContain('Cover another student’s shift');
+    expect(dialog().textContent).toContain('Cover another student');
     await selectType('DIRECT_SWAP'); await click('Publish request', dialog());
     expect(writes[0].body.type).toBe('DIRECT_SWAP');
   });
   it.each([0, -1, 2])('explains the predicted debit from balance %s', async balance => {
     data.currentUserCreditBalance = balance; await render(); await click('Exchange shift'); await selectType('GIVE_AWAY');
     const sign = (n: number) => n > 0 ? `+${n}` : String(n);
-    expect(dialog().textContent).toContain(`${sign(balance)} → ${sign(balance - 1)}`);
+    expect(dialog().textContent).toContain(`Your current balance: ${sign(balance)} · After this shift is taken: ${sign(balance - 1)}`);
   });
   it('allows earning at the floor and explains the predicted credit', async () => {
     data.currentUserCreditBalance = -2; data.requests = [makeRequest()]; await render(); await click('Take shift');
@@ -105,7 +105,7 @@ describe('Duty Ops shift exchange UI', () => {
     await render(); await click('Exchange shift');
     expect(dialog().textContent).toContain('Give away'); expect(dialog().textContent).toContain('Look for swap');
     await selectType(type);
-    if (type === 'GIVE_AWAY') expect(dialog().textContent).toContain('without another confirmation');
+    if (type === 'GIVE_AWAY') expect(dialog().textContent).toContain('without further confirmation');
     await click('Publish request', dialog());
     expect(writes).toEqual([{ path: '/api/duty-ops/swaps', body: { type, shiftId: own.id, startsAt: own.startsAt, endsAt: own.endsAt } }]);
     expect(host.querySelector('dialog')).toBeNull(); expect(host.textContent).toContain('Shift has an active exchange');

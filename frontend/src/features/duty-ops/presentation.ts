@@ -24,5 +24,6 @@ export function dutySections(shifts: DutyShift[], now: number) {
     const key = osloDate(new Date(s.startsAt));
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }
-  return { today: todays, mine: upcoming.filter(s => s.status !== 'CANCELLED' && s.participants.some(p => p.isCurrentUser)), schedule: [...groups] };
+  const todayIds = new Set(todays.map(shift => shift.id));
+  return { today: todays, mine: upcoming.filter(s => !todayIds.has(s.id) && s.status !== 'CANCELLED' && s.participants.some(p => p.isCurrentUser)), schedule: [...groups] };
 }

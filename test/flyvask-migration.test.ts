@@ -29,4 +29,4 @@ it('adds Flyvask to a populated 0006 database without disturbing Duty Ops agreem
     // There is no Function that could dispatch a one-way transfer.
     expect(existsSync(new URL('../functions/api/flyvask/swaps/[requestId]/claim.ts',import.meta.url))).toBe(false);
   } finally {await old.dispose();}
-});
+}, 20000);

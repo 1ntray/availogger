@@ -4,8 +4,8 @@ import { osloDate } from '../dates';
 import type { BrakkevaktRoster, BrakkevaktSchedule } from '../../../shared/brakkevakt';
 import { displayName } from '../../../shared/display-name';
 import { loadRoster, loadSchedule, removeWeek, saveWeek } from '../features/brakkevakt/api';
-import { addDays, weekLabel } from '../features/brakkevakt/presentation';
-import { BrakkevaktNavigation } from '../features/brakkevakt/Navigation';
+import { addDays, weekLabel, weekTitle } from '../features/brakkevakt/presentation';
+import { Link } from 'react-router';
 import '../features/duty-ops/duty-ops.css';
 import '../features/brakkevakt/brakkevakt.css';
 
@@ -66,18 +66,17 @@ export function BrakkevaktManagePage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not remove week.'); }
     finally { setBusy(false); }
   }
-  return <section className="duty-ops brakkevakt"><div className="duty-heading"><h1>Manage Brakkevakt</h1><button disabled={loading || busy} onClick={() => setReload(v => v + 1)}>Reload</button></div>
-    <BrakkevaktNavigation />
+  return <section className="duty-ops brakkevakt"><Link className="action-link" to="/brakkevakt">← Brakkevakt</Link><div className="duty-heading"><h1>Manage Brakkevakt</h1><button disabled={loading || busy} onClick={() => setReload(v => v + 1)}>Reload</button></div>
     {loading && <p role="status" className="duty-loading">Loading editor…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
     {status && <p role="status" className="exchange-note">{status}</p>}
-    {schedule && roster && <><div className="brakkevakt-generator"><label>Start week<input type="date" value={start} onChange={e => setStart(e.target.value)} disabled={busy} /></label>
+    {schedule && roster && <><div className="brakkevakt-generator"><label>Start week<select value={start} onChange={e => setStart(e.target.value)} disabled={busy}>{Array.from({ length: 53 }, (_, index) => addDays(monday(osloDate(new Date())), index * 7)).map(week => <option key={week} value={week}>{weekTitle(week)}</option>)}</select></label>
       <label>Number of weeks<input type="number" min="1" max="26" value={count} onChange={e => setCount(Number(e.target.value))} disabled={busy} /></label>
       <button disabled={busy} onClick={generate}>Generate rows</button></div>
       <p className="exchange-note">Choose two students per week. Generated rows are drafts until saved.</p>
       {drafts.length ? <><div className="brakkevakt-manage-actions"><button disabled={busy || !drafts.some(row => row.userIds[0] && row.userIds[1] && row.userIds[0] !== row.userIds[1])}
         onClick={() => void persist(drafts.filter(row => row.userIds[0] && row.userIds[1] && row.userIds[0] !== row.userIds[1]))}>Save completed weeks</button></div>
         <div>{drafts.map(row => <div className="brakkevakt-manage-row" key={row.weekStart}>
-          <strong>{weekLabel(row.weekStart)}</strong>
+          <strong>{weekTitle(row.weekStart)}</strong>
           {([0, 1] as const).map(index => <label key={index}>Person {index + 1}<select value={row.userIds[index]} disabled={busy} onChange={e => setPerson(row.weekStart, index, e.target.value)}>
             <option value="">Choose student</option>{roster.students.map(student => <option key={student.id} value={student.id}>{displayName(student)}</option>)}
           </select></label>)}

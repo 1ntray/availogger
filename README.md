@@ -1,8 +1,8 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability, read-only Duty Ops, [Flights and fuel requests](docs/flights-fuel.md), and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. The five primary destinations are Home, [Flights and fuel requests](docs/flights-fuel.md), Duty Ops, Flyvask and Brakkevakt. Home combines personal commitments and relevant context. [Instructor Availability](docs/authorization.md) is an administrative tool. The repository and Cloudflare Pages project retain the name `availogger`. See [UI information architecture](docs/ui-information-architecture.md).
 
-Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) and [Duty Ops credits](docs/duty-ops-credits.md) are available with `duty_ops.view`. Accepted give-aways transfer ±1 credit in an immutable ledger; direct swaps have no credit effect. Migration `0008_duty_ops_credits.sql` follows merged Flyvask migration 0007 through the ordered release workflow; use `npm run db:migrate:local` for local development.
+Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive schedules and participant display; the raw FlightLogger snapshot stays separate and read-only. Accepted personal swap activity is under My activity. Own credit data requires `duty_ops.view`; full standings require `duty_ops.manage_schedule` on the API and UI. Accepted give-aways transfer ±1 credit in an immutable ledger; direct swaps have no credit effect. Migration `0008_duty_ops_credits.sql` follows merged Flyvask migration 0007 through the ordered release workflow; use `npm run db:migrate:local` for local development.
 
 [Flyvask](docs/flyvask.md) adds FlightLogger schedule discovery, effective Studentportal assignments, chained **direct swaps only**, and personal history. Meeting comments identify Flyvask; classroom is metadata. Migration `0007_flyvask.sql` grants `flyvask.view` and `flyvask.swap` to STUDENT/ADMIN and adds independent persistence. FlightLogger stays read-only.
 
@@ -16,7 +16,7 @@ See [Duty Ops setup, implementation and limitations](docs/duty-ops.md) for this 
 
 ## Architecture
 
-The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults include Duty Ops/Transport view, university car bookings, Flyvask view/swaps, and own flight view/fuel requests. Explicit overrides remain authoritative.
+The portal also has [D1 authorization and user administration](docs/authorization.md): ADMIN/STUDENT roles, application-defined permissions and per-user ALLOW/DENY overrides. Availability requires `availability.view`; Duty Ops requires `duty_ops.view`. STUDENT defaults include Duty Ops, Flyvask, Brakkevakt and own flight view, plus relevant swap and fuel permissions. Historical Transport grants remain in released D1 migrations but are omitted from the active catalogue and application responses. Explicit overrides remain authoritative.
 
 ```text
 Wix main website: luftfartsfag.no (unchanged)
@@ -50,22 +50,21 @@ Settings adds **FlightLogger — Connected — Replace API key**. Replacement va
 | Route | Current module |
 | --- | --- |
 | `/onboarding` | Mandatory personal FlightLogger connection |
-| `/` | Today's Duty Ops, next personal shift when today is empty, and quick navigation |
-| `/availability` | Working Instructor Availability |
-| `/duty-ops` | Effective Today/My shifts/Schedule and active exchanges |
-| `/duty-ops/shifts/:shiftId` | Effective team's fuel tasks for a shift |
-| `/duty-ops/swap-history` | Personal accepted exchange history |
+| `/` | Time-ordered personal schedule, relevant shared context and actual attention items |
+| `/admin/availability` | Working Instructor Availability, permission protected |
+| `/duty-ops` | Effective Today/My upcoming shifts/Schedule and active exchanges |
+| `/duty-ops/shifts/:shiftId` | Shift workspace with tasks and contextual exchange |
+| `/activity` | Filterable accepted personal Duty Ops, Flyvask and Brakkevakt activity |
 | `/flights` | Own synchronized flights and fuel requests |
-| `/flyvask` | My Flyvask, effective schedule and active direct swaps |
-| `/flyvask/swap-history` | Personal accepted Flyvask swap history |
+| `/flyvask` | Effective schedule and active direct swaps |
 | `/brakkevakt` | Current/upcoming dormitory duty and direct swaps |
-| `/brakkevakt/swap-history` | Personal accepted Brakkevakt swaps |
 | `/brakkevakt/manage` | Permission-protected weekly roster editor |
-| `/transport` | Planned car bookings and shared rides |
 | `/settings` | Account, connection replacement, installation/updates |
+| `/admin` | Permission-aware administration hub |
 | `/admin/users` | Permission-protected portal user access editor |
+| `/admin/duty-ops/credits` | Manager-only credit standings and audit |
 
-The existing top bar/sidebar, Home page, mobile Home/Duty Ops/Flights/More navigation and visual identity are preserved. Settings is in the desktop sidebar. Mobile More opens Transport, Flyvask, Availability, Settings and permitted Admin navigation; iPhone safe areas remain. Onboarding is a restrained standalone screen.
+Desktop and mobile navigation expose the five permitted operational destinations. The account menu holds My activity, Settings and permitted Administration. Old Availability and swap-history URLs redirect to the new locations for authorized users. Transport has no active route or API; its released migration and historical tables are preserved. Onboarding remains a restrained standalone screen.
 
 React Router handles navigation. Pages' default SPA fallback supports direct links/refreshes; no root `404.html` or catch-all redirect is added. `frontend/public/_routes.json` invokes Functions for `/api` and `/api/*`, including JSON 404. The current-user provider holds safe account state in React memory and adds `refresh()`.
 
@@ -113,7 +112,7 @@ FlightLogger's availability filters use start/end containment, not overlap. Exis
 
 ## Duty Ops
 
-Duty Ops is now a read-only operational module: **Today**, **My shifts**, and the upcoming date-grouped **Schedule**. Desktop shows Today/My shifts side by side; mobile stacks them before Schedule. Dedicated feature styles leave the shared portal UI unchanged. UTC instants display in Europe/Oslo, including overnight and DST shifts. Home reuses the same read API and shift presentation: today's shifts take priority, otherwise the first upcoming personal shift is shown when present. Users without `duty_ops.view` see no Duty Ops Home section or link and make no Duty Ops request. Loading and errors stay within the summary; quick navigation remains usable. Stale returned schedules are identified. Transport retains its Coming soon label.
+Duty Ops presents **Today**, **My upcoming shifts** and the upcoming date-grouped **Schedule**. Shift rows open the workspace for fuel tasks and personal exchange. UTC instants display in Europe/Oslo, including overnight and DST shifts. Home uses the existing personal Flights, Duty Ops, Flyvask and Brakkevakt APIs only when the user has the corresponding view permission. Failed sources do not hide available content. Stale schedule status remains visible.
 
 FlightLogger `MeetingBooking` records in classroom ID **852** supply the data. Paginated `all:true` discovers shared shifts and slot counts; `all:false` associates only the requesting portal user. An authenticated self query supplies that student's trusted name. Other participant identities are discarded, including unmasked entries. Known names accumulate as students synchronize; three slots with one known student display `Simon · 2 others`.
 

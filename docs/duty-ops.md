@@ -1,6 +1,6 @@
-# Read-only Duty Ops foundation
+# Duty Ops foundation and original rollout notes
 
-> Deployment instructions below describe the original feature bootstrap. After release automation cutover, use [ordered database and Pages releases](database-updates.md); normal merges migrate and deploy together.
+> This document records the original read-only foundation and rollout. The current portal also has effective Studentportal assignments, swaps, fuel tasks, credits and a shift workspace. For current navigation and UI conventions, use [Studentportal information architecture](ui-information-architecture.md). For releases, use [ordered database and Pages releases](database-updates.md).
 
 Branch: `feature/duty-ops-core`, based on `develop`. The PR targets **develop**, must be reviewed, and must not be merged automatically. Production `master` and its Pages Git deployment are unchanged.
 
@@ -117,7 +117,7 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
    ```
 
    Confirm `0001_application_users.sql`, `0002_duty_ops.sql` and develop's `0003_authorization.sql` are applied before activating the new Functions. Preview 0001/0002 were applied earlier; 0003 is now required after integrating develop. Do not renumber migrations.
-5. Follow [administrator bootstrap](authorization.md#initial-administrator-setup) if the preview has no administrator, then grant `availability.view` to test users who should access Availability. STUDENT defaults to Duty Ops/Transport only. Verify `/api/me`, `/api/duty-ops`, Today/My shifts/Schedule, reload within/after five minutes, and uncached authorized Instructor Availability. Use two authorized student accounts to verify names appear after each self-sync and own reconciliation preserves the other student's assignment. Verify denied `duty_ops.view` returns 403 without exposing snapshots. Do not publish keys/headers in diagnostics.
+5. Follow [administrator bootstrap](authorization.md#initial-administrator-setup) if the preview has no administrator, then grant `availability.view` to staff who should access Availability under Administration. Active STUDENT defaults include Flights, Duty Ops, Flyvask and Brakkevakt; Transport is retired. Verify `/api/me`, `/api/duty-ops`, Today/My upcoming shifts/Schedule, reload within/after five minutes, and uncached authorized Instructor Availability. Use two authorized student accounts to verify names appear after each self-sync and own reconciliation preserves the other student's assignment. Verify denied `duty_ops.view` returns 403 without exposing snapshots. Do not publish keys/headers in diagnostics.
 6. If a later reviewed release promotes this code to master, **before that deployment** apply the additive migration to the existing production DB:
 
    ```bash
@@ -134,4 +134,4 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
 - Refresh happens on visits/reload, not Cron/polling. No historical UI or date-range controls are added; recent history is available through the bounded API.
 - Requests exceeding pagination budgets fail safely. Large schedules and actual Workers Free CPU behavior still need staging verification with real permitted data.
 - Local/browser/CI checks validate behavior using synthetic data; they do not establish a successful live rollout or device installation.
-- No swaps, FlightLogger mutations, scheduling/admin, fuel, tasks, handover, transport or notifications. Next: validate the read-only module in staging with several students, then design the swap workflow against stable shift/assignment IDs.
+- The original read-only feature did not include swaps, fuel tasks or credits; those were added later. FlightLogger mutations, Transport and notifications remain outside this foundation.

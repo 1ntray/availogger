@@ -196,16 +196,19 @@ describe('backfill, privacy, standings and keyset history', () => {
     expect(roster.students.map(r => r.student.id)).toEqual([alice.id, bob.id, carl.id]);
     expect(JSON.stringify(roster)).not.toMatch(/email|private-|secret-|access_subject|transaction|request|fl-alice/);
   });
-  it('protects both read endpoints by Access and duty_ops.view and exposes no credit write or user selector', async () => {
+  it('protects personal credits and gates full standings by manage_schedule', async () => {
     for (const standings of [false, true]) {
       expect((await api('', null, standings)).status).toBe(401);
-      expect((await api('', alice, standings)).status).toBe(200);
-      expect((await api('?userId=other', alice, standings)).status).toBe(400);
+      expect((await api('', alice, standings)).status).toBe(standings ? 403 : 200);
       expect((await api('', alice, standings, 'POST')).status).toBe(405);
     }
+    await fixture.db.prepare("INSERT INTO user_permission_overrides VALUES (?, 'duty_ops.manage_schedule', 'ALLOW', ?, ?, NULL)").bind(alice.id, now, now).run();
+    expect((await api('', alice, true)).status).toBe(200);
+    expect((await api('?userId=other', alice, true)).status).toBe(400);
+    expect((await api('?userId=other', alice)).status).toBe(400);
     expect((await api('?summary=1')).status).toBe(200);
     for (const query of ['?summary=0', '?summary=1&cursor=a', '?cursor=a&cursor=b', '?cursor=broken']) expect((await api(query)).status).toBe(400);
     await fixture.db.prepare("INSERT INTO user_permission_overrides VALUES (?, 'duty_ops.view', 'DENY', ?, ?, NULL)").bind(alice.id, now, now).run();
-    expect((await api()).status).toBe(403); expect((await api('', alice, true)).status).toBe(403);
+    expect((await api()).status).toBe(403); expect((await api('', alice, true)).status).toBe(200);
   });
 });
