@@ -3,6 +3,7 @@ import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
 import type { StudentFlight } from '../flightlogger/flights';
 import type { ApplicationUser } from '../users';
 import type { FlightWindow } from './window';
+import { beforeFlightUpsert, membershipChangeStatements } from './changes';
 
 export const FLIGHT_TTL_MS = 5*60_000;
 const tokenHash=async(token:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)))].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -43,7 +44,7 @@ function presentFlight(row:FlightRow,request:FuelRow|null,profile:Profile|null){
     // Never claim the new aircraft was fueled after an upstream replacement.
     appliesToCurrentAircraft:request.flightlogger_aircraft_id_snapshot===row.flightlogger_aircraft_id&&request.status==='COMPLETED'}
 };}
-const canonical=(f:StudentFlight)=>({id:crypto.randomUUID(),bookingId:f.id,type:f.bookingType,starts:f.startsAt,ends:f.endsAt,flightStarts:f.flightStartsAt,flightEnds:f.flightEndsAt,status:f.status,
+const canonical=(f:StudentFlight)=>({id:crypto.randomUUID(),changeEventId:crypto.randomUUID(),addedEventId:crypto.randomUUID(),bookingId:f.id,type:f.bookingType,starts:f.startsAt,ends:f.endsAt,flightStarts:f.flightStartsAt,flightEnds:f.flightEndsAt,status:f.status,
   aircraftId:f.aircraft?.id??null,callsign:f.aircraft?.callSign??null,model:f.aircraft?.model??null,aircraftClass:f.aircraft?.aircraftClass??null,
   aircraftType:f.aircraft?.aircraftType??null,fuelMeasurement:f.aircraft?.fuelCoefficientMeasurement??null,
   departureId:f.departureAirport?.id??null,departureName:f.departureAirport?.name??null,arrivalId:f.arrivalAirport?.id??null,arrivalName:f.arrivalAirport?.name??null,
@@ -51,7 +52,7 @@ const canonical=(f:StudentFlight)=>({id:crypto.randomUUID(),bookingId:f.id,type:
 
 export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:StudentFlight[],window:FlightWindow,stamp:string,hash:string){
   const own=flights.filter(f=>f.studentIds.includes(user.flightlogger_user_id!));
-  const rows=own.map(canonical),ids=JSON.stringify(own.map(f=>f.id));
+  const rows=own.map(canonical),rowsJson=JSON.stringify(rows),ids=JSON.stringify(own.map(f=>f.id));
   const current=`EXISTS(SELECT 1 FROM users u JOIN flightlogger_credentials c ON c.user_id=u.id WHERE u.id=? AND u.flightlogger_user_id=? AND c.updated_at<=?)`;
   const changed=`(r.flightlogger_aircraft_id_snapshot IS NOT flights.flightlogger_aircraft_id OR flights.departure_airport_id IS NOT '2953')`;
   await db.batch([
@@ -59,6 +60,7 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
     db.prepare(`UPDATE fuel_request_state SET revision=CASE WHEN ${current} AND
       NOT EXISTS(SELECT 1 FROM flight_sync_state WHERE user_id=? AND last_synced_at>?) THEN revision+1 ELSE -1 END WHERE id=1`)
       .bind(user.id,user.flightlogger_user_id,stamp,user.id,stamp),
+    ...beforeFlightUpsert(db,rowsJson,stamp),
     db.prepare(`INSERT INTO flights(id,flightlogger_booking_id,booking_type,starts_at,ends_at,flight_starts_at,flight_ends_at,status,
       flightlogger_aircraft_id,aircraft_callsign,aircraft_model,aircraft_class,aircraft_type,fuel_coefficient_measurement,
       departure_airport_id,departure_airport_name,arrival_airport_id,arrival_airport_name,instructor_flightlogger_id,instructor_first_name,instructor_last_name,last_synced_at)
@@ -76,7 +78,7 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
         arrival_airport_id=excluded.arrival_airport_id,arrival_airport_name=excluded.arrival_airport_name,
         instructor_flightlogger_id=excluded.instructor_flightlogger_id,instructor_first_name=excluded.instructor_first_name,
         instructor_last_name=excluded.instructor_last_name,last_synced_at=excluded.last_synced_at
-      WHERE flights.last_synced_at<=excluded.last_synced_at`).bind(stamp,JSON.stringify(rows)),
+      WHERE flights.last_synced_at<=excluded.last_synced_at`).bind(stamp,rowsJson),
     db.prepare(`INSERT INTO fuel_request_events SELECT lower(hex(randomblob(16))),r.id,NULL,'NEEDS_REVIEW_SET',?,r.flightlogger_aircraft_id_snapshot,r.preset_label_snapshot
       FROM fuel_requests r JOIN flights ON flights.id=r.flight_id WHERE flights.status<>'CANCELLED' AND r.status IN ('PENDING','COMPLETED') AND ${changed}`).bind(stamp),
     db.prepare(`UPDATE fuel_requests AS f SET status='NEEDS_REVIEW',review_reason=CASE WHEN f.flightlogger_aircraft_id_snapshot IS NOT
@@ -87,6 +89,7 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
       FROM fuel_requests r JOIN flights f ON f.id=r.flight_id WHERE r.status='PENDING' AND f.status='CANCELLED'`).bind(stamp),
     db.prepare(`UPDATE fuel_requests SET status='CANCELLED',cancelled_at=?,updated_at=? WHERE status='PENDING' AND
       flight_id IN(SELECT id FROM flights WHERE status='CANCELLED')`).bind(stamp,stamp),
+    ...membershipChangeStatements(db,user.id,hash,rowsJson,ids,window,stamp),
     db.prepare(`DELETE FROM flight_students WHERE user_id=? AND last_seen_at<=? AND flight_id IN
       (SELECT id FROM flights WHERE starts_at<? AND ends_at>? AND flightlogger_booking_id NOT IN(SELECT value FROM json_each(?)))`)
       .bind(user.id,stamp,window.endsAt,window.startsAt,ids),
