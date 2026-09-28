@@ -1,6 +1,6 @@
 # Luftfartsfag Studentportal
 
-An operational portal for pilot students. Instructor Availability, read-only Duty Ops, [Flights and fuel requests](docs/flights-fuel.md), and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`.
+An operational portal for pilot students. Instructor Availability, read-only Duty Ops, [Flights and fuel requests](docs/flights-fuel.md), and the [Transport core](docs/transport.md) are implemented; Home shows today's Duty Ops or the current user's next shift, with quick navigation. The repository and Cloudflare Pages project retain the name `availogger`. The backend also records [flight schedule changes](docs/flight-changes.md) and exposes a [personal Inbox API](docs/inbox.md); the Inbox UI is a later integration.
 
 Duty Ops supports give-aways, direct swaps and chained exchanges with `duty_ops.swap`. Studentportal effective assignments drive My shifts, Home and participant display; the raw FlightLogger snapshot stays separate and read-only. Personal [Swap history](docs/duty-ops-swaps.md) and [Duty Ops credits](docs/duty-ops-credits.md) are available with `duty_ops.view`. Accepted give-aways transfer ±1 credit in an immutable ledger; direct swaps have no credit effect. Migration `0008_duty_ops_credits.sql` follows merged Flyvask migration 0007 through the ordered release workflow; use `npm run db:migrate:local` for local development.
 
