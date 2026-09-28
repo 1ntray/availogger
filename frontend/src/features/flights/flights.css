@@ -1,8 +1,8 @@
 .flights-page,.fuel-shift-page { max-width: 1000px; }
 .flights-heading,.fuel-shift-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .flights-heading h1,.fuel-shift-heading h1 { margin:0; }
-.flights-page button,.fuel-shift-page button { border:1px solid var(--portal-border); background:var(--portal-surface); color:var(--portal-control-text); border-radius:var(--portal-radius); min-height:var(--portal-touch-height); padding:8px 12px; font:inherit; font-size:13px; }
-.flights-page button:hover,.fuel-shift-page button:hover { background:var(--portal-control-hover); }
+.flights-page button:not(.ui-button),.fuel-shift-page button:not(.ui-button) { border:1px solid var(--portal-border); background:var(--portal-surface); color:var(--portal-control-text); border-radius:var(--portal-radius); min-height:var(--portal-touch-height); padding:8px 12px; font:inherit; font-size:13px; }
+.flights-page button:not(.ui-button):hover,.fuel-shift-page button:not(.ui-button):hover { background:var(--portal-control-hover); }
 .flights-page button:disabled,.fuel-shift-page button:disabled { opacity:.6; }
 .flight-list,.fuel-task-list { list-style:none; margin:14px 0; padding:0; border-top:1px solid var(--portal-border); }
 .flight-row,.fuel-task-row { padding:14px 2px; border-bottom:1px solid var(--portal-border); }

@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react';
-import { Link,useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { completeFuel,loadShiftTasks,type FuelTask,type ShiftTasks } from '../features/flights/task-api';
 import { loadDutyOps } from '../features/duty-ops/api';
 import type { DutyOpsData } from '../features/duty-ops/types';
@@ -7,10 +7,13 @@ import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyEx
 import { useCurrentUser } from '../app/CurrentUser';
 import { participantLabel } from '../features/duty-ops/presentation';
 import { AttentionDetail } from '../app/AttentionDetail';
+import { ActionButton, BackLink, PageHeader, RefreshControl } from '../app/controls';
+import { osloDate } from '../dates';
 import '../features/flights/flights.css';
 import '../features/duty-ops/duty-ops.css';
 
-const date=(value:string)=>new Intl.DateTimeFormat('en',{timeZone:'Europe/Oslo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
+const date=(value:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
+const clock=(value:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
 function TaskList({tasks,now,onComplete,busy}:{tasks:FuelTask[];now:number;onComplete:(id:string)=>void;busy:string|null}){
   return <ul className="fuel-task-list">{tasks.map(task=><li key={task.id} className={`fuel-task-row ${Date.parse(task.attentionFrom)<=now?'is-due':''}`}>
     <div className="fuel-task-head"><strong><time dateTime={task.flightStartsAt}>{date(task.flightStartsAt)}</time></strong>
@@ -20,7 +23,7 @@ function TaskList({tasks,now,onComplete,busy}:{tasks:FuelTask[];now:number;onCom
       {task.earlierFlight.timeSource==='booking'?' (booking end)':''}{task.earlierFlight.pilot?` · ${task.earlierFlight.pilot}`:''}.
       Partial linked schedule; confirm actual aircraft availability.</p>}
     {Date.parse(task.attentionFrom)>now&&<p className="fuel-meta">Due from {date(task.attentionFrom)}</p>}
-    <button disabled={busy===task.id} onClick={()=>onComplete(task.id)}>Complete</button>
+    <ActionButton variant="primary" disabled={busy===task.id} onClick={()=>onComplete(task.id)}>Complete</ActionButton>
   </li>)}</ul>;
 }
 export function DutyShiftPage(){const {shiftId}=useParams();const [data,setData]=useState<ShiftTasks|null>(null),[error,setError]=useState(''),
@@ -42,12 +45,12 @@ export function DutyShiftPage(){const {shiftId}=useParams();const [data,setData]
     catch(cause){setError(cause instanceof Error?cause.message:'Could not complete the request.');}finally{setBusy(null);}};
   const due=data?.tasks.filter(t=>Date.parse(t.attentionFrom)<=now)??[],later=data?.tasks.filter(t=>Date.parse(t.attentionFrom)>now)??[];
   const shift = schedule?.shifts.find(item => item.id === shiftId);
-  const workspace = <section className="fuel-shift-page"><Link className="action-link" to="/duty-ops">← Duty Ops</Link>
-    <div className="fuel-shift-heading"><h1>Duty Ops shift</h1><button disabled={loading} onClick={()=>setReload(n=>n+1)}>Reload</button></div>
-    {data&&<p className="fuel-meta">{date(data.shift.startsAt)}–{date(data.shift.endsAt)} · Europe/Oslo</p>}
+  const workspace = <section className="fuel-shift-page"><BackLink to="/duty-ops">Duty Ops</BackLink>
+    <PageHeader title="Duty Ops shift"><RefreshControl label="Duty Ops shift" onRefresh={()=>setReload(n=>n+1)} loading={loading} retry={!!error} /></PageHeader>
+    {data&&<p className="fuel-meta"><time dateTime={data.shift.startsAt}>{date(data.shift.startsAt)}</time>–<time dateTime={data.shift.endsAt}>{osloDate(new Date(data.shift.startsAt)) === osloDate(new Date(data.shift.endsAt)) ? clock(data.shift.endsAt) : date(data.shift.endsAt)}</time></p>}
     {shift && <><p className="fuel-meta">{participantLabel(shift)}</p>{shift.assignmentsDiffer && shift.flightlogger && <AttentionDetail label="Assignments differ from FlightLogger"><p>Studentportal is the current assignment. FlightLogger records: {participantLabel(shift.flightlogger)}</p></AttentionDetail>}</>}
     {shift && <ExchangeShiftActions shift={shift} />}
-    {loading&&<p role="status">Loading shift tasks…</p>}{error&&<p className="fuel-error" role="alert">{error}</p>}
+    {loading&&!data&&<p role="status">Loading shift tasks…</p>}{error&&<p className="fuel-error" role="alert">{error}</p>}
     {notice&&<p className="fuel-notice" role="status">{notice}</p>}
     {!loading&&data&&<section className="fuel-task-section"><h2>Fuel</h2>
       {!data.tasks.length&&<p className="fuel-notice">No pending fuel requests for this shift.</p>}

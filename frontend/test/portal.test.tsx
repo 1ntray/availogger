@@ -32,7 +32,7 @@ describe('portal routes', () => {
   });
   it('retains the availability controls and loading state after extraction', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/availability']}><PortalRoutes /></MemoryRouter>);
-    for (const text of ['Europe/Oslo', 'Find instructor', 'Reload view', 'Next dates', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
+    for (const text of ['Europe/Oslo', 'Find instructor', 'Refresh availability', 'Next dates', 'No information', 'Loading instructor availability']) expect(html).toContain(text);
   });
   it('Home starts with the personal schedule without duplicate quick-access cards', () => {
     const html = renderToStaticMarkup(<MemoryRouter><PortalRoutes /></MemoryRouter>);

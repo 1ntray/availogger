@@ -7,6 +7,7 @@ import { loadSwapHistory as loadFlyvaskHistory } from '../features/flyvask/excha
 import { loadHistory as loadBrakkevaktHistory } from '../features/brakkevakt/api';
 import { acceptedLabel, historyShiftLabel, userName } from '../features/duty-ops/exchange-presentation';
 import { weekLabel, personName } from '../features/brakkevakt/presentation';
+import { PageHeader, RefreshControl } from '../app/controls';
 
 type Module = 'duty-ops' | 'flyvask' | 'brakkevakt';
 type Entry = { id: string; module: Module; acceptedAt: string; text: string; detail: string };
@@ -63,7 +64,7 @@ export function MyActivityPage() {
   }
   const shown = available.filter(module => filter === 'all' || filter === module.key);
   const entries = shown.flatMap(module => sources[module.key].entries).sort((a, b) => b.acceptedAt.localeCompare(a.acceptedAt) || a.id.localeCompare(b.id));
-  return <section className="activity-page"><div className="duty-heading"><h1>My activity</h1><button onClick={() => setReload(n => n + 1)}>Reload</button></div>
+  return <section className="activity-page"><PageHeader title="My activity"><RefreshControl label="activity" retry={shown.some(module => !!sources[module.key].error)} onRefresh={() => setReload(n => n + 1)} /></PageHeader>
     <nav className="activity-filters" aria-label="Activity filter"><button aria-pressed={filter === 'all'} onClick={() => setParams({})}>All</button>{available.map(module => <button key={module.key} aria-pressed={filter === module.key} onClick={() => setParams({ module: module.key })}>{module.label}</button>)}</nav>
     {shown.map(module => sources[module.key].error && <p key={module.key} role="alert">{module.label}: {sources[module.key].error}</p>)}
     {shown.some(module => sources[module.key].loading) && <p role="status">Loading activity…</p>}

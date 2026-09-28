@@ -39,10 +39,12 @@ describe('Duty Ops presentation', () => {
     const overnight = { ...shift, id: 'night', startsAt: '2026-09-26T21:00:00Z', endsAt: '2026-09-27T09:00:00Z' };
     const next = { ...shift, id: 'next', startsAt: '2026-09-28T05:00:00Z', endsAt: '2026-09-28T12:00:00Z', participants: [] };
     const sections = dutySections([next, shift, overnight, { ...next, id: 'mine-next', participants: [shift.participants[0]] }, { ...next, id: 'cancel', status: 'CANCELLED' }], now.getTime());
-    expect(sections.today.map(s => s.id)).toEqual(['night', 'shift']);
+    expect(sections.onDutyNow.map(s => s.id)).toEqual(['night', 'shift']);
     expect(sections.mine.map(s => s.id)).toEqual(['mine-next']);
-    expect(sections.schedule.map(([date]) => date)).toEqual(['2026-09-26', '2026-09-27', '2026-09-28']);
-    expect(dutySections([{ ...shift, endsAt: '2026-09-26T22:00:00Z', startsAt: '2026-09-26T19:00:00Z' }], now.getTime()).today).toEqual([]);
+    expect(sections.schedule.map(([date]) => date)).toEqual(['2026-09-28']);
+    expect(dutySections([{ ...shift, endsAt: '2026-09-26T22:00:00Z', startsAt: '2026-09-26T19:00:00Z' }], now.getTime()).onDutyNow).toEqual([]);
+    expect(dutySections([{ ...shift, endsAt: '2026-09-27T07:00:00Z', startsAt: '2026-09-27T05:00:00Z' }], now.getTime()).onDutyNow).toEqual([]);
+    expect(dutySections([{ ...shift, participants: [] }, { ...shift, id: 'completed', participants: [], status: 'COMPLETED' }], now.getTime()).onDutyNow.map(s => s.id)).toEqual(['shift']);
   });
   it('keeps actual UTC duration and displays Oslo DST times', () => {
     expect(timeLabel({ ...shift, startsAt: '2026-03-29T00:00:00Z', endsAt: '2026-03-29T02:00:00Z' })).toBe('01:00–04:00');
@@ -83,18 +85,18 @@ describe('Duty Ops page', () => {
     vi.stubGlobal('fetch', fetcher);
     await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
     expect(host.querySelector('h1')!.textContent).toBe('Duty Ops');
-    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['Today', 'My upcoming shifts', 'Schedule']);
+    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['On duty now']);
     expect(host.textContent).toContain('Simon · 2 others'); expect(host.textContent).toContain('07:00–14:00');
-    expect(host.querySelectorAll('.is-mine')).toHaveLength(2);
+    expect(host.querySelectorAll('.is-mine')).toHaveLength(1);
     expect(host.querySelector('[role=status]')!.textContent).toContain('Refresh failed');
-    await act(async () => host.querySelector('button')!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Retry Duty Ops"]')!.click());
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it('shows restrained empty states and safe failures', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ ...data, shifts: [] })).mockResolvedValueOnce(Response.json({ error: 'Duty Ops unavailable' }, { status: 503 }));
     vi.stubGlobal('fetch', fetcher);
     await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
-    expect(host.textContent).toContain('Nothing scheduled'); expect(host.textContent).toContain('No upcoming shifts');
+    expect(host.textContent).toContain('No upcoming shifts');
     await act(async () => host.querySelector('button')!.click());
     expect(host.querySelector('[role=alert]')!.textContent).toBe('Duty Ops unavailable');
   });
