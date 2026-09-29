@@ -50,8 +50,11 @@ describe('Flyvask navigation and schedule',()=>{
     expect(host.querySelector('aside a[href="/flyvask"]')).not.toBeNull();expect(host.querySelector('nav[aria-label="Flyvask views"]')).toBeNull();
     expect(host.textContent).toContain('Schedule');expect(host.textContent).not.toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();expect(api.mock.calls.map(([path])=>path).filter(path=>path!=='/api/inbox')).toEqual(['/api/me','/api/flyvask']);
   });
-  it('shows only look-for-swap, publishes immediately with no type selector or give-away',async()=>{
-    await render();await click('Look for swap');
+  it('browses before posting and keeps Flyvask free of give-away',async()=>{
+    await render();await click('Exchange');
+    expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
+    expect(api.mock.calls.some(([,init])=>init?.method==='POST')).toBe(false);
+    await click('Post my assignment for swap');await click('Publish request');
     const post=api.mock.calls.find(([,init])=>init?.method==='POST')!;
     expect(post[0]).toBe('/api/flyvask/swaps');expect(JSON.parse(post[1].body)).toEqual({shiftId:'a',startsAt:a.startsAt,endsAt:a.endsAt});
     expect(host.textContent).not.toMatch(/Give away|Take shift|Exchange type/);expect(host.querySelector('[name="exchange-type"]')).toBeNull();
@@ -78,30 +81,56 @@ describe('Flyvask navigation and schedule',()=>{
 });
 
 describe('Flyvask direct swap workspace',()=>{
+  it('keeps an own open request and its review and cancel actions on the shift',async()=>{
+    requests=[request];locks=['a'];await render();
+    const row=host.querySelector('.flyvask-schedule .is-mine')!;
+    expect(row.textContent).toContain('Looking for swap · 1 offer');
+    expect(row.querySelector('button')?.textContent).toBe('Cancel');
+    expect(row.querySelector('a[href^="/flyvask/exchanges#"]')?.textContent).toBe('Review offers');
+  });
+  it('shows a sent offer on the own shift and does not offer the same request twice',async()=>{
+    requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[{...proposal,proposer:request.requester,offeredShift:a}]}];locks=['a'];
+    await render();expect(host.querySelector('.flyvask-schedule .is-mine')?.textContent).toContain('Offer sent');
+    await act(async()=>host.querySelector<HTMLAnchorElement>('a[href^="/flyvask/exchanges#"]')!.click());
+    expect(host.querySelector('.exchange-row')?.textContent).not.toContain('Offer one of my Flyvask shifts');
+    expect(host.querySelector('.exchange-row')?.textContent).toContain('Withdraw offer');
+  });
+  it('offers an existing swap from the intermediate dialog using 24-hour Oslo time',async()=>{
+    requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];
+    await render();await click('Exchange');
+    expect(host.querySelector('dialog')?.textContent).toContain('Sat 24 Oct · 18:00–20:00');
+    expect(host.querySelector('dialog')?.textContent).not.toMatch(/\b(?:AM|PM)\b/);
+    await click('Offer your assignment');
+    expect(host.querySelector<HTMLSelectElement>('dialog select')?.value).toBe('a');
+  });
   it('compares multiple offers, confirms both shifts and immediately reloads effective assignments',async()=>{
     requests=[{...request,proposals:[proposal,{...proposal,id:'other',proposer:{id:'erik',firstName:'Erik',lastName:null}}]}];locks=['a'];
     const original=api.getMockImplementation()!;
     api.mockImplementation(async(path:string,init:RequestInit={})=>{if(init.method==='POST'){requests=[];locks=[];data.shifts=[{...a,participants:[anna],assignmentsDiffer:true},{...b,participants:[me],assignmentsDiffer:true}];return Response.json({id:'request'});}return original(path,init);});
-    await render();const choices=[...host.querySelectorAll<HTMLButtonElement>('.duty-exchanges button')].filter(b=>b.textContent==='Choose this swap');expect(choices).toHaveLength(2);await act(async()=>choices[0].click());
+    await render();
+    expect(host.querySelector('.flyvask-schedule .is-mine')?.textContent).toContain('2 offers');
+    await act(async()=>host.querySelector<HTMLAnchorElement>('a[href^="/flyvask/exchanges#"]')!.click());
+    const choices=[...host.querySelectorAll<HTMLButtonElement>('.duty-exchanges button')].filter(b=>b.textContent==='Choose this swap');expect(choices).toHaveLength(2);await act(async()=>choices[0].click());
     const dialog=host.querySelector('dialog')!;expect(dialog.textContent).toContain('Your Flyvask');expect(dialog.textContent).toContain('Anna’s Flyvask');expect(dialog.textContent).toContain('Sat 17 Oct');expect(dialog.textContent).toContain('Sat 24 Oct');expect(dialog.textContent).toContain('FlightLogger is not updated automatically');
     await click('Confirm swap');expect(api.mock.calls.find(([,init])=>init?.method==='POST')![0]).toBe('/api/flyvask/swaps/request/proposals/proposal/accept');
-    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();
+    await act(async()=>host.querySelector<HTMLAnchorElement>('a[href="/flyvask"]')!.click());
+    const mine=[...host.querySelectorAll('.flyvask-schedule .duty-row')].find(row=>row.classList.contains('is-mine'))!;expect(mine.querySelector('time')!.getAttribute('datetime')).toBe(b.startsAt);expect(mine.textContent).toContain('Exchange');expect(host.querySelector('.duty-exchanges')).toBeNull();
   });
   it('offers only an eligible effective own shift, never source-only or locked memberships',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];
     data.shifts=[a,b,{...a,id:'locked'},{...a,id:'cancelled',status:'CANCELLED'},{...a,id:'source-only',participants:[anna],assignmentsDiffer:true}];locks=['locked'];
-    await render();await click('Offer one of my Flyvask shifts');const select=host.querySelector<HTMLSelectElement>('select')!;expect([...select.options].map(o=>o.value)).toEqual(['','a']);
+    await render('/flyvask/exchanges');await click('Offer one of my Flyvask shifts');const select=host.querySelector<HTMLSelectElement>('select')!;expect([...select.options].map(o=>o.value)).toEqual(['','a']);
     await act(async()=>{select.value='a';select.dispatchEvent(new Event('change',{bubbles:true}));});await click('Offer shift');expect(JSON.parse(api.mock.calls.find(([,init])=>init?.method==='POST')![1].body).shiftId).toBe('a');
   });
   it('keeps stale own intent cancellable and excludes completed activity',async()=>{
     requests=[{...request,eligible:false,proposals:[]},{...request,id:'accepted',status:'ACCEPTED'},{...request,id:'cancelled',status:'CANCELLED'}];
     const original=api.getMockImplementation()!;api.mockImplementation(async(path:string,init:RequestInit={})=>{if(init.method==='POST'){requests=[];return Response.json({id:'request'});}return original(path,init);});
-    await render();expect(host.querySelectorAll('.exchange-row')).toHaveLength(1);expect(host.textContent).toContain('No longer eligible');await click('Cancel request');await click('Cancel request');expect(host.querySelectorAll('.exchange-row')).toHaveLength(0);
+    await render('/flyvask/exchanges');expect(host.querySelectorAll('.exchange-row')).toHaveLength(1);expect(host.textContent).toContain('No longer eligible');await click('Cancel request');await click('Cancel request');expect(host.querySelectorAll('.exchange-row')).toHaveLength(0);
   });
   it('allows withdrawal of own offer and displays safe mutation errors',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[{...proposal,proposer:request.requester,offeredShift:a}]}];
     const original=api.getMockImplementation()!;api.mockImplementation(async(path:string,init:RequestInit={})=>init.method==='POST'?Response.json({error:'This swap changed. Reload Flyvask.'},{status:409}):original(path,init));
-    await render();await click('Withdraw offer');await click('Withdraw offer');expect(host.querySelector('[role="alert"]')!.textContent).toContain('This swap changed');
+    await render('/flyvask/exchanges');await click('Withdraw offer');await click('Withdraw offer');expect(host.querySelector('[role="alert"]')!.textContent).toContain('This swap changed');
     expect(api.mock.calls.find(([,init])=>init?.method==='POST')![0]).toContain('/withdraw');
   });
 });

@@ -84,15 +84,16 @@ describe('effective Duty Ops presentation', () => {
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/other"]')).toBeNull();
     expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Upcoming schedule']);
-    const action = [...host.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'Exchange shift')!;
+    expect(host.querySelectorAll('[aria-labelledby="duty-mine"] .is-mine')).toHaveLength(1);
+    expect(host.querySelectorAll('.duty-schedule .is-mine')).toHaveLength(1);
+    expect(host.querySelector('.duty-schedule .is-mine')?.textContent).toContain('Simon · 2 others');
+    const action = [...host.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'Exchange')!;
     await act(async () => { action.focus(); action.click(); });
     expect(host.querySelector('dialog')).not.toBeNull();
-    expect(host.querySelector<HTMLButtonElement>('dialog button[type="submit"]')!.disabled).toBe(true);
-    await act(async () => host.querySelectorAll<HTMLInputElement>('dialog input[type="radio"]')[1].click());
-    // Radio controls keep a selected state and enable the commit action.
-    expect(host.querySelector<HTMLInputElement>('dialog input:checked')?.name).toBe('exchange-type');
+    expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
+    await click('Post my assignment for swap');
     expect(host.querySelector<HTMLButtonElement>('dialog button[type="submit"]')!.disabled).toBe(false);
-    await click('Back');
+    await click('Cancel');
     expect(host.querySelector('dialog')).toBeNull();
     expect(document.activeElement).toBe(action);
   });

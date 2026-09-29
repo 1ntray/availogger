@@ -19,7 +19,7 @@ export function dutySections(shifts: DutyShift[], now: number) {
   const upcoming = ordered.filter(s => Date.parse(s.endsAt) > now && s.status !== 'CANCELLED' && s.status !== 'COMPLETED');
   const onDutyNow = upcoming.filter(s => Date.parse(s.startsAt) <= now);
   const groups = new Map<string, DutyShift[]>();
-  for (const s of upcoming.filter(shift => !shift.participants.some(p => p.isCurrentUser))) {
+  for (const s of upcoming.filter(shift => Date.parse(shift.startsAt) > now || !shift.participants.some(person => person.isCurrentUser))) {
     const key = osloDate(new Date(s.startsAt));
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }

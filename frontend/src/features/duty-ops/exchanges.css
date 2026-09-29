@@ -1,5 +1,19 @@
-.duty-exchanges { margin: 20px 0 28px; min-width: 0; padding: 12px 14px; border-left: 3px solid var(--portal-accent); background: var(--portal-control-hover); border-radius: 0 var(--portal-radius) var(--portal-radius) 0; }
-.exchange-row { padding: 14px 0; border-bottom: 1px solid var(--portal-border, #d7e1df); overflow-wrap: anywhere; }
+.duty-exchanges { margin: 20px 0 28px; min-width: 0; }
+.duty-exchanges > h3:first-of-type { margin-top: 0; }
+.brakkevakt > section + section { margin-top: 16px; }
+.exchange-row { padding: 12px 0; border-bottom: 1px solid var(--portal-border); overflow-wrap: anywhere; }
+.exchange-row:focus { outline: 2px solid var(--portal-focus); outline-offset: 2px; }
+.exchange-overview { margin: 16px 0 24px; padding: 12px 0; border-top: 1px solid var(--portal-border); border-bottom: 1px solid var(--portal-border); }
+.exchange-overview h2 { border: 0; padding: 0; margin: 0 0 5px; }
+.exchange-overview p { margin: 4px 0; font-size: 12px; color: var(--portal-muted); }
+.exchange-overview > a, .exchange-assignment-state > a { display: inline-flex; align-items: center; min-height: var(--portal-touch-height); color: var(--portal-accent); font-size: 13px; text-decoration: none; }
+.exchange-overview > a:hover, .exchange-assignment-state > a:hover { text-decoration: underline; }
+.exchange-assignment-state { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; }
+.exchange-assignment-state > span, .exchange-inline-status { color: var(--portal-muted); font-size: 12px; }
+.exchange-assignment-state > span { flex-basis: 100%; }
+.exchange-assignment-state .ui-button { min-height: var(--portal-touch-height); }
+.duty-row-actions > .exchange-assignment-state { display: contents; }
+.duty-row-actions > .exchange-assignment-state > span { flex-basis: 100%; }
 .exchange-row-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; font-size: 14px; }
 .exchange-row-heading span, .exchange-note { color: var(--portal-muted, #60767c); font-size: 12px; }
 .exchange-note { margin: 6px 0; }
@@ -8,8 +22,8 @@
 .duty-ops .exchange-proposals { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--portal-border, #d7e1df); }
 .exchange-proposals > li { padding: 10px 0; border-top: 1px solid var(--portal-border, #d7e1df); font-size: 13px; }
 .duty-ops .exchange-shift-action { margin-top: 8px; }
-.exchange-dialog { max-width: 460px; width: calc(100% - 32px); max-height: calc(100dvh - 48px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); color: var(--portal-control-text); background: var(--portal-surface); }
-.exchange-dialog form { display: flex; flex-direction: column; min-height: 180px; }
+.exchange-dialog { max-width: 500px; width: calc(100% - 32px); min-height: min(350px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); color: var(--portal-control-text); background: var(--portal-surface); }
+.exchange-dialog form { display: flex; flex-direction: column; min-height: 250px; }
 .exchange-dialog .exchange-actions:last-child { margin-top: auto; padding-top: 18px; }
 .exchange-decision-note { min-height: 70px; }
 .exchange-dialog::backdrop { background: rgb(20 35 44 / 45%); }
@@ -22,6 +36,13 @@
 .exchange-select { display: grid; gap: 8px; font-size: 14px; }
 .exchange-select select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--portal-border, #d7e1df); border-radius: 6px; background: white; padding: 6px; }
 .exchange-dialog .exchange-actions { justify-content: flex-end; }
+.exchange-start-assignment { margin: 0 0 14px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.exchange-start h4 { margin: 0 0 6px; font-size: 13px; }
+.exchange-opportunities { list-style: none; margin: 0; padding: 0; }
+.exchange-opportunities li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--portal-border); }
+.exchange-opportunities li span { display: grid; gap: 2px; min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.exchange-opportunities li small { color: var(--portal-muted); font-size: 12px; }
+.exchange-start-post { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .swap-history-shifts { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 10px; font-size: 13px; }
 .swap-history-shifts > div { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .swap-history-shifts { flex-direction: column; gap: 8px; } }
@@ -30,4 +51,5 @@
   .exchange-choices { display: grid; }
   .exchange-dialog .exchange-actions:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exchange-dialog .exchange-actions button { min-height: var(--portal-touch-height); }
+  .exchange-opportunities li .ui-button, .exchange-start-post .ui-button { width: 100%; }
 }

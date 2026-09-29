@@ -10,7 +10,7 @@ import type { DutyOpsData } from '../features/duty-ops/types';
 import { loadFlyvask } from '../features/flyvask/api';
 import type { FlyvaskData } from '../features/flyvask/types';
 import { loadSchedule } from '../features/brakkevakt/api';
-import { compactWeekTitle, ownAssignment, partner, personName } from '../features/brakkevakt/presentation';
+import { ownAssignment, partner, personName, weekNumber } from '../features/brakkevakt/presentation';
 import type { BrakkevaktSchedule } from '../../../shared/brakkevakt';
 
 type Key = 'flights' | 'duty' | 'flyvask' | 'brakkevakt';
@@ -100,11 +100,11 @@ export function HomePage() {
       {loading && !items.length && !currentWeek && <p role="status">Loading schedule…</p>}
       {!loading && !items.length && !nextOwnWeek && <p className="home-muted">Nothing upcoming</p>}
       {[...grouped].map(([label, rows]) => <div className="home-day" key={label}><h3>{label}</h3><ul>{rows.map(item => <li key={item.id}><Link to={item.path}><strong>{item.title}</strong><span>{label === 'Upcoming' ? `${pointDate(item.at, today)} · ${item.detail}` : item.detail}</span><span aria-hidden="true">→</span></Link>{item.context && <p className="home-item-context">{item.context}</p>}</li>)}</ul></div>)}
-      {nextOwnWeek && <div className="home-day home-week"><h3>{nextOwnWeek.weekStart === data.brakkevakt?.currentWeekStart ? 'This week' : compactWeekTitle(nextOwnWeek.weekStart)}</h3><ul><li><Link to="/brakkevakt"><strong>Brakkevakt</strong><span>{nextOwnPartner ? `With ${personName(nextOwnPartner)} · ` : ''}{compactWeekTitle(nextOwnWeek.weekStart)}</span><span aria-hidden="true">→</span></Link></li></ul></div>}
+      {nextOwnWeek && <div className="home-week"><Link to="/brakkevakt"><strong>Brakkevakt · Week {weekNumber(nextOwnWeek.weekStart)}</strong><span>{nextOwnPartner ? `With ${personName(nextOwnPartner)}` : 'Your week'} <span aria-hidden="true">→</span></span></Link></div>}
     </section>
     <div className="home-context">
       {(fuelAttention.length > 0 || staleSources.length > 0) && <section><h2>Needs attention</h2><ul>{fuelAttention.map(flight => <li key={flight.id}><Link to="/flights">Fuel needs review · {flight.aircraft?.callSign ?? day.format(new Date(flight.startsAt))} →</Link></li>)}{staleSources.map(source => <li key={source.id}><Link to={source.path}>{source.label} →</Link></li>)}</ul></section>}
-      {currentWeek && !ownAssignment(currentWeek, data.brakkevakt!.currentUserId) && <section><h2>Brakkevakt this week</h2><p>{currentWeek.assignments.map(assignment => personName(assignment.user)).join(' · ')}</p></section>}
+      {currentWeek && !ownAssignment(currentWeek, data.brakkevakt!.currentUserId) && <div className="home-week"><Link to="/brakkevakt"><strong>Brakkevakt · Week {weekNumber(currentWeek.weekStart)}</strong><span>{currentWeek.assignments.map(assignment => personName(assignment.user)).join(' · ')} <span aria-hidden="true">→</span></span></Link></div>}
       {Object.keys(errors).length > 0 && <p role="status" className="home-muted">{Object.values(errors).join(' · ')}. Open a module to retry.</p>}
     </div></div>
   </section>;
