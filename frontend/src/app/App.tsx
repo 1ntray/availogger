@@ -19,6 +19,7 @@ import { AdminUsersPage } from '../pages/AdminUsersPage';
 import { AdminPage } from '../pages/AdminPage';
 import { MyActivityPage } from '../pages/MyActivityPage';
 import { DutyCreditAuditPage } from '../pages/DutyCreditAuditPage';
+import { ExchangeAuditPage } from '../pages/ExchangeAuditPage';
 
 export function PortalRoutes() {
   return <Routes><Route element={<AccountGate />}>
@@ -46,7 +47,8 @@ export function PortalRoutes() {
     </Route>
     <Route element={<RequirePermission permission={PERMISSIONS.adminManageUsers} />}><Route path="admin/users" element={<AdminUsersPage />} /></Route>
     <Route element={<RequirePermission permission={PERMISSIONS.dutyOpsManageSchedule} />}><Route path="admin/duty-ops/credits" element={<DutyCreditAuditPage />} /></Route>
-    <Route element={<RequireAnyPermission permissions={[PERMISSIONS.adminManageUsers, PERMISSIONS.availabilityView, PERMISSIONS.dutyOpsManageSchedule]} />}><Route path="admin" element={<AdminPage />} /></Route>
+    <Route element={<RequirePermission permission={PERMISSIONS.adminExchangeAudit} />}><Route path="admin/exchanges" element={<ExchangeAuditPage />} /></Route>
+    <Route element={<RequireAnyPermission permissions={[PERMISSIONS.adminManageUsers, PERMISSIONS.availabilityView, PERMISSIONS.dutyOpsManageSchedule, PERMISSIONS.adminExchangeAudit]} />}><Route path="admin" element={<AdminPage />} /></Route>
     <Route path="activity" element={<MyActivityPage />} />
     <Route path="settings" element={<SettingsPage />} />
     <Route path="*" element={<section><h1>Page not found</h1><Link className="action-link" to="/">Return home →</Link></section>} />

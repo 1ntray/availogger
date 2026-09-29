@@ -3,6 +3,7 @@ import { methodNotAllowed, withApplicationUser } from './application-api';
 import type { AccessData, PagesEnv } from './env';
 import { json } from './response';
 import { requireSameOrigin } from './same-origin';
+import { resolveExchangeInbox } from './exchange-v2/inbox';
 
 type Context={request:Request;env:PagesEnv;data:AccessData;params:Record<string,string|string[]>};
 type InboxRow={id:string;kind:string;source_type:string;source_id:string;created_at:string;read_at:string|null;
@@ -49,9 +50,16 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
     FROM flight_change_items WHERE event_id IN (SELECT value FROM json_each(?)) ORDER BY event_id,field`)
     .bind(JSON.stringify(eventIds)).all<ChangeRow>():{results:[] as ChangeRow[]};
   const byEvent=new Map<string,ChangeRow[]>();for(const change of changes){const group=byEvent.get(change.event_id)??[];group.push(change);byEvent.set(change.event_id,group);}
+  const exchanges=await resolveExchangeInbox(db,page.filter(row=>row.source_type==='EXCHANGE').map(row=>row.source_id),userId);
   const unread=await db.prepare('SELECT count(*) total FROM user_inbox_items WHERE user_id=? AND read_at IS NULL').bind(userId).first<{total:number}>();
   return {items:page.map(row=>{
     const eventChanges=byEvent.get(row.source_id)??[];
+    if(row.source_type==='EXCHANGE'){
+      const source=exchanges.get(row.source_id);
+      return {id:row.id,kind:row.kind,createdAt:row.created_at,readAt:row.read_at,
+        title:source?.title??'Exchange no longer available',summary:source?.summary??null,
+        target:source?.target??null,flight:null,changes:[]};
+    }
     if(row.source_type!=='FLIGHT_CHANGE'||!row.event_type)return {id:row.id,kind:row.kind,createdAt:row.created_at,
       readAt:row.read_at,title:'Inbox item',summary:null,target:null,flight:null,changes:[]};
     return {id:row.id,kind:row.kind,createdAt:row.created_at,readAt:row.read_at,
