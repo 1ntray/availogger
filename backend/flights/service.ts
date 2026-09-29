@@ -1,6 +1,6 @@
 import { ApplicationError } from '../application-error';
 import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
-import type { StudentFlight } from '../flightlogger/flights';
+import type { PlannedLesson, StudentFlight } from '../flightlogger/flights';
 import type { ApplicationUser } from '../users';
 import type { FlightWindow } from './window';
 import { beforeFlightUpsert, membershipChangeStatements } from './changes';
@@ -31,13 +31,13 @@ export async function fuelProfile(db:D1Database,flight:FlightRow):Promise<Profil
   const {results}=await db.prepare('SELECT key,label FROM fuel_presets WHERE profile_id=? ORDER BY sort_order,id').bind(row.id).all<{key:string;label:string}>();
   return {...row,presets:results};
 }
-function presentFlight(row:FlightRow,request:FuelRow|null,profile:Profile|null){return {
+function presentFlight(row:FlightRow,request:FuelRow|null,profile:Profile|null,plannedLessons:PlannedLesson[]){return {
   id:row.id,bookingType:row.booking_type,startsAt:row.starts_at,endsAt:row.ends_at,flightStartsAt:row.flight_starts_at,flightEndsAt:row.flight_ends_at,status:row.status,
   aircraft:row.flightlogger_aircraft_id?{id:row.flightlogger_aircraft_id,callSign:row.aircraft_callsign,model:row.aircraft_model,aircraftClass:row.aircraft_class,
     aircraftType:row.aircraft_type,fuelCoefficientMeasurement:row.fuel_coefficient_measurement}:null,
   departureAirport:row.departure_airport_id?{id:row.departure_airport_id,name:row.departure_airport_name}:null,
   arrivalAirport:row.arrival_airport_id?{id:row.arrival_airport_id,name:row.arrival_airport_name}:null,
-  instructor:[row.instructor_first_name,row.instructor_last_name].filter(Boolean).join(' ')||null,
+  instructor:[row.instructor_first_name,row.instructor_last_name].filter(Boolean).join(' ')||null,plannedLessons,
   canOrder:eligibleSource(row),profile,request:request&&{id:request.id,status:request.status,requestKind:request.request_kind,
     presetLabel:request.preset_label_snapshot,quantityValue:request.quantity_value,quantityUnit:request.quantity_unit,
     reviewReason:request.review_reason,completedAt:request.completed_at,
@@ -45,6 +45,7 @@ function presentFlight(row:FlightRow,request:FuelRow|null,profile:Profile|null){
     appliesToCurrentAircraft:request.flightlogger_aircraft_id_snapshot===row.flightlogger_aircraft_id&&request.status==='COMPLETED'}
 };}
 const canonical=(f:StudentFlight)=>({id:crypto.randomUUID(),changeEventId:crypto.randomUUID(),addedEventId:crypto.randomUUID(),bookingId:f.id,type:f.bookingType,starts:f.startsAt,ends:f.endsAt,flightStarts:f.flightStartsAt,flightEnds:f.flightEndsAt,status:f.status,
+  lessons:f.plannedLessons??[],
   aircraftId:f.aircraft?.id??null,callsign:f.aircraft?.callSign??null,model:f.aircraft?.model??null,aircraftClass:f.aircraft?.aircraftClass??null,
   aircraftType:f.aircraft?.aircraftType??null,fuelMeasurement:f.aircraft?.fuelCoefficientMeasurement??null,
   departureId:f.departureAirport?.id??null,departureName:f.departureAirport?.name??null,arrivalId:f.arrivalAirport?.id??null,arrivalName:f.arrivalAirport?.name??null,
@@ -79,6 +80,14 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
         instructor_flightlogger_id=excluded.instructor_flightlogger_id,instructor_first_name=excluded.instructor_first_name,
         instructor_last_name=excluded.instructor_last_name,last_synced_at=excluded.last_synced_at
       WHERE flights.last_synced_at<=excluded.last_synced_at`).bind(stamp,rowsJson),
+    db.prepare(`DELETE FROM flight_planned_lessons WHERE flight_id IN (
+      SELECT f.id FROM flights f JOIN json_each(?) r ON f.flightlogger_booking_id=json_extract(r.value,'$.bookingId')
+      WHERE f.last_synced_at=?)`).bind(rowsJson,stamp),
+    db.prepare(`INSERT INTO flight_planned_lessons(flight_id,position,training_id,training_name,lecture_id,lecture_name)
+      SELECT f.id,CAST(l.key AS INTEGER),json_extract(l.value,'$.trainingId'),json_extract(l.value,'$.trainingName'),
+        json_extract(l.value,'$.lectureId'),json_extract(l.value,'$.lectureName')
+      FROM json_each(?) r JOIN flights f ON f.flightlogger_booking_id=json_extract(r.value,'$.bookingId')
+      JOIN json_each(r.value,'$.lessons') l WHERE f.last_synced_at=?`).bind(rowsJson,stamp),
     db.prepare(`INSERT INTO fuel_request_events SELECT lower(hex(randomblob(16))),r.id,NULL,'NEEDS_REVIEW_SET',?,r.flightlogger_aircraft_id_snapshot,r.preset_label_snapshot
       FROM fuel_requests r JOIN flights ON flights.id=r.flight_id WHERE flights.status<>'CANCELLED' AND r.status IN ('PENDING','COMPLETED') AND ${changed}`).bind(stamp),
     db.prepare(`UPDATE fuel_requests AS f SET status='NEEDS_REVIEW',review_reason=CASE WHEN f.flightlogger_aircraft_id_snapshot IS NOT
@@ -108,7 +117,14 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
 
 async function readOwn(db:D1Database,user:ApplicationUser,window:FlightWindow,stale:boolean,warning:string|null,state:SyncRow):Promise<FlightResponse>{
   const {results}=await db.prepare(`SELECT f.* FROM flights f JOIN flight_students s ON s.flight_id=f.id
-    WHERE s.user_id=? AND f.starts_at<? AND f.ends_at>? ORDER BY f.flight_starts_at,f.id`).bind(user.id,window.endsAt,window.startsAt).all<FlightRow>();
+    WHERE s.user_id=? AND f.starts_at<? AND f.ends_at>? ORDER BY f.starts_at,f.id`).bind(user.id,window.endsAt,window.startsAt).all<FlightRow>();
+  const {results:lessonRows}=await db.prepare(`SELECT flight_id,training_id,training_name,lecture_id,lecture_name
+    FROM flight_planned_lessons WHERE flight_id IN (SELECT value FROM json_each(?)) ORDER BY flight_id,position`)
+    .bind(JSON.stringify(results.map(row=>row.id))).all<{flight_id:string;training_id:string;training_name:string;lecture_id:string|null;lecture_name:string|null}>();
+  const lessonsByFlight=new Map<string,PlannedLesson[]>();
+  for(const lesson of lessonRows){const group=lessonsByFlight.get(lesson.flight_id)??[];
+    group.push({trainingId:lesson.training_id,trainingName:lesson.training_name,lectureId:lesson.lecture_id,lectureName:lesson.lecture_name});
+    lessonsByFlight.set(lesson.flight_id,group);}
   const [requests,profiles,matchers,presets]=await db.batch([
     db.prepare("SELECT * FROM fuel_requests WHERE status<>'CANCELLED' AND flight_id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(results.map(r=>r.id))),
     db.prepare('SELECT id,name FROM fuel_profiles WHERE active=1'),
@@ -127,7 +143,8 @@ async function readOwn(db:D1Database,user:ApplicationUser,window:FlightWindow,st
        (m.matcher_type==='CALLSIGN'&&m.matcher_value===normalized(row.aircraft_callsign))||
        (m.matcher_type==='MODEL'&&m.matcher_value===normalized(row.aircraft_model))));
     const profile=match?profileById.get(match.profile_id):null;
-    return presentFlight(row,requestByFlight.get(row.id)??null,profile?{...profile,presets:presetByProfile.get(profile.id)??[]}:null);
+    return presentFlight(row,requestByFlight.get(row.id)??null,profile?{...profile,presets:presetByProfile.get(profile.id)??[]}:null,
+      lessonsByFlight.get(row.id)??[]);
   });
   return {from:window.from,to:window.to,timeZone:'Europe/Oslo',sync:{lastSyncedAt:state.last_synced_at,stale,warning},flights};
 }

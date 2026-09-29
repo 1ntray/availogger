@@ -3,7 +3,8 @@ export type FuelRequest={id:string;status:'PENDING'|'COMPLETED'|'CANCELLED'|'NEE
 export type Flight={id:string;bookingType:string;startsAt:string;endsAt:string;flightStartsAt:string|null;flightEndsAt:string|null;status:string;
   aircraft:{id:string;callSign:string|null;model:string|null;aircraftClass:string|null}|null;
   departureAirport:{id:string;name:string|null}|null;arrivalAirport:{id:string;name:string|null}|null;
-  instructor:string|null;canOrder:boolean;profile:{id:string;name:string;presets:{key:string;label:string}[]}|null;request:FuelRequest|null};
+  instructor:string|null;plannedLessons:{trainingId:string;trainingName:string;lectureId:string|null;lectureName:string|null}[];
+  canOrder:boolean;profile:{id:string;name:string;presets:{key:string;label:string}[]}|null;request:FuelRequest|null};
 export type FlightsData={from:string;to:string;timeZone:'Europe/Oslo';sync:{lastSyncedAt:string;stale:boolean;warning:string|null};flights:Flight[]};
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 async function response(res:Response){const data:unknown=await res.json().catch(()=>null);

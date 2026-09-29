@@ -2,6 +2,8 @@
 
 Brakkevakt is the student dormitory's weekly duty roster. The two assigned students keep shared spaces in order, including kitchens, trash and recycling. This version provides scheduling and direct swaps; it does not track individual chores. Studentportal's D1 assignments are the authoritative schedule. No FlightLogger booking, availability query or synchronization supplies it.
 
+Current UI: new week exchanges use [Exchange v2](exchange-v2.md). My upcoming and This week lead, followed by a compact Exchange summary and the full Schedule; own weeks remain in both personal and full views. Students can select multiple acceptable target assignments or request another week directly when the server permits it. Open v1 swaps remain manageable in Existing exchanges until resolved. Brakkevakt has no give-away or credit action.
+
 ## Weeks and assignments
 
 Each period is keyed by its Europe/Oslo Monday date (`YYYY-MM-DD`) and runs from Monday 00:00 to the next Monday 00:00 local time. The UI labels the period Monday–Sunday. Calendar arithmetic handles 167-hour and 169-hour daylight-saving weeks. Event timestamps remain UTC ISO strings. A published week has exactly two distinct student assignments in stable slots; an unpublished partial week is only an intermediate step inside a transactional create operation.
@@ -10,7 +12,7 @@ Users with `brakkevakt.view` see the current and upcoming schedule at `/brakkeva
 
 `/brakkevakt/manage` lets a manager prepare several unsaved Monday rows, choose two existing STUDENT portal users for each, save rows, edit current/upcoming weeks and remove future weeks. The dedicated manager roster returns portal IDs and FlightLogger first/last names, without email or credentials. The manager UI does not require `admin.manage_users`. Schedule writes use expected revisions and a transactional permission/state guard. Immutable events record the actor, week, old/new assignee and time. Changing an assignment or removing a week atomically invalidates affected open swap requests/proposals and releases their reservations. A stale editor receives a conflict instead of overwriting another change.
 
-## Direct swaps
+## Original v1 direct swaps
 
 An owner can request a swap of a current or upcoming assignment until the Oslo week ends. Another owner can offer an assignment from a different week; several offers may coexist. The requester accepts exactly one. One D1 batch rechecks permissions, status, ownership, both active weeks, reservations and both resulting two-person teams, then exchanges the canonical assignment owners, closes competing offers and releases locks. The unaffected partner in each week stays assigned. The received slot is immediately eligible for another exchange, so swap chains work. There is no give-away, take, credit transaction or debt.
 

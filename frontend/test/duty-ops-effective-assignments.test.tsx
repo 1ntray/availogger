@@ -18,6 +18,10 @@ const shift: DutyShift = { id: 'received', startsAt: '2026-09-28T05:00:00.000Z',
   participantCount: 3, participants: [me], flightlogger: { participantCount: 3, participants: [anna] }, assignmentsDiffer: true };
 const metadata = { lastSyncedAt: new Date(now).toISOString(), from: '2026-08-27T22:00:00.000Z', to: '2026-11-27T23:00:00.000Z', stale: false };
 const data: DutyOpsData = { from: '2026-08-28', to: '2026-11-27', timeZone: 'Europe/Oslo', shifts: [shift], sync: { stale: false, warning: null, assignments: metadata, discovery: metadata } };
+const v2 = (shifts: DutyShift[]) => ({ domain: 'DUTY_OPS', currentUserId: 'me', timeZone: 'Europe/Oslo', intents: [], candidates: [],
+  assignmentStates: shifts.map(item => ({ assignmentId: item.id, relationship: item.participants.some(person => person.isCurrentUser) ? 'OWN_IDLE' : 'NONE',
+    availableActions: item.participants.some(person => person.isCurrentUser) ? ['OPEN_EXCHANGE'] : [],
+    relatedIntentIds: [], relatedCandidateIds: [], requestableSourceAssignmentIds: [], requestableSourceAssignments: [], offerableIntentIds: [] })) });
 const history: ExchangeHistoryEntry = { id: 'exchange', type: 'DIRECT_SWAP', counterparty: { id: 'anna', firstName: 'Anna', lastName: null },
   givenShift: { id: null, startsAt: '2026-09-29T05:00:00.000Z', endsAt: '2026-09-29T10:00:00.000Z' }, receivedShift: shift, acceptedAt: new Date(now).toISOString() };
 const refresh = vi.fn(async () => {});
@@ -64,6 +68,7 @@ describe('effective Duty Ops presentation', () => {
     const fetcher = vi.fn(async (path: string, init: RequestInit) => {
       if (init.method === 'POST') { claimed = true; return Response.json({ id: 'request' }); }
       if (path === '/api/duty-ops') return Response.json({ ...data, shifts: [claimed ? shift : { ...shift, participants: [anna], assignmentsDiffer: false }] });
+      if (path.startsWith('/api/exchanges/v2/intents?')) return Response.json(v2([claimed ? shift : { ...shift, participants: [anna] }]));
       return Response.json({ currentUserId: 'me', currentUserCreditBalance: claimed ? 1 : 0, requests: claimed ? [] : [request], lockedShiftIds: [], nextCursor: null });
     });
     vi.stubGlobal('fetch', fetcher); await render(<DutyOpsPage />);
@@ -79,11 +84,12 @@ describe('effective Duty Ops presentation', () => {
     const request = { id: 'request', type: 'GIVE_AWAY', status: 'OPEN', requester: { id: 'anna', firstName: 'Anna', lastName: null },
       requestedShift: other, acceptedBy: null, acceptedProposalId: null, createdAt: new Date(now).toISOString(), acceptedAt: null, proposals: [], eligible: true };
     vi.stubGlobal('fetch', vi.fn(async (path: string) => Response.json(path === '/api/duty-ops' ? { ...data, shifts: [shift, other] }
-      : { currentUserId: 'me', currentUserCreditBalance: 0, requests: [request], lockedShiftIds: [], nextCursor: null })));
+      : path.startsWith('/api/exchanges/v2/intents?') ? v2([shift, other])
+        : { currentUserId: 'me', currentUserCreditBalance: 0, requests: [request], lockedShiftIds: [], nextCursor: null })));
     await render(<DutyOpsPage />);
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/other"]')).toBeNull();
-    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Upcoming schedule']);
+    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Existing exchanges', 'Upcoming schedule']);
     expect(host.querySelectorAll('[aria-labelledby="duty-mine"] .is-mine')).toHaveLength(1);
     expect(host.querySelectorAll('.duty-schedule .is-mine')).toHaveLength(1);
     expect(host.querySelector('.duty-schedule .is-mine')?.textContent).toContain('Simon · 2 others');
@@ -91,7 +97,6 @@ describe('effective Duty Ops presentation', () => {
     await act(async () => { action.focus(); action.click(); });
     expect(host.querySelector('dialog')).not.toBeNull();
     expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
-    await click('Post my assignment for swap');
     expect(host.querySelector<HTMLButtonElement>('dialog button[type="submit"]')!.disabled).toBe(false);
     await click('Cancel');
     expect(host.querySelector('dialog')).toBeNull();

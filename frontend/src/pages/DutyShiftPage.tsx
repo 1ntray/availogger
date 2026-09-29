@@ -4,8 +4,9 @@ import { completeFuel,loadShiftTasks,type FuelTask,type ShiftTasks } from '../fe
 import { loadDutyOps } from '../features/duty-ops/api';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
+import { ExchangeV2Provider } from '../features/exchange/ExchangeV2';
 import { useCurrentUser } from '../app/CurrentUser';
-import { participantLabel } from '../features/duty-ops/presentation';
+import { dateLabel, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import { AttentionDetail } from '../app/AttentionDetail';
 import { ActionButton, BackLink, PageHeader, RefreshControl } from '../app/controls';
 import { osloDate } from '../dates';
@@ -19,6 +20,10 @@ function TaskList({tasks,now,onComplete,busy}:{tasks:FuelTask[];now:number;onCom
     <div className="fuel-task-head"><strong><time dateTime={task.flightStartsAt}>{date(task.flightStartsAt)}</time></strong>
       <span>{task.aircraft.callSign??'Aircraft'}{task.aircraft.model?` · ${task.aircraft.model}`:''}</span></div>
     <p className="fuel-meta">{task.requested} · {task.pilot}</p>
+    {task.fuelBreakdown&&<dl className="fuel-task-breakdown"><div><dt>Total fuel</dt><dd>{task.fuelBreakdown.total} L</dd></div>
+      <div><dt>Mains</dt><dd>{task.fuelBreakdown.mains} L</dd></div>
+      <div><dt>Aux total</dt><dd>{task.fuelBreakdown.auxTotal} L</dd></div>
+      <div><dt>Each aux</dt><dd>{task.fuelBreakdown.eachAux} L</dd></div></dl>}
     {task.earlierFlight&&<p className="fuel-meta">Known earlier flight expected back {date(task.earlierFlight.endsAt)}
       {task.earlierFlight.timeSource==='booking'?' (booking end)':''}{task.earlierFlight.pilot?` · ${task.earlierFlight.pilot}`:''}.
       Partial linked schedule; confirm actual aircraft availability.</p>}
@@ -58,5 +63,10 @@ export function DutyShiftPage(){const {shiftId}=useParams();const [data,setData]
       {!!later.length&&<><h3>Later</h3><TaskList tasks={later} now={now} busy={busy} onComplete={id=>void complete(id)} /></>}
     </section>}
   </section>;
-  return schedule && shift ? <DutyExchanges shifts={schedule.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={false}>{workspace}</DutyExchanges> : workspace;
+  return schedule && shift ? <ExchangeV2Provider domain="DUTY_OPS" assignments={schedule.shifts.map(item => ({
+    id: item.id, label: `${dateLabel(item.startsAt)} · ${timeLabel(item)}`, ownerNames: participantLabel(item),
+    own: item.participants.some(person => person.isCurrentUser),
+  }))} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
+    <DutyExchanges shifts={schedule.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={false} legacyOnly>{workspace}</DutyExchanges>
+  </ExchangeV2Provider> : workspace;
 }

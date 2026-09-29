@@ -36,6 +36,20 @@ export async function readMembers(db: D1Database, domain: ExchangeDomain, assign
   return rows.results;
 }
 
+export async function readExchangeableOwnedIds(db: D1Database, domain: ExchangeDomain, userId: string,
+  now = new Date()): Promise<string[]> {
+  const query = domain === 'BRAKKEVAKT'
+    ? `SELECT a.id FROM brakkevakt_assignments a JOIN brakkevakt_periods w ON w.id=a.period_id
+       WHERE a.user_id=? AND w.published=1 AND date(w.week_start,'+7 days')>?`
+    : domain === 'DUTY_OPS'
+      ? `SELECT a.shift_id id FROM duty_ops_effective_assignments a JOIN duty_ops_shifts s ON s.id=a.shift_id
+         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>?`
+      : `SELECT a.shift_id id FROM flyvask_effective_assignments a JOIN flyvask_shifts s ON s.id=a.shift_id
+         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>?`;
+  const cutoff = domain === 'BRAKKEVAKT' ? osloDay(now) : now.toISOString();
+  return (await db.prepare(query).bind(userId,cutoff).all<{ id: string }>()).results.map(row => row.id);
+}
+
 export async function readOwned(db: D1Database, domain: ExchangeDomain, assignmentId: string, userId: string,
   now = new Date()): Promise<AssignmentMember> {
   const member = (await readMembers(db, domain, assignmentId)).find(row => row.userId === userId);

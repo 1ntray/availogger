@@ -63,6 +63,20 @@ async function brakkeWeek(firstOwner:ApplicationUser,secondOwner:ApplicationUser
 }
 
 describe('Exchange v2 guarded outcomes',()=>{
+  it('derives ordinary target requests, valid sources and sent state on the server',async()=>{
+    const requester=await student('requester'),owner=await student('ordinary-owner');
+    const source=await duty(requester),target=await duty(owner,second);
+    const before=await listExchangeV2(fixture.db,requester,'DUTY_OPS',[target]);
+    const state=before.assignmentStates.find(item=>item.assignmentId===target)!;
+    expect(state.availableActions).toContain('REQUEST_SWAP');
+    expect(state.requestableSourceAssignmentIds).toContain(source);
+    await createIntent(fixture.db,requester,'DUTY_OPS',source,[target],false);
+    const after=(await listExchangeV2(fixture.db,requester,'DUTY_OPS',[target])).assignmentStates
+      .find(item=>item.assignmentId===target)!;
+    expect(after.relationship).toBe('REQUEST_SENT');
+    expect(after.availableActions).not.toContain('REQUEST_SWAP');
+    expect(after.relatedIntentIds).toHaveLength(1);
+  },40_000);
   it('enforces the ten explicit target limit before writing an intent',async()=>{
     const actor=await student('limit-owner'),x=await duty(actor);
     await expect(createIntent(fixture.db,actor,'DUTY_OPS',x,
