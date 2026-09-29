@@ -78,10 +78,22 @@ describe('Home composition', () => {
       { id: 'two', slot: 2, user: { id: 'anna', firstName: 'Anna', lastName: 'Berg' } },
     ] };
     mock({ brakkevakt: [week] }); await render();
-    expect(host.querySelector('.home-schedule')?.textContent).toContain('Brakkevakt');
+    expect(host.querySelector('.home-schedule')?.textContent).toContain('Brakkevakt · Week 39');
     expect(host.querySelector('.home-schedule')?.textContent).toContain('With Anna Berg');
     expect(host.querySelector('.home-schedule')?.textContent).not.toContain('Nothing upcoming');
     expect(host.querySelector('.home-context')?.textContent).not.toContain('Brakkevakt this week');
+  });
+  it('links the current Brakkevakt week as a compact whole row when assigned to others', async () => {
+    const week = { id: 'current', weekStart: '2026-09-21', revision: 1, assignments: [
+      { id: 'one', slot: 1, user: { id: 'anna', firstName: 'Anna', lastName: 'Berg' } },
+      { id: 'two', slot: 2, user: { id: 'erik', firstName: 'Erik', lastName: 'Eide' } },
+    ] };
+    mock({ brakkevakt: [week] }); await render();
+    const link = host.querySelector<HTMLAnchorElement>('.home-context .home-week a')!;
+    expect(link.getAttribute('href')).toBe('/brakkevakt');
+    expect(link.querySelector('strong')?.textContent).toBe('Brakkevakt · Week 39');
+    expect(link.textContent).toContain('Anna Berg · Erik Eide');
+    expect(link.textContent).not.toContain('21 Sep–27 Sep');
   });
   it('keeps all near-term commitments before limiting distant items', async () => {
     const entries = Array.from({ length: 10 }, (_, index) => ({ ...flight, id: `today-${index}`, startsAt: new Date(Date.parse(now) + (index + 1) * 3600000).toISOString(), endsAt: new Date(Date.parse(now) + (index + 2) * 3600000).toISOString() }));
@@ -124,7 +136,8 @@ describe('Home composition', () => {
       { id: 'two', slot: 2, user: { id: 'anna', firstName: 'Anna', lastName: 'Berg' } },
     ] };
     mock({ brakkevakt: [week] }); await render();
-    expect(host.querySelector('.home-week h3')?.textContent).toBe('Week 40 · 28 Sep–4 Oct');
+    expect(host.querySelector('.home-week a[href="/brakkevakt"] strong')?.textContent).toBe('Brakkevakt · Week 40');
+    expect(host.querySelector('.home-week')?.textContent).not.toContain('28 Sep–4 Oct');
     expect(host.querySelector('.home-day h3')?.textContent).not.toBe('Today');
   });
 });

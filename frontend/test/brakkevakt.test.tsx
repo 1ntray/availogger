@@ -15,19 +15,21 @@ const schedule = { currentUserId: 'a', currentWeekStart: '2026-09-28', weeks: [
   { id: 'week-1', weekStart: '2026-09-28', revision: 1, assignments: [{ id: 'slot-a', slot: 1, user: users[0] }, { id: 'slot-b', slot: 2, user: users[1] }] },
   { id: 'week-2', weekStart: '2026-10-05', revision: 1, assignments: [{ id: 'slot-c', slot: 1, user: users[2] }, { id: 'slot-d', slot: 2, user: users[3] }] },
 ] };
-let host: HTMLDivElement, root: Root, api: ReturnType<typeof vi.fn>, permissions: string[];
+let host: HTMLDivElement, root: Root, api: ReturnType<typeof vi.fn>, permissions: string[], swapRequests: object[], locks: string[];
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-28T08:00:00Z'));
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); window.scrollTo = vi.fn();
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); } });
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   permissions = ['brakkevakt.view', 'brakkevakt.swap'];
+  swapRequests = []; locks = [];
   api = vi.fn(async (path: string, init: RequestInit = {}) => {
     if (path === '/api/me') return Response.json({ email: 'alice@private.test', subject: 'alice', firstName: 'Alice', lastName: 'Andersson',
       onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-a', roles: ['STUDENT'], permissions });
     if (path === '/api/brakkevakt') return Response.json(schedule);
     if (path === '/api/brakkevakt/roster') return Response.json({ students: users });
     if (path.startsWith('/api/brakkevakt/schedule/') && init.method === 'PUT') return Response.json({ revision: 1 });
-    if (path === '/api/brakkevakt/swaps') return init.method === 'POST' ? Response.json({ id: 'request' }) : Response.json({ currentUserId: 'a', requests: [], lockedAssignmentIds: [], nextCursor: null });
+    if (path === '/api/brakkevakt/swaps') return init.method === 'POST' ? Response.json({ id: 'request' }) : Response.json({ currentUserId: 'a', requests: swapRequests, lockedAssignmentIds: locks, nextCursor: null });
     if (path === '/api/brakkevakt/swaps/history') return Response.json({ entries: [], nextCursor: null });
     throw new Error(`Unexpected API ${path}`);
   });
@@ -38,6 +40,33 @@ async function render(path = '/brakkevakt') { await act(async () => root.render(
 async function click(button: HTMLButtonElement) { await act(async () => button.click()); }
 
 describe('Brakkevakt portal UI', () => {
+  it('keeps an own active swap and incoming offer visible on the week', async () => {
+    swapRequests = [{ id: 'request', requester: users[0], requestedAssignmentId: 'slot-a', requestedWeekStart: '2026-09-28', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z',
+      proposals: [{ id: 'offer', proposer: users[2], offeredAssignmentId: 'slot-c', offeredWeekStart: '2026-10-05', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z' }] }];
+    locks = ['slot-a']; await render();
+    const row = host.querySelector('.brakkevakt-week.brakkevakt-mine')!;
+    expect(row.textContent).toContain('Looking for swap · 1 offer');
+    expect(row.querySelector('button')?.textContent).toBe('Cancel');
+    expect(row.querySelector('a[href^="/brakkevakt/exchanges#"]')?.textContent).toBe('Review offers');
+  });
+  it('browses an existing week exchange before posting and preselects the own week', async () => {
+    swapRequests = [{ id: 'request', requester: users[2], requestedAssignmentId: 'slot-c', requestedWeekStart: '2026-10-05', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z', proposals: [] }];
+    await render();
+    await click([...host.querySelectorAll<HTMLButtonElement>('.brakkevakt-week button')].find(button => button.textContent === 'Exchange')!);
+    expect(host.querySelector('dialog')?.textContent).toContain('Carl Carlsson wants to swap');
+    expect(api.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Offer your assignment')!);
+    expect(host.querySelector<HTMLSelectElement>('dialog select')?.value).toBe('slot-a');
+  });
+  it('keeps sent offers on the own week and hides a repeat offer action', async () => {
+    swapRequests = [{ id: 'request', requester: users[2], requestedAssignmentId: 'slot-c', requestedWeekStart: '2026-10-05', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z',
+      proposals: [{ id: 'offer', proposer: users[0], offeredAssignmentId: 'slot-a', offeredWeekStart: '2026-09-28', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z' }] }];
+    locks = ['slot-a']; await render();
+    expect(host.querySelector('.brakkevakt-week.brakkevakt-mine')?.textContent).toContain('Offer sent');
+    await act(async () => host.querySelector<HTMLAnchorElement>('a[href^="/brakkevakt/exchanges#"]')!.click());
+    expect(host.querySelector('.exchange-row')?.textContent).not.toContain('Offer a week');
+    expect(host.querySelector('.exchange-row')?.textContent).toContain('Withdraw offer');
+  });
   it('shows named current and future teams, personal partner and a direct swap action without email', async () => {
     await render();
     expect(host.querySelector('h1')?.textContent).toBe('Brakkevakt');
@@ -46,8 +75,12 @@ describe('Brakkevakt portal UI', () => {
     expect(host.textContent).not.toContain('Together with Bob Berg');
     expect(host.textContent).toContain('Carl Carlsson · Student');
     expect(host.querySelector('section.brakkevakt')?.textContent).not.toContain('alice@private.test');
-    const button = [...host.querySelectorAll<HTMLButtonElement>('.brakkevakt-week button')].find(b => b.textContent === 'Look for swap')!;
+    const button = [...host.querySelectorAll<HTMLButtonElement>('.brakkevakt-week button')].find(b => b.textContent === 'Exchange')!;
     await click(button);
+    expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
+    expect(api.mock.calls.some(([path, init]) => path === '/api/brakkevakt/swaps' && init?.method === 'POST')).toBe(false);
+    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(b => b.textContent === 'Post my assignment for swap')!);
+    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(b => b.textContent === 'Publish request')!);
     expect(api.mock.calls.some(([path, init]) => path === '/api/brakkevakt/swaps' && init?.method === 'POST'
       && JSON.parse(init.body).assignmentId === 'slot-a')).toBe(true);
     expect(host.querySelector('a[href="/brakkevakt/swap-history"]')).toBeNull();

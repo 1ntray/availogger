@@ -117,6 +117,9 @@ p { line-height: 1.55; }
 .home-day a { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; min-height: var(--portal-touch-height); padding: 10px 0; border-bottom: 1px solid var(--portal-border); text-decoration: none; font-size: 13px; }
 .home-day a:hover, .home-context a:hover { color: var(--portal-accent); }
 .home-day a span:nth-child(2) { color: var(--portal-muted); }
+.home-week a { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; min-height: var(--portal-touch-height); padding: 10px 0; border-bottom: 1px solid var(--portal-border); text-decoration: none; font-size: 13px; }
+.home-week a:hover { color: var(--portal-accent); }
+.home-week a > span { color: var(--portal-muted); }
 .home-context section { margin-bottom: 24px; }
 .home-context p, .home-context li, .home-muted { font-size: 13px; color: var(--portal-muted); }
 .home-context li { padding: 8px 0; }
