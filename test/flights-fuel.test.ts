@@ -1,7 +1,7 @@
 import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest';
 import { createTestDatabase,seedCredential,testEncryptionKey } from './d1-fixture';
 import { parseStudentFlight,type StudentFlight } from '../backend/flightlogger/flights';
-import { createFuel,updateFuel,cancelFuel,shiftTasks,completeFuel } from '../backend/flights/fuel';
+import { createFuel,updateFuel,cancelFuel,shiftTasks,completeFuel,z242FuelBreakdown } from '../backend/flights/fuel';
 import { saveOwnFlights,fuelProfile } from '../backend/flights/service';
 import { flightWindow } from '../backend/flights/window';
 import { fuelEndpoint,completeFuelEndpoint,shiftTasksEndpoint } from '../backend/flights/api';
@@ -35,6 +35,16 @@ describe('personal flights and fuel operations',()=>{
       flightEndsAt:flight.flightEndsAt,status:'OPEN',aircraft:{...flight.aircraft,homeAirport:null},departureAirport:flight.departureAirport,
       arrivalAirport:flight.arrivalAirport,student:{id:'fl-pilot',firstName:'Pilot',lastName:'Test'},instructor:null};
     expect(parseStudentFlight(single)?.studentIds).toEqual(['fl-pilot']);
+    expect(parseStudentFlight({...single,plannedLesson:{id:'training-1',name:'4.2 Instrument approaches',lecture:{id:'lecture-1',name:'Approaches'}}})?.plannedLessons)
+      .toEqual([{trainingId:'training-1',trainingName:'4.2 Instrument approaches',lectureId:'lecture-1',lectureName:'Approaches'}]);
+    expect(parseStudentFlight({...single,plannedLesson:{id:42,name:'4.2 Instrument approaches',lecture:{id:7,name:'Approaches'}}})?.plannedLessons)
+      .toEqual([{trainingId:'42',trainingName:'4.2 Instrument approaches',lectureId:'7',lectureName:'Approaches'}]);
+    expect(parseStudentFlight({...single,plannedLesson:null})?.plannedLessons).toEqual([]);
+    const multi={...single,__typename:'MultiStudentBooking',student:undefined,students:[single.student],plannedLessons:[
+      {id:'training-2',name:'4.3 Holds',lecture:null},{id:'training-3',name:'4.4 ILS',lecture:{id:'lecture-3',name:'ILS'}}]};
+    expect(parseStudentFlight(multi)?.plannedLessons?.map(lesson=>lesson.trainingName)).toEqual(['4.3 Holds','4.4 ILS']);
+    expect(()=>parseStudentFlight({...multi,plannedLessons:Array(9).fill(multi.plannedLessons[0])})).toThrow();
+    expect(()=>parseStudentFlight({...single,plannedLesson:{id:'training-1',name:'x'.repeat(257),lecture:null}})).toThrow();
     expect(parseStudentFlight({...single,__typename:'MultiStudentBooking',student:undefined,students:[single.student,{id:'fl-duty',firstName:null,lastName:null}]})?.studentIds).toEqual(['fl-pilot','fl-duty']);
     expect(()=>parseStudentFlight({...single,startsAt:'yesterday'})).toThrow();
   });
@@ -45,13 +55,42 @@ describe('personal flights and fuel operations',()=>{
     const diamond=await db.prepare('SELECT * FROM flights WHERE id=?').bind(flightId).first<any>();
     expect((await fuelProfile(db,diamond))?.presets).toEqual([]);
   });
+  it('persists bounded planned lessons and keeps old flights with none',async()=>{
+    const window=flightWindow(new URL('https://example.test/api/flights'));
+    const lessons=[{trainingId:'tr-1',trainingName:'4.2 Instrument approaches',lectureId:'lec-1',lectureName:'Approaches'},
+      {trainingId:'tr-2',trainingName:'4.3 Holds',lectureId:null,lectureName:null}];
+    await saveOwnFlights(db,user,[{...flight,plannedLessons:lessons}],window,stamp(2000),'hash');
+    const stored=(await db.prepare('SELECT position,training_name FROM flight_planned_lessons WHERE flight_id=? ORDER BY position')
+      .bind(flightId).all<{position:number;training_name:string}>()).results;
+    expect(stored).toEqual([{position:0,training_name:'4.2 Instrument approaches'},{position:1,training_name:'4.3 Holds'}]);
+    await saveOwnFlights(db,user,[{...flight,plannedLessons:[]}],window,stamp(3000),'hash');
+    expect(await db.prepare('SELECT count(*) n FROM flight_planned_lessons WHERE flight_id=?').bind(flightId).first('n')).toBe(0);
+  });
+  it('enforces custom units and Z242 total fuel while preserving other profiles',async()=>{
+    await expect(createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:115,quantityUnit:'L'})).rejects.toMatchObject({status:400});
+    await expect(createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:150,quantityUnit:'US_GAL'})).rejects.toMatchObject({status:400});
+    expect(z242FuelBreakdown(116)).toMatchObject({auxTotal:0,eachAux:0});
+    expect(z242FuelBreakdown(150)).toMatchObject({auxTotal:34,eachAux:17});
+    const created=await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:150,quantityUnit:'L'});
+    const task=(await shiftTasks(db,other,shiftId)).tasks.find(item=>item.id===created.id);
+    expect(task?.fuelBreakdown).toEqual({total:150,mains:116,auxTotal:34,eachAux:17,unit:'L'});
+    await expect(updateFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:18,quantityUnit:'US_GAL'})).rejects.toMatchObject({status:400});
+    await cancelFuel(db,user,flightId);
+    await db.prepare("UPDATE flights SET aircraft_callsign='LN-TRB',aircraft_model='C182T' WHERE id=?").bind(flightId).run();
+    await expect(createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:18,quantityUnit:'L'})).rejects.toMatchObject({status:400});
+    const c182=await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:18,quantityUnit:'US_GAL'});
+    expect((await shiftTasks(db,other,shiftId)).tasks.find(item=>item.id===c182.id)?.fuelBreakdown).toBeNull();
+    await cancelFuel(db,user,flightId);
+    await db.prepare("UPDATE flights SET aircraft_callsign='LN-PFL',aircraft_model='DA42' WHERE id=?").bind(flightId).run();
+    await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:40,quantityUnit:'L'});
+  });
   it('creates exactly one request, limits edits to linked students, and writes audit events',async()=>{
     const choice={kind:'PRESET' as const,presetKey:'FULL_MAINS'};
     const created=await createFuel(db,user,flightId,choice);
     expect(created.status).toBe('PENDING');
     await expect(createFuel(db,user,flightId,choice)).rejects.toMatchObject({status:409});
     await expect(createFuel(db,other,flightId,choice)).rejects.toMatchObject({status:404});
-    await updateFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:40,quantityUnit:'L'});
+    await updateFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:150,quantityUnit:'L'});
     expect(await db.prepare('SELECT request_kind FROM fuel_requests WHERE id=?').bind(created.id).first('request_kind')).toBe('QUANTITY');
     expect((await db.prepare('SELECT type FROM fuel_request_events WHERE fuel_request_id=? ORDER BY created_at,id').bind(created.id).all<{type:string}>()).results.map(e=>e.type).sort())
       .toEqual(['REQUEST_CREATED','REQUEST_UPDATED']);
@@ -60,7 +99,7 @@ describe('personal flights and fuel operations',()=>{
     const shared={...flight,bookingType:'MultiStudentBooking' as const,studentIds:['fl-pilot','fl-duty']};
     await saveOwnFlights(db,user,[shared],flightWindow(new URL('https://example.test/api/flights')),stamp(2000),'hash');
     await saveOwnFlights(db,other,[shared],flightWindow(new URL('https://example.test/api/flights')),stamp(3000),'other-hash');
-    const choice={kind:'QUANTITY' as const,quantityValue:30,quantityUnit:'L' as const};
+    const choice={kind:'QUANTITY' as const,quantityValue:150,quantityUnit:'L' as const};
     const results=await Promise.allSettled([createFuel(db,user,flightId,choice),createFuel(db,other,flightId,choice)]);
     expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
     expect(results.filter(r=>r.status==='rejected')).toHaveLength(1);
@@ -88,7 +127,7 @@ describe('personal flights and fuel operations',()=>{
     expect(await db.prepare("SELECT COUNT(*) n FROM fuel_request_events WHERE type='REVIEW_RESOLVED'").first('n')).toBe(1);
   });
   it('cancels pending requests without removing audit history',async()=>{
-    const created=await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:20,quantityUnit:'US_GAL'});
+    const created=await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:150,quantityUnit:'L'});
     await cancelFuel(db,user,flightId);
     expect(await db.prepare('SELECT status FROM fuel_requests WHERE id=?').bind(created.id).first('status')).toBe('CANCELLED');
     expect(await db.prepare('SELECT COUNT(*) n FROM fuel_request_events WHERE fuel_request_id=?').bind(created.id).first('n')).toBe(2);
@@ -109,7 +148,7 @@ describe('personal flights and fuel operations',()=>{
     const prior={...flight,id:'prior-booking',startsAt:stamp(20*60_000),endsAt:stamp(90*60_000),
       flightStartsAt:stamp(20*60_000),flightEndsAt:null};
     await saveOwnFlights(db,user,[prior,flight],flightWindow(new URL('https://example.test/api/flights')),stamp(2000),'hash');
-    await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:40,quantityUnit:'L'});
+    await createFuel(db,user,flightId,{kind:'QUANTITY',quantityValue:150,quantityUnit:'L'});
     const task=(await shiftTasks(db,other,shiftId)).tasks[0];
     expect(task.earlierFlight?.timeSource).toBe('booking');
     expect(task.earlierFlight?.endsAt).toBe(prior.endsAt);

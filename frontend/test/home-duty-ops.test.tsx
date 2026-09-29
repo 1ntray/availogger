@@ -19,8 +19,10 @@ const flyvask = (shifts: object[] = []) => ({ from: '2026-09-27', to: '2026-10-2
 const brakkevakt = (weeks: object[] = []) => ({ currentUserId: 'me', currentWeekStart: '2026-09-21', weeks });
 const shift = { id: 'duty-one', startsAt: '2026-09-27T10:00:00Z', endsAt: '2026-09-27T14:00:00Z', status: 'OPEN', participantCount: 1,
   participants: [{ userId: 'me', firstName: 'Student', lastName: 'One', isCurrentUser: true }] };
-const flight = { id: 'flight-one', startsAt: '2026-09-27T09:00:00Z', endsAt: '2026-09-27T11:00:00Z', status: 'OPEN',
-  aircraft: { callSign: 'LN-ABC' }, departureAirport: { name: 'ENVA' }, arrivalAirport: { name: 'ENBO' }, request: null };
+const flight = { id: 'flight-one', startsAt: '2026-09-27T09:00:00Z', endsAt: '2026-09-27T11:00:00Z',
+  flightStartsAt:'2026-09-27T09:30:00Z',flightEndsAt:'2026-09-27T10:30:00Z',status: 'OPEN',
+  aircraft: { callSign: 'LN-ABC',model:'Z242L' }, departureAirport: { name: 'ENVA' }, arrivalAirport: { name: 'ENBO' },
+  plannedLessons:[{trainingId:'tr-1',trainingName:'4.2 Instrument approaches',lectureId:null,lectureName:null}],request: null };
 let root: Root, host: HTMLDivElement, user: CurrentUser;
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] }); vi.setSystemTime(new Date(now));
@@ -56,13 +58,17 @@ describe('Home composition', () => {
     expect(fetcher.mock.calls.map(call => call[0])).toEqual(['/api/flights']);
     expect(host.querySelector('a[href^="/duty-ops"]')).toBeNull();
   });
-  it('shows actionable fuel and relevant coverage near the next flight', async () => {
+  it('shows actionable fuel without repeating Duty Ops coverage in a flight row', async () => {
     const dueFlight = { ...flight, request: { status: 'NEEDS_REVIEW' } };
     mock({ flights: [dueFlight], duty: [{ ...shift, startsAt: '2026-09-27T08:00:00Z', participants: [{ userId: 'anna', firstName: 'Anna', lastName: 'Berg', isCurrentUser: false }] }] }); await render();
     expect(host.textContent).toContain('Needs attention');
     expect(host.textContent).toContain('Fuel needs review');
-    expect(host.querySelector('.home-item-context')?.textContent).toContain('Duty Ops: Anna Berg');
+    expect(host.querySelector('.home-item-context')).toBeNull();
     expect(host.querySelector('a[href^="/duty-ops/shifts/"]')).toBeNull();
+    const row=host.querySelector('a[href="/flights"]')!;
+    expect(row.textContent).toContain('11:00 Brief · 11:30–12:30 Flight');
+    expect(row.textContent).toContain('4.2 Instrument approaches');
+    expect(row.textContent).not.toMatch(/ENVA|ENBO|Z242L/);
   });
   it('keeps available content when one module fails', async () => {
     const fetcher = mock({ flights: [flight] });
@@ -103,14 +109,15 @@ describe('Home composition', () => {
   });
   it('shows an Oslo date on every point event under generic Upcoming', async () => {
     mock({
-      flights: [{ ...flight, startsAt: '2026-10-04T07:00:00Z', endsAt: '2026-10-04T09:00:00Z' }],
+      flights: [{ ...flight, startsAt: '2026-10-04T07:00:00Z', endsAt: '2026-10-04T09:00:00Z',
+        flightStartsAt:'2026-10-04T07:30:00Z',flightEndsAt:'2026-10-04T08:30:00Z' }],
       duty: [{ ...shift, startsAt: '2026-10-05T06:00:00Z', endsAt: '2026-10-05T12:00:00Z' }],
     });
     await render();
     const upcoming = [...host.querySelectorAll('.home-day')].find(group => group.querySelector('h3')?.textContent === 'Upcoming')!;
     const rows = [...upcoming.querySelectorAll('li a')].map(row => ({ title: row.querySelector('strong')?.textContent, detail: row.querySelector('span')?.textContent }));
     expect(rows).toEqual([
-      { title: 'Flight', detail: 'Sun 4 Oct · 09:00 · LN-ABC · ENVA → ENBO' },
+      { title: 'Flight', detail: 'Sun 4 Oct · 09:00 Brief · 09:30–10:30 Flight · LN-ABC · 4.2 Instrument approaches' },
       { title: 'Duty Ops', detail: 'Mon 5 Oct · 08:00–14:00' },
     ]);
     expect(rows.every(row => /^\w{3} \d{1,2} \w{3}(?: \d{4})? · \d{2}:\d{2}/.test(row.detail ?? ''))).toBe(true);

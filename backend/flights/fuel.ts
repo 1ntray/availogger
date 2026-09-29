@@ -3,6 +3,10 @@ import type { ApplicationUser } from '../users';
 import { eligibleSource, fuelProfile, type FlightRow, type FuelRow } from './service';
 
 export type FuelChoice = { kind: 'PRESET'; presetKey: string } | { kind: 'QUANTITY'; quantityValue: number; quantityUnit: 'L' | 'US_GAL' };
+export function z242FuelBreakdown(total:number){
+  const auxTotal=total-116;
+  return {total,mains:116,auxTotal,eachAux:auxTotal/2,unit:'L' as const};
+}
 const conflict = () => new ApplicationError('This fuel request changed. Reload the flight and try again.', 409, 'FUEL_CONFLICT');
 export function fuelId(value: unknown): string {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
@@ -26,6 +30,9 @@ async function choiceFor(db: D1Database, flight: FlightRow, submitted: FuelChoic
   }
   if (!Number.isFinite(submitted.quantityValue) || submitted.quantityValue <= 0 || submitted.quantityValue > 1000 ||
       !['L', 'US_GAL'].includes(submitted.quantityUnit)) throw new ApplicationError('Enter a valid fuel quantity and unit.', 400);
+  if ((profile.id==='C182T' && submitted.quantityUnit!=='US_GAL') ||
+      (profile.id==='Z242L' && (submitted.quantityUnit!=='L' || submitted.quantityValue<116)))
+    throw new ApplicationError('Enter a valid quantity for this aircraft.',400);
   return { profileId: profile.id, key: null, label: null, value: submitted.quantityValue, unit: submitted.quantityUnit };
 }
 const authorized = `EXISTS(SELECT 1 FROM flight_students s JOIN effective_user_permissions p ON p.user_id=s.user_id
@@ -109,7 +116,8 @@ export async function cancelFuel(db:D1Database,user:ApplicationUser,flightId:str
 }
 
 export type Task = { id:string;flightId:string;flightStartsAt:string;attentionFrom:string;aircraft:{id:string;callSign:string|null;model:string|null};
-  pilot:string;requested:string;status:string;earlierFlight:{endsAt:string;timeSource:'flight'|'booking';pilot:string|null}|null };
+  pilot:string;requested:string;fuelBreakdown:ReturnType<typeof z242FuelBreakdown>|null;status:string;
+  earlierFlight:{endsAt:string;timeSource:'flight'|'booking';pilot:string|null}|null };
 type TaskRow=FuelRow & { flight_starts_at:string;aircraft_callsign:string|null;aircraft_model:string|null;
   first_name:string|null;last_name:string|null;earlier_end:string|null;earlier_flight_end:string|null;earlier_first:string|null;earlier_last:string|null };
 export async function shiftTasks(db:D1Database,user:ApplicationUser,shiftId:string,now=new Date()) {
@@ -140,6 +148,8 @@ export async function shiftTasks(db:D1Database,user:ApplicationUser,shiftId:stri
     aircraft:{id:r.flightlogger_aircraft_id_snapshot,callSign:r.aircraft_callsign,model:r.aircraft_model},
     pilot:[r.first_name,r.last_name].filter(Boolean).join(' ')||'Student',
     requested:r.request_kind==='PRESET'?r.preset_label_snapshot??'Fuel':`${r.quantity_value} ${r.quantity_unit}`,
+    fuelBreakdown:r.request_kind==='QUANTITY'&&r.fuel_profile_id==='Z242L'&&r.quantity_unit==='L'&&
+      r.quantity_value!==null&&r.quantity_value>=116?z242FuelBreakdown(r.quantity_value):null,
     status:r.status,earlierFlight:r.earlier_end?{endsAt:r.earlier_flight_end??r.earlier_end,
       timeSource:r.earlier_flight_end?'flight' as const:'booking' as const,
       pilot:[r.earlier_first,r.earlier_last].filter(Boolean).join(' ')||null}:null}));

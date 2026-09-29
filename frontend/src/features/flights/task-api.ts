@@ -1,5 +1,6 @@
 export type FuelTask={id:string;flightId:string;flightStartsAt:string;attentionFrom:string;
   aircraft:{id:string;callSign:string|null;model:string|null};pilot:string;requested:string;status:'PENDING';
+  fuelBreakdown:{total:number;mains:number;auxTotal:number;eachAux:number;unit:'L'}|null;
   earlierFlight:{endsAt:string;timeSource:'flight'|'booking';pilot:string|null}|null};
 export type ShiftTasks={shift:{id:string;startsAt:string;endsAt:string};tasks:FuelTask[]};
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);

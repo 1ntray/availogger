@@ -77,12 +77,14 @@ export const MY_FLIGHTS_QUERY = `
         __typename
         ... on SingleStudentBooking {
           id startsAt endsAt flightStartsAt flightEndsAt status
+          plannedLesson { id name lecture { id name } }
           aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
           departureAirport { id name } arrivalAirport { id name }
           student { id firstName lastName } instructor { id firstName lastName }
         }
         ... on MultiStudentBooking {
           id startsAt endsAt flightStartsAt flightEndsAt status
+          plannedLessons { id name lecture { id name } }
           aircraft { id callSign model aircraftClass aircraftType fuelCoefficientMeasurement homeAirport { id name } }
           departureAirport { id name } arrivalAirport { id name }
           students { id firstName lastName } instructor { id firstName lastName }

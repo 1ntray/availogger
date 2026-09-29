@@ -1,4 +1,4 @@
-import { useEffect,useState,type FormEvent } from 'react';
+import { useEffect,useRef,useState,type FormEvent, type MouseEvent } from 'react';
 import { Link,useLocation,useNavigate,useParams } from 'react-router';
 import { ActionButton,BackLink,PageHeader,RefreshControl } from '../app/controls';
 import { contactApi,type ContactThread,type ContactMessage,type InboxItem } from '../features/contact/api';
@@ -48,12 +48,31 @@ export function ContactDetailPage({admin=false}:{admin?:boolean}){
 }
 
 export function InboxPage(){
+  const navigate=useNavigate(),pendingReads=useRef(new Map<string,Promise<void>>());
   const [items,setItems]=useState<InboxItem[]>([]),[cursor,setCursor]=useState<string|null>(null),[unread,setUnread]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState(''),[reload,setReload]=useState(0);
   useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');void contactApi.inbox(undefined,controller.signal).then(data=>{if(!controller.signal.aborted){setItems(data.items);setCursor(data.nextCursor);setUnread(data.unreadCount);}}).catch(cause=>{if(!controller.signal.aborted)setError(errorText(cause));}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[reload]);
-  async function mark(item:InboxItem){if(item.readAt)return;try{const data=await contactApi.read(item.id);setItems(old=>old.map(value=>value.id===item.id?{...value,readAt:data.readAt}:value));setUnread(n=>Math.max(0,n-1));window.dispatchEvent(new Event('portal-inbox-changed'));}catch(cause){setError(errorText(cause));}}
+  function mark(item:InboxItem){
+    if(item.readAt)return Promise.resolve();
+    const pending=pendingReads.current.get(item.id);if(pending)return pending;
+    const work=contactApi.read(item.id).then(data=>{
+      setItems(old=>old.map(value=>value.id===item.id?{...value,readAt:data.readAt}:value));
+      setUnread(n=>Math.max(0,n-1));window.dispatchEvent(new Event('portal-inbox-changed'));
+    }).catch(cause=>{setError(errorText(cause));}).finally(()=>{pendingReads.current.delete(item.id);});
+    pendingReads.current.set(item.id,work);return work;
+  }
+  async function open(event:MouseEvent<HTMLAnchorElement>,item:InboxItem){
+    event.preventDefault();
+    if(!item.target)return;
+    // Wait for a normal read response, but let a slow API call finish after
+    // client-side navigation rather than trapping the student in Inbox.
+    let timer:number|undefined;
+    await Promise.race([mark(item),new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2000);})]);
+    if(timer!==undefined)window.clearTimeout(timer);
+    navigate(item.target.path);
+  }
   async function more(){if(!cursor||loading)return;setLoading(true);try{const data=await contactApi.inbox(cursor);setItems(old=>[...old,...data.items.filter(item=>!old.some(existing=>existing.id===item.id))]);setCursor(data.nextCursor);setUnread(data.unreadCount);}catch(cause){setError(errorText(cause));}finally{setLoading(false);}}
   return <section className="contact-page"><PageHeader title="Inbox"><RefreshControl label="Inbox" loading={loading} retry={!!error} onRefresh={()=>setReload(n=>n+1)}/></PageHeader><p className="contact-intro">{unread} unread. Inbox read status is separate from the source item itself.</p>
     {error&&<p role="alert" className="contact-error">{error}</p>}{loading&&items.length===0&&<p role="status">Loading Inbox…</p>}
-    <ul className="contact-list inbox-list">{items.map(item=><li key={item.id} className={item.readAt?'':'unread'}><div><span className="contact-list-main"><strong>{item.title}</strong>{item.summary&&<small>{item.summary}</small>}</span><span className="contact-list-meta"><time dateTime={item.createdAt}>{date(item.createdAt)}</time>{!item.readAt&&<span className="contact-unread">Unread</span>}</span></div><div className="inbox-actions">{item.target&&<Link to={item.target.path} onClick={()=>void mark(item)}>Open</Link>}{!item.readAt&&<button type="button" onClick={()=>void mark(item)}>Mark read</button>}</div></li>)}</ul>
+    <ul className="contact-list inbox-list">{items.map(item=><li key={item.id} className={item.readAt?'':'unread'}><div><span className="contact-list-main"><strong>{item.title}</strong>{item.summary&&<small>{item.summary}</small>}</span><span className="contact-list-meta"><time dateTime={item.createdAt}>{date(item.createdAt)}</time>{!item.readAt&&<span className="contact-unread">Unread</span>}</span></div><div className="inbox-actions">{item.target&&<Link to={item.target.path} onClick={event=>void open(event,item)}>Open</Link>}{!item.readAt&&<button type="button" onClick={()=>void mark(item)}>Mark read</button>}</div></li>)}</ul>
     {!loading&&!error&&!items.length&&<p>Your Inbox is empty.</p>}{cursor&&<ActionButton onClick={()=>void more()} disabled={loading}>Load more</ActionButton>}</section>;
 }
