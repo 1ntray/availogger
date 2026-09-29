@@ -13,6 +13,8 @@ export const PERMISSIONS = {
   fuelRequest: 'fuel.request',
   adminManageUsers: 'admin.manage_users',
   adminManagePermissions: 'admin.manage_permissions',
+  contactWebmasterManage: 'contact.webmaster.manage',
+  adminExchangeAudit: 'admin.exchange_audit',
 } as const;
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export const permissionDefinitions: readonly { key: PermissionKey; description: string; privileged: boolean }[] = [
@@ -29,6 +31,8 @@ export const permissionDefinitions: readonly { key: PermissionKey; description: 
   { key: PERMISSIONS.fuelRequest, description: 'Request fuel for own flights', privileged: false },
   { key: PERMISSIONS.adminManageUsers, description: 'Manage users', privileged: true },
   { key: PERMISSIONS.adminManagePermissions, description: 'Manage permissions', privileged: true },
+  { key: PERMISSIONS.contactWebmasterManage, description: 'Manage webmaster contact messages', privileged: true },
+  { key: PERMISSIONS.adminExchangeAudit, description: 'Read Exchange audit', privileged: true },
 ];
 export const ROLE_KEYS = ['ADMIN', 'STUDENT'] as const;
 export type RoleKey = typeof ROLE_KEYS[number];

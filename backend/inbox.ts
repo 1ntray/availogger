@@ -3,12 +3,14 @@ import { methodNotAllowed, withApplicationUser } from './application-api';
 import type { AccessData, PagesEnv } from './env';
 import { json } from './response';
 import { requireSameOrigin } from './same-origin';
+import { resolveExchangeInbox } from './exchange-v2/inbox';
 
 type Context={request:Request;env:PagesEnv;data:AccessData;params:Record<string,string|string[]>};
 type InboxRow={id:string;kind:string;source_type:string;source_id:string;created_at:string;read_at:string|null;
   event_type:string|null;flight_id:string|null;flightlogger_booking_id:string|null;starts_at_snapshot:string|null;
   ends_at_snapshot:string|null;flight_starts_at_snapshot:string|null;flight_ends_at_snapshot:string|null;
-  aircraft_callsign_snapshot:string|null;aircraft_model_snapshot:string|null;status_snapshot:string|null};
+  aircraft_callsign_snapshot:string|null;aircraft_model_snapshot:string|null;status_snapshot:string|null;
+  contact_title:string|null;contact_body:string|null;contact_thread_id:string|null};
 type ChangeRow={event_id:string;field:string;old_value:string|null;new_value:string|null;old_label:string|null;new_label:string|null;
   old_detail:string|null;new_detail:string|null};
 const invalid=()=>new ApplicationError('Invalid Inbox request.',400,'INVALID_INBOX_REQUEST');
@@ -39,8 +41,10 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
   const cursor=rawCursor===null?null:decodeCursor(rawCursor);
   const {results}=await db.prepare(`SELECT i.*,e.type event_type,e.flight_id,e.flightlogger_booking_id,e.starts_at_snapshot,
     e.ends_at_snapshot,e.flight_starts_at_snapshot,e.flight_ends_at_snapshot,e.aircraft_callsign_snapshot,
-    e.aircraft_model_snapshot,e.status_snapshot
+    e.aircraft_model_snapshot,e.status_snapshot,t.id contact_thread_id,t.title contact_title,m.body contact_body
     FROM user_inbox_items i LEFT JOIN flight_change_events e ON i.source_type='FLIGHT_CHANGE' AND e.id=i.source_id
+    LEFT JOIN contact_threads t ON i.source_type='CONTACT_MESSAGE' AND t.id=i.source_id AND t.created_by_user_id=i.user_id
+    LEFT JOIN contact_messages m ON m.id=t.last_webmaster_message_id AND m.thread_id=t.id
     WHERE i.user_id=? AND (? IS NULL OR i.created_at<? OR (i.created_at=? AND i.id<?))
     ORDER BY i.created_at DESC,i.id DESC LIMIT ?`)
     .bind(userId,cursor?.date??null,cursor?.date??null,cursor?.date??null,cursor?.id??null,limit+1).all<InboxRow>();
@@ -49,12 +53,20 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
     FROM flight_change_items WHERE event_id IN (SELECT value FROM json_each(?)) ORDER BY event_id,field`)
     .bind(JSON.stringify(eventIds)).all<ChangeRow>():{results:[] as ChangeRow[]};
   const byEvent=new Map<string,ChangeRow[]>();for(const change of changes){const group=byEvent.get(change.event_id)??[];group.push(change);byEvent.set(change.event_id,group);}
+  const exchanges=await resolveExchangeInbox(db,page.filter(row=>row.source_type==='EXCHANGE').map(row=>row.source_id),userId);
   const unread=await db.prepare('SELECT count(*) total FROM user_inbox_items WHERE user_id=? AND read_at IS NULL').bind(userId).first<{total:number}>();
-  return {items:page.map(row=>{
+  const resolvers: Record<string,(row:InboxRow)=>{title:string;summary:string|null;target:unknown;flight:unknown;changes:unknown[]}> = {
+    EXCHANGE: row => {
+      const source=exchanges.get(row.source_id);
+      return {title:source?.title??'Exchange no longer available',summary:source?.summary??null,
+        target:source?.target??null,flight:null,changes:[]};
+    },
+    CONTACT_MESSAGE: row => row.contact_thread_id ? {title:`Reply: ${row.contact_title}`,summary:row.contact_body?.slice(0,160)??null,
+      target:{path:`/messages/${row.contact_thread_id}`},flight:null,changes:[]} : missing(),
+    FLIGHT_CHANGE: row => {
     const eventChanges=byEvent.get(row.source_id)??[];
-    if(row.source_type!=='FLIGHT_CHANGE'||!row.event_type)return {id:row.id,kind:row.kind,createdAt:row.created_at,
-      readAt:row.read_at,title:'Inbox item',summary:null,target:null,flight:null,changes:[]};
-    return {id:row.id,kind:row.kind,createdAt:row.created_at,readAt:row.read_at,
+    if(!row.event_type)return missing();
+    return {
       title:title(row.event_type),summary:summary(row.event_type,eventChanges),
       target:{path:'/flights',flightId:row.flight_id},
       flight:{bookingId:row.flightlogger_booking_id,startsAt:row.flight_starts_at_snapshot??row.starts_at_snapshot,
@@ -62,8 +74,13 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
         model:row.aircraft_model_snapshot,status:row.status_snapshot,timeZone:'Europe/Oslo'},
       changes:eventChanges.map(change=>({field:change.field,oldValue:change.old_value,newValue:change.new_value,
         oldLabel:change.old_label,newLabel:change.new_label,oldDetail:change.old_detail,newDetail:change.new_detail}))};
-  }),unreadCount:unread?.total??0,nextCursor:results.length>limit?encodeCursor(page[page.length-1]):null};
+    },
+  };
+  return {items:page.map(row=>({id:row.id,kind:row.kind,sourceType:row.source_type,createdAt:row.created_at,
+    readAt:row.read_at,...(resolvers[row.source_type]?.(row)??missing())})),
+    unreadCount:unread?.total??0,nextCursor:results.length>limit?encodeCursor(page[page.length-1]):null};
 }
+function missing(){return {title:'Inbox item unavailable',summary:null,target:null,flight:null,changes:[]};}
 
 export function inboxEndpoint(context:Context):Promise<Response>|Response{
   if(context.request.method!=='GET')return methodNotAllowed('GET');

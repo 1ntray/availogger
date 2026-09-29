@@ -1,4 +1,5 @@
 import { readAssignmentStates, type FlyvaskParticipant } from './effective-assignments';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 import { ApplicationError } from '../application-error';
 import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
 import type { FlyvaskMeeting } from '../flightlogger/flyvask';
@@ -69,6 +70,7 @@ export async function saveDiscovery(db: D1Database, meetings: FlyvaskMeeting[], 
       .bind(window.endsAt, window.startsAt, stamp, JSON.stringify(meetings.map(m => m.id)), stamp),
     stateWrite(db, 'global', window, stamp, null, null),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'FLYVASK');
 }
 
 export async function saveAssignments(db: D1Database, user: ApplicationUser, profile: FlightLoggerProfile, meetings: FlyvaskMeeting[], window: FlyvaskWindow, stamp: string, hash: string) {
@@ -97,6 +99,7 @@ export async function saveAssignments(db: D1Database, user: ApplicationUser, pro
       .bind(profile.firstName, profile.lastName, stamp, user.id, profile.id, stamp, user.id, stamp),
     stateWrite(db, `user:${user.id}`, window, stamp, user, hash),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'FLYVASK');
 }
 
 async function syncAndRead(db: D1Database, user: ApplicationUser, token: string, window: FlyvaskWindow, hash: string, maxRequests: number): Promise<FlyvaskResponse> {

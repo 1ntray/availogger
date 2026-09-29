@@ -4,6 +4,7 @@ import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
 import type { DutyMeeting, FlightLoggerProfile } from '../flightlogger/duty-ops';
 import type { ApplicationUser } from '../users';
 import type { DutyWindow } from './window';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 
 export const DUTY_OPS_TTL_MS = 5 * 60 * 1000;
 // Reserve headroom for Access verification and D1 calls on Workers Free.
@@ -67,6 +68,7 @@ export async function saveDiscovery(db: D1Database, meetings: DutyMeeting[], win
       .bind(window.endsAt, window.startsAt, stamp, JSON.stringify(meetings.map(m => m.id)), stamp),
     stateWrite(db, 'global', window, stamp, null, null),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'DUTY_OPS');
 }
 
 export async function saveAssignments(db: D1Database, user: ApplicationUser, profile: FlightLoggerProfile, meetings: DutyMeeting[], window: DutyWindow, stamp: string, hash: string) {
@@ -95,6 +97,7 @@ export async function saveAssignments(db: D1Database, user: ApplicationUser, pro
       .bind(profile.firstName, profile.lastName, stamp, user.id, profile.id, stamp, user.id, stamp),
     stateWrite(db, `user:${user.id}`, window, stamp, user, hash),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'DUTY_OPS');
 }
 
 async function syncAndRead(db: D1Database, user: ApplicationUser, token: string, window: DutyWindow, hash: string, maxRequests: number): Promise<DutyOpsResponse> {

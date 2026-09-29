@@ -42,6 +42,7 @@ describe('Duty Ops presentation', () => {
     expect(sections.onDutyNow.map(s => s.id)).toEqual(['night', 'shift']);
     expect(sections.mine.map(s => s.id)).toEqual(['mine-next']);
     expect(sections.schedule.map(([date]) => date)).toEqual(['2026-09-28']);
+    expect(sections.schedule[0][1].map(s => s.id)).toEqual(['mine-next', 'next']);
     expect(dutySections([{ ...shift, endsAt: '2026-09-26T22:00:00Z', startsAt: '2026-09-26T19:00:00Z' }], now.getTime()).onDutyNow).toEqual([]);
     expect(dutySections([{ ...shift, endsAt: '2026-09-27T07:00:00Z', startsAt: '2026-09-27T05:00:00Z' }], now.getTime()).onDutyNow).toEqual([]);
     expect(dutySections([{ ...shift, participants: [] }, { ...shift, id: 'completed', participants: [], status: 'COMPLETED' }], now.getTime()).onDutyNow.map(s => s.id)).toEqual(['shift']);

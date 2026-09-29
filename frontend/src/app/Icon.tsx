@@ -1,6 +1,6 @@
 import type { NavIcon } from './navigation';
 
-type IconName = NavIcon | 'account' | 'arrow-right' | 'reload';
+type IconName = NavIcon | 'account' | 'arrow-right' | 'reload' | 'bell';
 
 const paths: Record<IconName, string> = {
   home: 'M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9',
@@ -12,6 +12,7 @@ const paths: Record<IconName, string> = {
   account: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2',
   'arrow-right': 'M5 12h14M14 7l5 5-5 5',
   reload: 'M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-2-2',
+  bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 9h18c0-1-3-2-3-9M10 21h4',
 };
 
 export function Icon({ name }: { name: IconName }) {

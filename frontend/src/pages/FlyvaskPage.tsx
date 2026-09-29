@@ -9,11 +9,11 @@ import type { FlyvaskData } from '../features/flyvask/types';
 import { ShiftList } from '../features/flyvask/ShiftList';
 import { FlyvaskExchanges, ExchangeShiftActions } from '../features/flyvask/FlyvaskExchanges';
 import { AttentionDetail } from '../app/AttentionDetail';
-import { PageHeader, RefreshControl } from '../app/controls';
+import { BackLink, PageHeader, RefreshControl } from '../app/controls';
 import '../features/duty-ops/duty-ops.css';
 import '../features/flyvask/flyvask.css';
 
-export function FlyvaskPage() {
+export function FlyvaskPage({ view = 'schedule' }: { view?: 'schedule' | 'exchanges' }) {
   const { refresh, user } = useCurrentUser();
   const [data, setData] = useState<FlyvaskData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,16 +37,19 @@ export function FlyvaskPage() {
     return () => controller.abort();
   }, [reload, today, refresh, user?.subject]);
   const sections = data ? flyvaskSections(data.shifts, now) : null;
+  const center = view === 'exchanges';
   return <section className="duty-ops">
-    <PageHeader title="Flyvask"><RefreshControl label="Flyvask" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>
+    {center && <BackLink to="/flyvask">Flyvask</BackLink>}
+    <PageHeader title={center ? 'Exchanges' : 'Flyvask'}><RefreshControl label="Flyvask" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>
     {data && <div className="duty-meta"><details><summary>Sync details</summary><span>Times in Europe/Oslo · Schedule: {cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)} · Assignments: {cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</span></details></div>}
     {loading && !data && <p className="duty-loading" role="status">Loading Flyvask…</p>}
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <div role="status"><AttentionDetail label="Schedule may be out of date"><p>{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p></AttentionDetail></div>}
-    {sections && data && <FlyvaskExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
-      <section className="flyvask-schedule" aria-labelledby="flyvask-schedule"><h2 id="flyvask-schedule">Schedule</h2>
+    {sections && data && <FlyvaskExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center}>
+      {!center && <section className="flyvask-schedule" aria-labelledby="flyvask-schedule"><h2 id="flyvask-schedule">Schedule</h2>
         {sections.schedule.length ? sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>) : <p className="duty-empty">Nothing scheduled</p>}
-      </section>
+      </section>}
     </FlyvaskExchanges>}
   </section>;
 }
+export function FlyvaskExchangeCenterPage() { return <FlyvaskPage view="exchanges" />; }

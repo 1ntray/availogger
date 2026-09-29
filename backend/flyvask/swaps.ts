@@ -1,5 +1,6 @@
 import { activeReservations, effectiveAssignments } from './effective-assignments';
 import { ApplicationError } from '../application-error';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 import type { ApplicationUser } from '../users';
 import type { ExchangeRequest, ExchangeProposal, ExchangesResponse, RequestStatus, ProposalStatus } from '../../shared/flyvask-swaps';
 
@@ -117,6 +118,7 @@ export async function acceptProposal(db: D1Database, actor: ApplicationUser, id:
       db.prepare('DELETE FROM flyvask_swap_reservations WHERE request_id = ?').bind(id),
       event(db, id, actor, 'PROPOSAL_ACCEPTED', now, proposalId),
     ]);
+  await reconcileExchangeV2IfInstalled(db, 'FLYVASK');
   return { id };
 }
 export async function cancelExchange(db: D1Database, actor: ApplicationUser, id: string) {
@@ -126,6 +128,7 @@ export async function cancelExchange(db: D1Database, actor: ApplicationUser, id:
     db.prepare(`UPDATE flyvask_swap_proposals SET status = 'NOT_SELECTED', updated_at = ? WHERE request_id = ? AND status = 'OPEN'`).bind(now, id),
     db.prepare('DELETE FROM flyvask_swap_reservations WHERE request_id = ?').bind(id), event(db, id, actor, 'REQUEST_CANCELLED', now),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'FLYVASK');
   return { id };
 }
 export async function withdrawProposal(db: D1Database, actor: ApplicationUser, id: string, proposalId: string) {
