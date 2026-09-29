@@ -11,6 +11,19 @@
 .flight-row time,.fuel-task-row time { font-variant-numeric:tabular-nums; }
 .flight-meta,.fuel-meta { color:var(--portal-muted); font-size:13px; margin:5px 0; line-height:1.5; }
 .flight-status { font-size:12px; font-weight:650; color:var(--portal-accent); }
+.flight-segments { display:flex; flex-wrap:wrap; gap:4px 20px; margin:9px 0 4px; }
+.flight-segment { display:grid; gap:2px; min-width:100px; font-size:12px; color:var(--portal-muted); }
+.flight-segment:first-child strong { font-size:17px; color:var(--portal-control-text); }
+.flight-segment strong { color:var(--portal-control-text); font-size:14px; font-variant-numeric:tabular-nums; }
+.fuel-amount { display:flex; align-items:center; gap:8px; }
+.fuel-amount input { min-width:0; flex:1; }
+.fuel-distribution { margin:0; font-size:13px; border-top:1px solid var(--portal-border); padding-top:8px; }
+.fuel-distribution div { display:flex; justify-content:space-between; gap:12px; padding:2px 0; }
+.fuel-distribution dd { margin:0; font-variant-numeric:tabular-nums; }
+.fuel-task-breakdown { margin:5px 0 9px; display:grid; gap:2px; font-size:13px; }
+.fuel-task-breakdown div { display:flex; gap:12px; }
+.fuel-task-breakdown dt { min-width:90px; color:var(--portal-muted); }
+.fuel-task-breakdown dd { margin:0; font-variant-numeric:tabular-nums; }
 .flight-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
 .fuel-form { display:grid; gap:10px; max-width:360px; margin:12px 0; padding:12px; border:1px solid var(--portal-border); border-radius:var(--portal-radius); background:var(--portal-surface); }
 .fuel-form label { display:grid; gap:4px; font-size:13px; }
@@ -20,4 +33,4 @@
 .fuel-error { font-size:13px; color:#8b5143; }
 .fuel-task-section h2 { margin:20px 0 0; padding-bottom:8px; border-bottom:1px solid var(--portal-border); font-size:18px; }
 .fuel-task-row.is-due { border-left:3px solid var(--portal-accent); padding-left:10px; }
-@media(max-width:560px){.flights-heading,.fuel-shift-heading{align-items:flex-start}.flight-row,.fuel-task-row{padding-left:0;padding-right:0}}
+@media(max-width:560px){.flights-heading,.fuel-shift-heading{align-items:flex-start}.flight-row,.fuel-task-row{padding-left:0;padding-right:0}.flight-segments{gap:6px 14px}.flight-segment{min-width:90px}}

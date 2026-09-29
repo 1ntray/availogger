@@ -158,7 +158,9 @@ describe('flight changes and personal Inbox',()=>{
       {headers:{Origin:'https://other.test'}}) as never)).status).toBe(403);
     expect((await markInboxReadEndpoint(context(alice,`/api/inbox/${item.id}/read`,'POST',
       {body:'{}'}) as never)).status).toBe(400);
-    const read=await markInboxReadEndpoint(context(alice,`/api/inbox/${item.id}/read`,'POST') as never);
+    expect((await markInboxReadEndpoint({...context(alice,'/api/inbox/invalid/read','POST'),params:{itemId:'invalid'}} as never)).status).toBe(400);
+    // A browser or Pages runtime can represent an empty POST as a zero-byte stream.
+    const read=await markInboxReadEndpoint(context(alice,`/api/inbox/${item.id}/read`,'POST',{body:''}) as never);
     expect(read.status).toBe(200);const first=await read.json() as {readAt:string};
     const again=await markInboxReadEndpoint(context(alice,`/api/inbox/${item.id}/read`,'POST') as never);
     expect((await again.json() as {readAt:string}).readAt).toBe(first.readAt);

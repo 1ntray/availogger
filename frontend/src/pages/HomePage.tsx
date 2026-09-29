@@ -4,8 +4,9 @@ import { osloDate } from '../dates';
 import { useCurrentUser } from '../app/CurrentUser';
 import { PERMISSIONS } from '../../../shared/authorization';
 import { loadFlights, type FlightsData } from '../features/flights/api';
+import { flightLessonLabels,flightSegments } from '../features/flights/presentation';
 import { loadDutyOps } from '../features/duty-ops/api';
-import { participantLabel, timeLabel as dutyTime } from '../features/duty-ops/presentation';
+import { timeLabel as dutyTime } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { loadFlyvask } from '../features/flyvask/api';
 import type { FlyvaskData } from '../features/flyvask/types';
@@ -15,7 +16,7 @@ import type { BrakkevaktSchedule } from '../../../shared/brakkevakt';
 
 type Key = 'flights' | 'duty' | 'flyvask' | 'brakkevakt';
 type Data = { flights: FlightsData | null; duty: DutyOpsData | null; flyvask: FlyvaskData | null; brakkevakt: BrakkevaktSchedule | null };
-type Item = { id: string; at: number; title: string; detail: string; path: string; context?: string };
+type Item = { id: string; at: number; title: string; detail: string; path: string };
 const empty: Data = { flights: null, duty: null, flyvask: null, brakkevakt: null };
 const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const day = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', weekday: 'short', day: 'numeric', month: 'short' });
@@ -66,10 +67,10 @@ export function HomePage() {
   const items: Item[] = [];
   for (const flight of data.flights?.flights ?? []) {
     if (flight.status === 'CANCELLED' || Date.parse(flight.endsAt) <= now) continue;
-    const cover = data.duty?.shifts.find(shift => shift.status !== 'CANCELLED' && Date.parse(shift.startsAt) <= Date.parse(flight.startsAt) && Date.parse(shift.endsAt) > Date.parse(flight.startsAt));
+    const segment=flightSegments(flight),lessons=flightLessonLabels(flight);
+    const flightTime=segment.flight?.start?` · ${clock.format(new Date(segment.flight.start))}${segment.flight.end?`–${clock.format(new Date(segment.flight.end))}`:''} Flight`:'';
     items.push({ id: `flight:${flight.id}`, at: Date.parse(flight.startsAt), title: 'Flight',
-      detail: `${clock.format(new Date(flight.startsAt))} · ${flight.aircraft?.callSign ?? 'Aircraft pending'} · ${flight.departureAirport?.name ?? 'Departure pending'} → ${flight.arrivalAirport?.name ?? 'Arrival pending'}`, path: '/flights',
-      context: cover ? `Duty Ops: ${participantLabel(cover)} · ${dutyTime(cover)}` : undefined });
+      detail: `${clock.format(new Date(flight.startsAt))} Brief${flightTime} · ${flight.aircraft?.callSign ?? 'Aircraft pending'}${lessons.length?` · ${lessons.join(' · ')}`:''}`, path: '/flights' });
   }
   for (const shift of data.duty?.shifts ?? []) {
     if (shift.status === 'CANCELLED' || shift.status === 'COMPLETED' || Date.parse(shift.endsAt) <= now || !shift.participants.some(person => person.isCurrentUser)) continue;
@@ -99,7 +100,7 @@ export function HomePage() {
     <div className="home-layout"><section className="home-schedule"><h2>My schedule</h2>
       {loading && !items.length && !currentWeek && <p role="status">Loading schedule…</p>}
       {!loading && !items.length && !nextOwnWeek && <p className="home-muted">Nothing upcoming</p>}
-      {[...grouped].map(([label, rows]) => <div className="home-day" key={label}><h3>{label}</h3><ul>{rows.map(item => <li key={item.id}><Link to={item.path}><strong>{item.title}</strong><span>{label === 'Upcoming' ? `${pointDate(item.at, today)} · ${item.detail}` : item.detail}</span><span aria-hidden="true">→</span></Link>{item.context && <p className="home-item-context">{item.context}</p>}</li>)}</ul></div>)}
+      {[...grouped].map(([label, rows]) => <div className="home-day" key={label}><h3>{label}</h3><ul>{rows.map(item => <li key={item.id}><Link to={item.path}><strong>{item.title}</strong><span>{label === 'Upcoming' ? `${pointDate(item.at, today)} · ${item.detail}` : item.detail}</span><span aria-hidden="true">→</span></Link></li>)}</ul></div>)}
       {nextOwnWeek && <div className="home-week"><Link to="/brakkevakt"><strong>Brakkevakt · Week {weekNumber(nextOwnWeek.weekStart)}</strong><span>{nextOwnPartner ? `With ${personName(nextOwnPartner)}` : 'Your week'} <span aria-hidden="true">→</span></span></Link></div>}
     </section>
     <div className="home-context">

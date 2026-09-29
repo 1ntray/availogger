@@ -19,6 +19,10 @@ function TaskList({tasks,now,onComplete,busy}:{tasks:FuelTask[];now:number;onCom
     <div className="fuel-task-head"><strong><time dateTime={task.flightStartsAt}>{date(task.flightStartsAt)}</time></strong>
       <span>{task.aircraft.callSign??'Aircraft'}{task.aircraft.model?` · ${task.aircraft.model}`:''}</span></div>
     <p className="fuel-meta">{task.requested} · {task.pilot}</p>
+    {task.fuelBreakdown&&<dl className="fuel-task-breakdown"><div><dt>Total fuel</dt><dd>{task.fuelBreakdown.total} L</dd></div>
+      <div><dt>Mains</dt><dd>{task.fuelBreakdown.mains} L</dd></div>
+      <div><dt>Aux total</dt><dd>{task.fuelBreakdown.auxTotal} L</dd></div>
+      <div><dt>Each aux</dt><dd>{task.fuelBreakdown.eachAux} L</dd></div></dl>}
     {task.earlierFlight&&<p className="fuel-meta">Known earlier flight expected back {date(task.earlierFlight.endsAt)}
       {task.earlierFlight.timeSource==='booking'?' (booking end)':''}{task.earlierFlight.pilot?` · ${task.earlierFlight.pilot}`:''}.
       Partial linked schedule; confirm actual aircraft availability.</p>}

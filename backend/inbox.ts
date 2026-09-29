@@ -90,8 +90,15 @@ export function markInboxReadEndpoint(context:Context):Promise<Response>|Respons
   if(context.request.method!=='POST')return methodNotAllowed('POST');
   return withApplicationUser(context,async(db,user)=>{
     requireSameOrigin(context.request);
-    if(new URL(context.request.url).search||context.request.body!==null||
-      (context.request.headers.has('Content-Length')&&Number(context.request.headers.get('Content-Length'))>0))throw invalid();
+    if(new URL(context.request.url).search)throw invalid();
+    // Pages may expose a zero-byte POST as a non-null stream. Inspect the bytes,
+    // not the presence of a stream, and never buffer an arbitrary request body.
+    const reader=context.request.body?.getReader();
+    if(reader){try{for(let reads=0;reads<4;reads++){
+      const chunk=await reader.read();
+      if(chunk.done)break;
+      if(chunk.value.byteLength||reads===3)throw invalid();
+    }}finally{await reader.cancel().catch(()=>{});}}
     const id=context.params.itemId;
     if(typeof id!=='string'||!/^[a-f0-9]{32}$/.test(id))throw invalid();
     await db.prepare('UPDATE user_inbox_items SET read_at=coalesce(read_at,?) WHERE id=? AND user_id=?')
