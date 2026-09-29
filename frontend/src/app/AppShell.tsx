@@ -12,7 +12,8 @@ export function AppShell() {
   const { user, loading, error, retry } = useCurrentUser();
   const { hasPermission } = usePermissions();
   const visible = visibleNavigation(hasPermission);
-  const canAdmin = [PERMISSIONS.adminManageUsers, PERMISSIONS.availabilityView, PERMISSIONS.dutyOpsManageSchedule,PERMISSIONS.contactWebmasterManage].some(hasPermission);
+  const canAdmin = [PERMISSIONS.adminManageUsers, PERMISSIONS.availabilityView, PERMISSIONS.dutyOpsManageSchedule,
+    PERMISSIONS.adminExchangeAudit, PERMISSIONS.contactWebmasterManage].some(hasPermission);
   const { pathname } = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
   const [unreadCount,setUnreadCount]=useState(0);

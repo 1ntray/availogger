@@ -2,6 +2,7 @@ import { ApplicationError } from '../application-error';
 import type { ApplicationUser } from '../users';
 import type { BrakkevaktSchedule, BrakkevaktWeek, BrakkevaktRoster } from '../../shared/brakkevakt';
 import { currentWeekStart, requireWeek, weekActive } from './week';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 
 type AssignmentRow = { id: string; period_id: string; slot: 1 | 2; user_id: string; first_name: string | null; last_name: string | null };
 export async function listSchedule(db: D1Database, actor: ApplicationUser): Promise<BrakkevaktSchedule> {
@@ -93,6 +94,7 @@ export async function saveWeek(db: D1Database, actor: ApplicationUser, week: str
     await db.batch([guard(db, actor, current ? 'EXISTS (SELECT 1 FROM brakkevakt_periods WHERE id = ? AND revision = ?)' : 'NOT EXISTS (SELECT 1 FROM brakkevakt_periods WHERE week_start = ?)',
       current ? [id, input.revision] : [week]), ...writes]);
   } catch { throw new ApplicationError('Schedule changed or access was removed. Reload before saving.', 409, 'BRAKKEVAKT_CONFLICT'); }
+  await reconcileExchangeV2IfInstalled(db, 'BRAKKEVAKT');
   return { id, weekStart: week, revision: (current?.revision ?? 0) + 1 };
 }
 export async function removeWeek(db: D1Database, actor: ApplicationUser, week: string, revision: number) {
@@ -110,5 +112,6 @@ export async function removeWeek(db: D1Database, actor: ApplicationUser, week: s
     db.prepare('DELETE FROM brakkevakt_periods WHERE id = ?').bind(current.id),
     db.prepare('UPDATE brakkevakt_state SET deleting_period_id = NULL WHERE id = 1'),
   ]); } catch { throw new ApplicationError('Schedule changed or access was removed. Reload before removing.', 409, 'BRAKKEVAKT_CONFLICT'); }
+  await reconcileExchangeV2IfInstalled(db, 'BRAKKEVAKT');
   return { weekStart: week };
 }

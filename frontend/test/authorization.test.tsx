@@ -119,4 +119,14 @@ describe('admin access editor', () => {
     expect(host.querySelector('a[href="/admin/users"]')).toBeNull();
     expect(api.mock.calls.map(([path]) => path).filter(path => path !== '/api/inbox')).toEqual(['/api/me']);
   });
+  it.each([
+    ['admin.exchange_audit', '/admin/exchanges'],
+    ['contact.webmaster.manage', '/admin/contact'],
+  ])('keeps %s accessible through Administration', async (permission, path) => {
+    currentPermissions = [permission as PermissionKey];
+    await render('/admin');
+    expect(host.querySelector(`.admin-hub a[href="${path}"]`)).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('.current-user')!.click());
+    expect(host.querySelector('.account-menu a[href="/admin"]')).not.toBeNull();
+  });
 });

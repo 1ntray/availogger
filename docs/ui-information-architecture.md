@@ -12,7 +12,7 @@ The main jobs are: see the next personal commitment and surrounding cover; inspe
 | --- | --- | --- |
 | Primary desktop/sidebar and mobile bar | Home, Flights, Duty Ops, Flyvask, Brakkevakt | Repeated student work, filtered by permission. All five fit in the normal phone bar. |
 | Profile menu | My activity, Inbox, My messages, Send feedback, Settings, Administration when permitted | Personal and global actions. Name on the closed button; email inside. The header bell opens Inbox. No sign out action exists in the current Access integration. |
-| Administration hub | Users & access, Instructor availability, Duty Ops credit audit, Contact messages | Explicit permission on each entry and route. Brakkevakt schedule management stays in Brakkevakt. |
+| Administration hub | Users & access, Instructor availability, Duty Ops credit audit, Exchange audit, Contact messages | Explicit permission on each entry and route. Brakkevakt schedule management stays in Brakkevakt. |
 | Contextual routes | Shift workspace, Brakkevakt manage schedule | Actions attached to an object or module. |
 
 Old personal history links redirect to My activity with the corresponding filter. Availability moves to `/admin/availability`; an authorized old link redirects there. Transport is retired from active UI, API and typed permission catalogue. Its released D1 migration and historical tables remain untouched.

@@ -77,6 +77,10 @@ describe('contact and Inbox',()=>{
     expect((await listInbox(db,other.id,new URL('https://portal.test/api/inbox'))).items).toHaveLength(0);
     expect((await call(markInboxReadEndpoint,other,'POST',`/api/inbox/${page.items[0].id}/read`,undefined,{itemId:page.items[0].id})).status).toBe(404);
     await db.prepare("INSERT INTO user_inbox_items VALUES (lower(hex(randomblob(16))),?,'UNKNOWN','UNKNOWN','gone',?,NULL)").bind(student.id,new Date().toISOString()).run();
-    expect((await listInbox(db,student.id,new URL('https://portal.test/api/inbox'))).items.some(item=>item.title==='Inbox item unavailable')).toBe(true);
+    await db.prepare("INSERT INTO user_inbox_items VALUES (lower(hex(randomblob(16))),?,'EXCHANGE_ACTION','EXCHANGE','missing-exchange',?,NULL)").bind(student.id,new Date().toISOString()).run();
+    const mixed=(await listInbox(db,student.id,new URL('https://portal.test/api/inbox'))).items;
+    expect(mixed.some(item=>item.title==='Inbox item unavailable')).toBe(true);
+    expect(mixed.some(item=>item.sourceType==='EXCHANGE'&&item.title==='Exchange no longer available'&&item.target===null)).toBe(true);
+    expect(mixed.some(item=>item.sourceType==='CONTACT_MESSAGE'&&item.target!==null)).toBe(true);
   });
 });

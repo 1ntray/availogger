@@ -1,6 +1,6 @@
 export type ContactThread = {id:string;channelId:string;category:string;title:string;currentPath:string|null;status:'OPEN'|'RESOLVED';createdAt:string;updatedAt:string;resolvedAt:string|null;author:{id:string;firstName:string|null;lastName:string|null;email:string}};
 export type ContactMessage = {id:string;body:string;createdAt:string;author:{id:string;firstName:string|null;lastName:string|null}};
-export type InboxItem = {id:string;kind:string;sourceType:string;createdAt:string;readAt:string|null;title:string;summary:string|null;target:{path:string;flightId?:string}|null;flight:unknown;changes:unknown[]};
+export type InboxItem = {id:string;kind:string;sourceType:string;createdAt:string;readAt:string|null;title:string;summary:string|null;target:{path:string;flightId?:string;exchangeId?:string}|null;flight:unknown;changes:unknown[]};
 async function request<T>(path:string,method='GET',body?:object,signal?:AbortSignal):Promise<T>{
   let response:Response;try{response=await fetch(path,{method,signal,credentials:'same-origin',cache:'no-store',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});}
   catch(error){if(signal?.aborted)throw error;throw new Error('Could not reach the portal. Check your connection.');}
