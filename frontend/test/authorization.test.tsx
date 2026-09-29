@@ -69,7 +69,7 @@ describe('admin access editor', () => {
     await render('/duty-ops/swap-history');
     expect(host.querySelector('h1')!.textContent).toBe('My activity');
     expect(host.textContent).toContain('No accepted activity yet');
-    expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
+    expect(api.mock.calls.map(([path]) => path).filter(path => path !== '/api/inbox')).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
   });
   it('loads real user access, distinguishes inherited/explicit permissions, and refreshes on a successful save', async () => {
     await render(); await selectUser();
@@ -117,6 +117,16 @@ describe('admin access editor', () => {
     await render();
     expect(host.querySelector('h1')!.textContent).toBe('Access denied');
     expect(host.querySelector('a[href="/admin/users"]')).toBeNull();
-    expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me']);
+    expect(api.mock.calls.map(([path]) => path).filter(path => path !== '/api/inbox')).toEqual(['/api/me']);
+  });
+  it.each([
+    ['admin.exchange_audit', '/admin/exchanges'],
+    ['contact.webmaster.manage', '/admin/contact'],
+  ])('keeps %s accessible through Administration', async (permission, path) => {
+    currentPermissions = [permission as PermissionKey];
+    await render('/admin');
+    expect(host.querySelector(`.admin-hub a[href="${path}"]`)).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('.current-user')!.click());
+    expect(host.querySelector('.account-menu a[href="/admin"]')).not.toBeNull();
   });
 });
