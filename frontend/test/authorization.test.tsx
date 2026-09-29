@@ -69,7 +69,7 @@ describe('admin access editor', () => {
     await render('/duty-ops/swap-history');
     expect(host.querySelector('h1')!.textContent).toBe('My activity');
     expect(host.textContent).toContain('No accepted activity yet');
-    expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
+    expect(api.mock.calls.map(([path]) => path).filter(path => path !== '/api/inbox')).toEqual(['/api/me', '/api/duty-ops/swaps/history']);
   });
   it('loads real user access, distinguishes inherited/explicit permissions, and refreshes on a successful save', async () => {
     await render(); await selectUser();
@@ -117,6 +117,6 @@ describe('admin access editor', () => {
     await render();
     expect(host.querySelector('h1')!.textContent).toBe('Access denied');
     expect(host.querySelector('a[href="/admin/users"]')).toBeNull();
-    expect(api.mock.calls.map(([path]) => path)).toEqual(['/api/me']);
+    expect(api.mock.calls.map(([path]) => path).filter(path => path !== '/api/inbox')).toEqual(['/api/me']);
   });
 });

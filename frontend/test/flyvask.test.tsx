@@ -43,12 +43,12 @@ async function click(text:string,scope:ParentNode=host.querySelector('dialog')??
 describe('Flyvask navigation and schedule',()=>{
   it('hides navigation and rejects direct routes without view permission',async()=>{
     permissions=['flyvask.swap'];await render();expect(host.textContent).toContain('Access denied');
-    expect(host.querySelector('aside a[href="/flyvask"]')).toBeNull();expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me']);
+    expect(host.querySelector('aside a[href="/flyvask"]')).toBeNull();expect(api.mock.calls.map(([path])=>path).filter(path=>path!=='/api/inbox')).toEqual(['/api/me']);
   });
   it('loads a real route and hides controls without swap permission',async()=>{
     permissions=['flyvask.view'];await render();expect(host.querySelector('h1')!.textContent).toBe('Flyvask');
     expect(host.querySelector('aside a[href="/flyvask"]')).not.toBeNull();expect(host.querySelector('nav[aria-label="Flyvask views"]')).toBeNull();
-    expect(host.textContent).toContain('Schedule');expect(host.textContent).not.toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask']);
+    expect(host.textContent).toContain('Schedule');expect(host.textContent).not.toContain('Look for swap');expect(host.querySelector('.duty-exchanges')).toBeNull();expect(api.mock.calls.map(([path])=>path).filter(path=>path!=='/api/inbox')).toEqual(['/api/me','/api/flyvask']);
   });
   it('shows only look-for-swap, publishes immediately with no type selector or give-away',async()=>{
     await render();await click('Look for swap');
@@ -111,7 +111,7 @@ describe('Flyvask personal history',()=>{
     permissions=['flyvask.view'];await render('/flyvask/swap-history');expect(host.querySelector('h1')!.textContent).toBe('My activity');
     expect(host.querySelector('nav[aria-label="Activity filter"]')).not.toBeNull();expect(host.textContent).toContain('Swapped with Anna');expect(host.textContent).toContain('Gave');expect(host.textContent).toContain('Received');
     expect(host.querySelector('.activity-list time')?.getAttribute('datetime')).toBe(entry.acceptedAt);
-    expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/me','/api/flyvask/swaps/history']);expect(host.querySelectorAll('.activity-list > li')).toHaveLength(1);
+    expect(api.mock.calls.map(([path])=>path).filter(path=>path!=='/api/inbox')).toEqual(['/api/me','/api/flyvask/swaps/history']);expect(host.querySelectorAll('.activity-list > li')).toHaveLength(1);
   });
   it('loads next keyset page and shows separate chain links with graceful name fallback',async()=>{
     let page=0; const original=api.getMockImplementation()!;
