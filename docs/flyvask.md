@@ -1,5 +1,7 @@
 # Flyvask scheduling and direct swaps
 
+Current UI: new Flyvask exchanges use [Exchange v2](exchange-v2.md), with implicit openness to offers, multiple selected targets and server-approved requests directly from the schedule. My upcoming, This week, Exchanges and the full Schedule are separate views of the same effective assignments. There is no give-away. The v1 request/proposal API below remains available for open v1 exchanges until they resolve.
+
 ## FlightLogger discovery
 
 Flyvask is a `MeetingBooking` whose comment satisfies `comment.trim().toUpperCase() === 'FLYVASK'`. Classroom `602` / Hangar UTSA is metadata, never the inclusion rule. Flyvask in another room is included; another meeting in room 602 is excluded. Maintenance bookings are ignored.
@@ -31,7 +33,7 @@ This is the same idempotent reconciliation rule as Duty Ops v2. Original, interm
 
 For touched memberships, the latest portal agreement remains authoritative until a future explicit audited reconciliation policy. Later unrelated administrative changes are not interpreted as revoking portal consent.
 
-## Direct swaps only
+## Original v1 direct-swap flow
 
 Flyvask has no give-away type, claim endpoint, “Take shift” button or one-way transfer. A request always seeks a reciprocal Flyvask assignment.
 
@@ -67,7 +69,7 @@ Lists have 30-item pages and return `nextCursor`; proposals are bounded to 50 pe
 
 ## UI and history
 
-`/flyvask` provides My Flyvask, a date-grouped Schedule and an active Shift exchange workspace. Effective Studentportal participants are primary and drive My Flyvask. Unchanged shifts show a compact FlightLogger source; changed shifts show both sources with Studentportal first, without warning colors. Known participant names plus remaining source slots preserve the privacy-safe “others” presentation. After acceptance, My Flyvask reloads immediately and the received assignment can be re-swapped.
+`/flyvask` provides My upcoming, This week, a compact Exchange summary and the full date-grouped Schedule. Effective Studentportal participants are primary. Differing FlightLogger source assignments are available through an attention disclosure. Known participant names plus remaining source slots preserve the privacy-safe “others” presentation. New Exchange actions consume canonical v2 assignment state; active v1 exchanges retain their original controls. After acceptance, the schedule reloads and the received assignment can be exchanged again.
 
 `/flyvask/swap-history` is a bookmarkable secondary tab. It shows only accepted agreements involving the authenticated requester or accepted proposer, from that viewer's perspective: counterparty, You gave, You received, and acceptance date/time. Unselected proposers cannot read the accepted agreement as their history. There is no user selector or email exposure. Stored consent times keep history displayable after source bookings are removed and foreign keys become NULL. View permission is sufficient even if swap permission was later revoked. Cancelled/withdrawn/not-selected activity stays in audit storage.
 
@@ -95,6 +97,6 @@ For an isolated local verification database, append `-- --persist-to .wrangler/f
 
 ## Limits
 
-FlightLogger remains read-only. Portal acceptance changes operational Studentportal assignments, not FlightLogger bookings. No booking/participant mutations, give-aways, task checklists, notifications, admin approval, automatic matching/scheduling, credits or transport integration are implemented.
+FlightLogger remains read-only. Portal acceptance changes operational Studentportal assignments, not FlightLogger bookings. No booking/participant mutations, give-aways, task checklists, Web Push/email notifications, credits or transport integration are implemented. Exchange v2 can suggest direct and three-way matches; it does not optimize a preference schedule.
 
 Membership discovery is gradual as students use the portal, not real-time cross-account verification. Failed refreshes return usable cached data with a compact stale indicator; new request/proposal/acceptance operations fail closed when required synchronization is stale. Cancellation, withdrawal and history do not require upstream connectivity or a credential. The bounded window/request budget may require a later deliberate pagination design for unusually large schedules.

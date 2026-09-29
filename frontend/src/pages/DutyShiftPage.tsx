@@ -4,8 +4,9 @@ import { completeFuel,loadShiftTasks,type FuelTask,type ShiftTasks } from '../fe
 import { loadDutyOps } from '../features/duty-ops/api';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
+import { ExchangeV2Provider } from '../features/exchange/ExchangeV2';
 import { useCurrentUser } from '../app/CurrentUser';
-import { participantLabel } from '../features/duty-ops/presentation';
+import { dateLabel, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import { AttentionDetail } from '../app/AttentionDetail';
 import { ActionButton, BackLink, PageHeader, RefreshControl } from '../app/controls';
 import { osloDate } from '../dates';
@@ -62,5 +63,10 @@ export function DutyShiftPage(){const {shiftId}=useParams();const [data,setData]
       {!!later.length&&<><h3>Later</h3><TaskList tasks={later} now={now} busy={busy} onComplete={id=>void complete(id)} /></>}
     </section>}
   </section>;
-  return schedule && shift ? <DutyExchanges shifts={schedule.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={false}>{workspace}</DutyExchanges> : workspace;
+  return schedule && shift ? <ExchangeV2Provider domain="DUTY_OPS" assignments={schedule.shifts.map(item => ({
+    id: item.id, label: `${dateLabel(item.startsAt)} · ${timeLabel(item)}`, ownerNames: participantLabel(item),
+    own: item.participants.some(person => person.isCurrentUser),
+  }))} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
+    <DutyExchanges shifts={schedule.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={false} legacyOnly>{workspace}</DutyExchanges>
+  </ExchangeV2Provider> : workspace;
 }

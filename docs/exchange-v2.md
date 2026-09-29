@@ -2,6 +2,14 @@
 
 Exchange v2 is a portal agreement engine for Duty Ops, Flyvask and Brakkevakt. It does not write to FlightLogger. The effective assignment views (and the Brakkevakt published roster) remain the schedule authority. Existing accepted v1 agreements continue to affect the Duty Ops and Flyvask views; existing open v1 requests remain on their original API until resolved.
 
+## Student UI
+
+Exchange v2 is the default for **new** exchanges in all three modules. Own assignment rows open one intent with zero to ten selected targets; posting implicitly permits other eligible offers. Duty Ops may combine selected targets and `allowGiveAway` in the same intent. Flyvask and Brakkevakt have no give-away option. The creation dialog shows relevant existing exchanges first and can browse the normal schedule to select other targets.
+
+An ordinary eligible assignment can show **Request swap**. The server supplies `REQUEST_SWAP` and `requestableSourceAssignmentIds`/`requestableSourceAssignments`; the student chooses one valid owned source, and the POST is revalidated by the server. After posting, the target row shows **Request sent**. The UI does not choose a named recipient: every eligible effective target member can review the assignment request. Rows and the Exchange Center consume canonical relationships, available actions and related IDs. An unselected offer or multi-way candidate shows each user's exact give/receive outcome; prior exact target consent is not requested again. Waiting candidates have no second accept action.
+
+The domain pages show a compact Exchange summary before the full schedule. Inbox announces relevant new work, while the Exchange Center shows current processes. Active v1 requests and proposals remain manageable through the original APIs and appear as **Existing exchanges**; v1 locks do not expose conflicting v2 creation. Accepted v1 history is unchanged. After every v2 mutation the UI reloads server state and the domain schedule instead of predicting the outcome locally.
+
 ## Objects and consent
 
 - An **intent** identifies one currently owned source membership. It may name up to ten explicit target assignments. Posting also allows other eligible members to offer a different assignment. There is no separate “open to offers” toggle. Duty Ops alone may allow a give-away.
@@ -32,7 +40,7 @@ Reconciliation is domain-independent: it evaluates open objects against current 
 
 ## API contract
 
-All endpoints are same-origin JSON behind Cloudflare Access. Mutations require the domain's existing `*.swap` permission and same-origin protection. `GET /api/exchanges/v2/intents?domain=DUTY_OPS&assignmentIds=<comma-separated IDs>` returns visible intents, relevant candidates and canonical `assignmentStates` with `relationship`, `availableActions` and related IDs. The schedule, Exchange Center and later Calendar should consume these actions rather than deriving them from separate arrays. At most 100 requested assignment IDs are accepted. Past/non-exchangeable assignments have no exchange action. A read also reconciles stale v2 objects.
+All endpoints are same-origin JSON behind Cloudflare Access. Mutations require the domain's existing `*.swap` permission and same-origin protection. `GET /api/exchanges/v2/intents?domain=DUTY_OPS&assignmentIds=<comma-separated IDs>` returns visible intents, relevant candidates and canonical `assignmentStates` with `relationship`, `availableActions`, related IDs, valid request sources and offerable intent IDs. At most 100 requested assignment IDs are accepted per call; the frontend chunks larger schedules. Past/non-exchangeable assignments have no exchange action. A read also reconciles stale v2 objects.
 
 | Operation | Route | JSON body |
 | --- | --- | --- |

@@ -10,14 +10,17 @@ import { ActionButton } from '../../app/controls';
 import { Link, useLocation } from 'react-router';
 import { ExchangeStart } from '../exchange/ExchangeStart';
 import { hasOwnOpenOffer, openProposals, openRequests, ownOfferFor, ownRequestFor } from '../exchange/v1-presentation';
+import { ExchangeV2AssignmentAction } from '../exchange/ExchangeV2';
 
 type DialogState = { kind: 'start'; shift: FlyvaskShift } | { kind: 'create'; shift: FlyvaskShift } | { kind: 'cancel' | 'propose'; request: ExchangeRequest }
   | { kind: 'accept' | 'withdraw'; request: ExchangeRequest; proposal: ExchangeProposal };
-type Controls = { enabled: boolean; busy: boolean; data: ExchangesResponse | null; now: number; hasEligibleShift: boolean; open: (dialog: DialogState, offeredId?: string) => void };
+type Controls = { enabled: boolean; busy: boolean; data: ExchangesResponse | null; now: number; hasEligibleShift: boolean;
+  legacyOnly: boolean; open: (dialog: DialogState, offeredId?: string) => void };
 const ExchangeContext = createContext<Controls | null>(null);
 export function ExchangeShiftActions({ shift }: { shift: FlyvaskShift }) {
   const state = useContext(ExchangeContext);
-  if (!state?.enabled || shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now) return null;
+  if (!state?.enabled || (!state.legacyOnly && (shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now))) return null;
+  if (state.legacyOnly && !state.data) return null;
   const own = shift.participants.some(p => p.isCurrentUser);
   const requests = state.data?.requests ?? [];
   const userId = state.data?.currentUserId ?? '';
@@ -33,16 +36,17 @@ export function ExchangeShiftActions({ shift }: { shift: FlyvaskShift }) {
     if (offer) return <div className="exchange-assignment-state"><span>Offer sent</span><ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
       <Link to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</Link></div>;
     if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><Link to="/flyvask/exchanges">Open exchange center</Link></div>;
-    return <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'start', shift })}>Exchange</ActionButton>;
+    return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> :
+      <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'start', shift })}>Exchange</ActionButton>;
   }
   const request = openRequests(requests).find(item => item.requestedShift.id === shift.id);
-  if (!request) return null;
+  if (!request) return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> : null;
   if (hasOwnOpenOffer(request, userId)) return <span className="exchange-inline-status">Offer sent</span>;
   return <div className="exchange-assignment-state"><span>Swap wanted</span>{request.eligible && state.hasEligibleShift &&
     <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'propose', request })}>Offer your shift</ActionButton>}</div>;
 }
 
-export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged, showBoard = false }: { children: ReactNode; shifts: FlyvaskShift[]; now: number; refreshKey: number; onChanged?: () => void; showBoard?: boolean }) {
+export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged, showBoard = false, legacyOnly = false }: { children: ReactNode; shifts: FlyvaskShift[]; now: number; refreshKey: number; onChanged?: () => void; showBoard?: boolean; legacyOnly?: boolean }) {
   const { user } = useCurrentUser();
   const enabled = user?.permissions?.includes(PERMISSIONS.flyvaskSwap) === true;
   const [data, setData] = useState<ExchangesResponse | null>(null);
@@ -131,18 +135,19 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged,
     if (!showBoard || !data || !location.hash.startsWith('#flyvask-exchange-')) return;
     document.getElementById(decodeURIComponent(location.hash.slice(1)))?.focus();
   }, [data, location.hash, showBoard]);
-  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, open }}>{children}
-    {enabled && !showBoard && <section className="exchange-overview" aria-labelledby="flyvask-exchange-overview"><h2 id="flyvask-exchange-overview">Exchanges</h2>
+  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, legacyOnly, open }}>{children}
+    {enabled && !showBoard && (!legacyOnly || active.length > 0 || !!error) && <section className="exchange-overview" aria-labelledby="flyvask-exchange-overview"><h2 id="flyvask-exchange-overview">{legacyOnly ? 'Existing exchanges' : 'Exchanges'}</h2>
       {error && <p role="alert" className="duty-alert">{error}</p>}
       {data && !data.nextCursor && <p>Available {available.length} · Your requests {ownRequests.length} · Offers for you {offersForYou}</p>}
       <Link to="/flyvask/exchanges">View exchange center →</Link>
     </section>}
-    {enabled && showBoard && <section className="duty-exchanges" aria-label="Exchanges">
+    {enabled && showBoard && (!legacyOnly || active.length > 0 || !!error || loading) && <section className="duty-exchanges" aria-label={legacyOnly ? 'Existing exchanges' : 'Exchanges'}>
+      {legacyOnly && active.length > 0 && <h2>Existing exchanges</h2>}
       {loading && <p role="status" className="duty-loading">Loading swaps…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
       {data && <>{available.length > 0 && <>{mine.length > 0 && <h3>Available</h3>}<ul>{available.map(renderRequest)}</ul></>}
         {mine.length > 0 && <>{available.length > 0 && <h3>Mine</h3>}<ul>{mine.map(renderRequest)}</ul></>}
-        {!active.length && <p className="duty-empty">No open exchanges</p>}
+        {!legacyOnly && !active.length && <p className="duty-empty">No open exchanges</p>}
         {data.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more swaps</button>}</>}
     </section>}
     {dialog && <dialog ref={dialogRef} className={`exchange-dialog${dialog.kind === 'start' ? ' exchange-dialog-start' : ''}`} aria-labelledby="flyvask-dialog-title" onCancel={e => { e.preventDefault(); if (!busy) setDialog(null); }}>

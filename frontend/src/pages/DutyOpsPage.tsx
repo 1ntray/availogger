@@ -4,10 +4,11 @@ import { OnboardingRequiredError } from '../api';
 import { cacheAgeLabel } from '../cache-age';
 import { osloDate } from '../dates';
 import { loadDutyOps } from '../features/duty-ops/api';
-import { dateLabel, dutySections } from '../features/duty-ops/presentation';
+import { dateLabel, dutySections, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { ShiftList } from '../features/duty-ops/ShiftList';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
+import { ExchangeV2Provider, ExchangeV2Summary } from '../features/exchange/ExchangeV2';
 import { AttentionDetail } from '../app/AttentionDetail';
 import { BackLink, PageHeader, RefreshControl } from '../app/controls';
 import '../features/duty-ops/duty-ops.css';
@@ -39,6 +40,9 @@ export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
   }, [reload, today, refresh]);
   const sections = data ? dutySections(data.shifts, now) : null;
   const center = view === 'exchanges';
+  const assignments = data?.shifts.map(shift => ({ id: shift.id,
+    label: `${dateLabel(shift.startsAt)} · ${timeLabel(shift)}`,
+    ownerNames: participantLabel(shift), own: shift.participants.some(person => person.isCurrentUser) })) ?? [];
   return <section className="duty-ops">
     {center && <BackLink to="/duty-ops">Duty Ops</BackLink>}
     <PageHeader title={center ? 'Exchanges' : 'Duty Ops'}><RefreshControl label="Duty Ops" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>
@@ -46,15 +50,17 @@ export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
     {loading && !data && <p className="duty-loading" role="status">Loading Duty Ops…</p>}
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <div role="status"><AttentionDetail label="Schedule may be out of date"><p>{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p></AttentionDetail></div>}
-    {sections && data && <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center} showOverview={!center} afterBoard={!center && sections.schedule.length > 0 &&
-      <section className="duty-schedule" aria-labelledby="duty-schedule"><h2 id="duty-schedule">Upcoming schedule</h2>
+    {sections && data && <ExchangeV2Provider domain="DUTY_OPS" assignments={assignments} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
+      <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center} showOverview={!center} legacyOnly afterBoard={!center && sections.schedule.length > 0 &&
+      <section id="exchange-schedule" className="duty-schedule" aria-labelledby="duty-schedule"><h2 id="duty-schedule">Upcoming schedule</h2>
         {sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>)}
       </section>}>
       {!center && <div className="duty-summary">
         {(sections.mine.length > 0 || sections.onDutyNow.length === 0) && <section aria-labelledby="duty-mine"><h2 id="duty-mine">My upcoming shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming shifts</p>}</section>}
         {sections.onDutyNow.length > 0 && <section aria-labelledby="duty-now"><h2 id="duty-now">On duty now</h2><ShiftList shifts={sections.onDutyNow} linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>}
       </div>}
-    </DutyExchanges>}
+      <ExchangeV2Summary domain="DUTY_OPS" center={center} />
+    </DutyExchanges></ExchangeV2Provider>}
   </section>;
 }
 export function DutyExchangeCenterPage() { return <DutyOpsPage view="exchanges" />; }

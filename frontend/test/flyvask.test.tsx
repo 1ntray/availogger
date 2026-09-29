@@ -29,6 +29,11 @@ beforeEach(()=>{
   host=document.createElement('div');document.body.append(host);root=createRoot(host);
   api=vi.fn(async(path:string,init:RequestInit={})=>{
     if(path==='/api/me') return Response.json({email:'student@test',subject:'me',firstName:'Simon',lastName:null,onboardingComplete:true,hasFlightLoggerCredential:true,flightLoggerUserId:'fl-me',roles:['STUDENT'],permissions});
+    if(path.startsWith('/api/exchanges/v2/intents?')) return Response.json({domain:'FLYVASK',currentUserId:'me',timeZone:'Europe/Oslo',intents:[],candidates:[],assignmentStates:data.shifts.map(shift=>({
+      assignmentId:shift.id,relationship:shift.participants.some(person=>person.isCurrentUser)?'OWN_IDLE':'NONE',
+      availableActions:shift.status==='OPEN'&&Date.parse(shift.startsAt)>now&&shift.participants.some(person=>person.isCurrentUser)&&!locks.includes(shift.id)?['OPEN_EXCHANGE']:[],
+      relatedIntentIds:[],relatedCandidateIds:[],requestableSourceAssignmentIds:[],requestableSourceAssignments:[],offerableIntentIds:[],
+    }))});
     if(init.method==='POST') return Response.json({id:'request'});
     if(path==='/api/flyvask') return Response.json(data);
     if(path.startsWith('/api/flyvask/swaps/history')) return Response.json({entries,nextCursor:null});
@@ -54,9 +59,9 @@ describe('Flyvask navigation and schedule',()=>{
     await render();await click('Exchange');
     expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
     expect(api.mock.calls.some(([,init])=>init?.method==='POST')).toBe(false);
-    await click('Post my assignment for swap');await click('Publish request');
+    await click('Post exchange');
     const post=api.mock.calls.find(([,init])=>init?.method==='POST')!;
-    expect(post[0]).toBe('/api/flyvask/swaps');expect(JSON.parse(post[1].body)).toEqual({shiftId:'a',startsAt:a.startsAt,endsAt:a.endsAt});
+    expect(post[0]).toBe('/api/exchanges/v2/intents');expect(JSON.parse(post[1].body)).toEqual({domain:'FLYVASK',sourceAssignmentId:'a',targetAssignmentIds:[],allowGiveAway:false});
     expect(host.textContent).not.toMatch(/Give away|Take shift|Exchange type/);expect(host.querySelector('[name="exchange-type"]')).toBeNull();
   });
   it('shows effective own Flyvask inline with source labels/counts without inferring masked identities',async()=>{
@@ -95,13 +100,15 @@ describe('Flyvask direct swap workspace',()=>{
     expect(host.querySelector('.exchange-row')?.textContent).not.toContain('Offer one of my Flyvask shifts');
     expect(host.querySelector('.exchange-row')?.textContent).toContain('Withdraw offer');
   });
-  it('offers an existing swap from the intermediate dialog using 24-hour Oslo time',async()=>{
+  it('uses the v2 selection dialog while existing v1 swaps remain in the center',async()=>{
     requests=[{...request,requester:proposal.proposer,requestedShift:b,proposals:[]}];
     await render();await click('Exchange');
-    expect(host.querySelector('dialog')?.textContent).toContain('Sat 24 Oct · 18:00–20:00');
+    expect(host.querySelector('dialog')?.textContent).toContain('Sat 17 Oct · 18:00–20:00');
     expect(host.querySelector('dialog')?.textContent).not.toMatch(/\b(?:AM|PM)\b/);
-    await click('Offer your assignment');
-    expect(host.querySelector<HTMLSelectElement>('dialog select')?.value).toBe('a');
+    expect(host.querySelector('dialog select')).toBeNull();
+    await click('Cancel');
+    await act(async()=>host.querySelector<HTMLAnchorElement>('a[href="/flyvask/exchanges"]')!.click());
+    expect([...host.querySelectorAll('.duty-exchanges')].some(section => section.textContent?.includes('Anna'))).toBe(true);
   });
   it('compares multiple offers, confirms both shifts and immediately reloads effective assignments',async()=>{
     requests=[{...request,proposals:[proposal,{...proposal,id:'other',proposer:{id:'erik',firstName:'Erik',lastName:null}}]}];locks=['a'];
