@@ -10,6 +10,7 @@ import { ActionButton, PageHeader, RefreshControl } from '../app/controls';
 import { BackLink } from '../app/controls';
 import { Link, useLocation } from 'react-router';
 import { ExchangeStart } from '../features/exchange/ExchangeStart';
+import { ExchangeV2AssignmentAction, ExchangeV2Provider, ExchangeV2Summary, useExchangeV2 } from '../features/exchange/ExchangeV2';
 import { hasOwnOpenOffer, openProposals, openRequests, ownOfferFor, ownRequestFor } from '../features/exchange/v1-presentation';
 import '../features/duty-ops/duty-ops.css';
 import '../features/duty-ops/exchanges.css';
@@ -52,6 +53,10 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
   const upcoming = data?.weeks.filter(w => w.weekStart > (data?.currentWeekStart ?? today)) ?? [];
   const mine = data?.weeks.filter(w => addDays(w.weekStart, 7) > today && w.assignments.some(a => a.user.id === data.currentUserId)) ?? [];
   const eligible = mine.flatMap(w => w.assignments.filter(a => a.user.id === data?.currentUserId && !swaps?.lockedAssignmentIds.includes(a.id)).map(a => ({ ...a, weekStart: w.weekStart })));
+  const assignments = data?.weeks.flatMap(week => week.assignments.map(assignment => ({
+    id: assignment.id, label: compactWeekTitle(week.weekStart), ownerNames: personName(assignment.user),
+    own: assignment.user.id === data.currentUserId,
+  }))) ?? [];
   const open = (next: Dialog, selectedAssignmentId = '') => { if (!dialog) opener.current = document.activeElement as HTMLElement; setSwapError(''); setOfferedId(selectedAssignmentId); setDialog(next); };
   async function mutate(path: string, body: object = {}) {
     if (saving.current) return;
@@ -77,6 +82,7 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
     finally { saving.current = false; setBusy(false); }
   }
   function Week({ week, action = false }: { week: BrakkevaktWeek; action?: boolean }) {
+    const exchange = useExchangeV2();
     const assignment = data && ownAssignment(week, data.currentUserId);
     const active = openRequests(swaps?.requests ?? []);
     const userId = swaps?.currentUserId ?? '';
@@ -93,10 +99,17 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
           : offer ? <div className="exchange-assignment-state"><span>Offer sent</span><ActionButton disabled={busy} onClick={() => open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
             <Link to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</Link></div>
           : swaps?.lockedAssignmentIds.includes(assignment.id) ? <div className="exchange-assignment-state"><span>Exchange active</span><Link to="/brakkevakt/exchanges">Open exchange center</Link></div>
-          : <ActionButton disabled={busy || !swaps} onClick={() => open({ kind: 'start', assignmentId: assignment.id, weekStart: week.weekStart })}>Exchange</ActionButton>
+          : swaps && <ExchangeV2AssignmentAction assignmentId={assignment.id} />
         : otherRequest ? <div className="exchange-assignment-state"><span>{hasOwnOpenOffer(otherRequest, userId) ? 'Offer sent' : 'Swap wanted'}</span>
             {otherRequest.eligible && !hasOwnOpenOffer(otherRequest, userId) && eligible.some(a => a.weekStart !== otherRequest.requestedWeekStart) &&
-              <ActionButton disabled={busy} onClick={() => open({ kind: 'propose', request: otherRequest })}>Offer your week</ActionButton>}</div> : null)}
+              <ActionButton disabled={busy} onClick={() => open({ kind: 'propose', request: otherRequest })}>Offer your week</ActionButton>}</div>
+          : swaps && week.assignments.filter(slot => {
+            const state = exchange?.state(slot.id);
+            return state && (state.availableActions.length > 0 || state.relationship === 'REQUEST_SENT' ||
+              state.relationship === 'SWAP_AVAILABLE');
+          }).map(slot => <div className="brakkevakt-exchange-target" key={slot.id}>
+            {week.assignments.length > 1 && <span>{personName(slot.user)}</span>}
+            <ExchangeV2AssignmentAction assignmentId={slot.id} /></div>))}
     </li>;
   }
   function renderRequest(request: BrakkevaktSwapRequest) {
@@ -119,29 +132,26 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
   const active = openRequests(swaps?.requests ?? []).map(request => ({ ...request, proposals: openProposals(request) }));
   const ownRequests = active.filter(r => r.requester.id === swaps?.currentUserId || r.proposals.some(p => p.proposer.id === swaps?.currentUserId));
   const available = active.filter(r => r.requester.id !== swaps?.currentUserId && r.eligible && !ownRequests.includes(r));
-  const posted = active.filter(r => r.requester.id === swaps?.currentUserId);
-  const offersForYou = posted.reduce((count, request) => count + request.proposals.length, 0);
   useEffect(() => {
     if (!center || !swaps || !location.hash.startsWith('#brakkevakt-exchange-')) return;
     document.getElementById(decodeURIComponent(location.hash.slice(1)))?.focus();
   }, [center, swaps, location.hash]);
-  return <section className="duty-ops brakkevakt">
+  return <ExchangeV2Provider domain="BRAKKEVAKT" assignments={assignments} refreshKey={reload} onChanged={() => setReload(v => v + 1)}><section className="duty-ops brakkevakt">
     {center && <BackLink to="/brakkevakt">Brakkevakt</BackLink>}
     <PageHeader title={center ? 'Exchanges' : 'Brakkevakt'}><div className="duty-heading-actions">{!center && user?.permissions.includes(PERMISSIONS.brakkevaktManageSchedule) && <Link to="/brakkevakt/manage">Manage schedule</Link>}<RefreshControl label="Brakkevakt" onRefresh={() => setReload(v => v + 1)} loading={loading} retry={!!error} /></div></PageHeader>
     {loading && !data && <p role="status" className="duty-loading">Loading Brakkevakt…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
-    {data && !center && <><section><h2>This week</h2>{current ? <ul><Week week={current} action /></ul> : <p className="duty-empty">No one scheduled this week</p>}</section>
-      {upcoming.length > 0 && <section><h2>Upcoming</h2><ul>{upcoming.map(w => <Week key={w.id} week={w} action />)}</ul></section>}
-    </>}
-    {canSwap && !center && <section className="exchange-overview" aria-labelledby="brakkevakt-swap-overview"><h2 id="brakkevakt-swap-overview">Exchanges</h2>
-      {swapError && <p role="alert" className="duty-alert">{swapError}</p>}
-      {swaps && !swaps.nextCursor && <p>Available {available.length} · Your requests {posted.length} · Offers for you {offersForYou}</p>}
-      <Link to="/brakkevakt/exchanges">View exchange center →</Link>
-    </section>}
-    {canSwap && center && <section className="duty-exchanges" aria-label="Exchanges">
+    {data && !center && <div className="brakkevakt-grid">
+      <section><h2>My upcoming</h2>{mine.length ? <ul>{mine.map(w => <Week key={w.id} week={w} action />)}</ul> : <p className="duty-empty">No upcoming weeks</p>}</section>
+      <section><h2>This week</h2>{current ? <ul><Week week={current} action /></ul> : <p className="duty-empty">No one scheduled this week</p>}</section>
+    </div>}
+    <ExchangeV2Summary domain="BRAKKEVAKT" center={center} />
+    {swapError && <p role="alert" className="duty-alert">{swapError}</p>}
+    {data && !center && <section id="exchange-schedule"><h2>Schedule</h2><ul>{[...(current ? [current] : []), ...upcoming].map(w => <Week key={w.id} week={w} action />)}</ul></section>}
+    {canSwap && center && (active.length > 0 || !!swapError) && <section className="duty-exchanges" aria-label="Existing exchanges">
+      {active.length > 0 && <h2>Existing exchanges</h2>}
       {swapError && !dialog && <p role="alert" className="duty-alert">{swapError}</p>}
       {swaps && <>{available.length > 0 && <><h3>Available swaps</h3><ul>{available.map(renderRequest)}</ul></>}
         {ownRequests.length > 0 && <><h3>My swaps</h3><ul>{ownRequests.map(renderRequest)}</ul></>}
-        {!active.length && <p className="duty-empty">No open exchanges</p>}
         {swaps.nextCursor && <button disabled={busy} onClick={() => void more()}>Load more swaps</button>}</>}
     </section>}
     {dialog && <dialog ref={dialogRef} className={`exchange-dialog${dialog.kind === 'start' ? ' exchange-dialog-start' : ''}`} aria-labelledby="brakkevakt-dialog-title" onCancel={e => { e.preventDefault(); if (!busy) setDialog(null); }}>
@@ -161,6 +171,6 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
         <div className="exchange-actions"><ActionButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>{dialog.kind === 'start' ? 'Close' : 'Cancel'}</ActionButton>
           {dialog.kind !== 'start' && <ActionButton variant="primary" type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'create' ? 'Publish request' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'propose' ? 'Offer week' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Cancel request'}</ActionButton>}</div>
       </form></dialog>}
-  </section>;
+  </section></ExchangeV2Provider>;
 }
 export function BrakkevaktExchangeCenterPage() { return <BrakkevaktPage view="exchanges" />; }

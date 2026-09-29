@@ -26,10 +26,17 @@ beforeEach(() => {
   api = vi.fn(async (path: string, init: RequestInit = {}) => {
     if (path === '/api/me') return Response.json({ email: 'alice@private.test', subject: 'alice', firstName: 'Alice', lastName: 'Andersson',
       onboardingComplete: true, hasFlightLoggerCredential: true, flightLoggerUserId: 'fl-a', roles: ['STUDENT'], permissions });
+    if (path.startsWith('/api/exchanges/v2/intents?')) return Response.json({ domain: 'BRAKKEVAKT', currentUserId: 'a', timeZone: 'Europe/Oslo',
+      intents: [], candidates: [], assignmentStates: schedule.weeks.flatMap(week => week.assignments.map(slot => ({
+        assignmentId: slot.id, relationship: slot.user.id === 'a' ? 'OWN_IDLE' : 'NONE',
+        availableActions: slot.user.id === 'a' && !locks.includes(slot.id) ? ['OPEN_EXCHANGE'] : [],
+        relatedIntentIds: [], relatedCandidateIds: [], requestableSourceAssignmentIds: [], requestableSourceAssignments: [], offerableIntentIds: [],
+      }))) });
     if (path === '/api/brakkevakt') return Response.json(schedule);
     if (path === '/api/brakkevakt/roster') return Response.json({ students: users });
     if (path.startsWith('/api/brakkevakt/schedule/') && init.method === 'PUT') return Response.json({ revision: 1 });
     if (path === '/api/brakkevakt/swaps') return init.method === 'POST' ? Response.json({ id: 'request' }) : Response.json({ currentUserId: 'a', requests: swapRequests, lockedAssignmentIds: locks, nextCursor: null });
+    if (path === '/api/exchanges/v2/intents' && init.method === 'POST') return Response.json({ id: 'intent' });
     if (path === '/api/brakkevakt/swaps/history') return Response.json({ entries: [], nextCursor: null });
     throw new Error(`Unexpected API ${path}`);
   });
@@ -49,14 +56,16 @@ describe('Brakkevakt portal UI', () => {
     expect(row.querySelector('button')?.textContent).toBe('Cancel');
     expect(row.querySelector('a[href^="/brakkevakt/exchanges#"]')?.textContent).toBe('Review offers');
   });
-  it('browses an existing week exchange before posting and preselects the own week', async () => {
+  it('starts a v2 week exchange without posting to the old endpoint', async () => {
     swapRequests = [{ id: 'request', requester: users[2], requestedAssignmentId: 'slot-c', requestedWeekStart: '2026-10-05', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z', proposals: [] }];
     await render();
     await click([...host.querySelectorAll<HTMLButtonElement>('.brakkevakt-week button')].find(button => button.textContent === 'Exchange')!);
-    expect(host.querySelector('dialog')?.textContent).toContain('Carl Carlsson wants to swap');
+    expect(host.querySelector('dialog')?.textContent).toContain('Your assignment');
     expect(api.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
-    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Offer your assignment')!);
-    expect(host.querySelector<HTMLSelectElement>('dialog select')?.value).toBe('slot-a');
+    expect(host.querySelector<HTMLSelectElement>('dialog select')).toBeNull();
+    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Post exchange')!);
+    expect(JSON.parse(api.mock.calls.find(([path, init]) => path === '/api/exchanges/v2/intents' && init?.method === 'POST')![1].body))
+      .toMatchObject({ domain: 'BRAKKEVAKT', sourceAssignmentId: 'slot-a', allowGiveAway: false });
   });
   it('keeps sent offers on the own week and hides a repeat offer action', async () => {
     swapRequests = [{ id: 'request', requester: users[2], requestedAssignmentId: 'slot-c', requestedWeekStart: '2026-10-05', status: 'OPEN', eligible: true, createdAt: '2026-09-28T07:00:00Z',
@@ -79,12 +88,11 @@ describe('Brakkevakt portal UI', () => {
     await click(button);
     expect(host.querySelector('dialog')?.textContent).toContain('Available exchanges');
     expect(api.mock.calls.some(([path, init]) => path === '/api/brakkevakt/swaps' && init?.method === 'POST')).toBe(false);
-    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(b => b.textContent === 'Post my assignment for swap')!);
-    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(b => b.textContent === 'Publish request')!);
-    expect(api.mock.calls.some(([path, init]) => path === '/api/brakkevakt/swaps' && init?.method === 'POST'
-      && JSON.parse(init.body).assignmentId === 'slot-a')).toBe(true);
+    await click([...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(b => b.textContent === 'Post exchange')!);
+    expect(api.mock.calls.some(([path, init]) => path === '/api/exchanges/v2/intents' && init?.method === 'POST'
+      && JSON.parse(init.body).sourceAssignmentId === 'slot-a')).toBe(true);
     expect(host.querySelector('a[href="/brakkevakt/swap-history"]')).toBeNull();
-    expect(host.querySelectorAll('.brakkevakt-week')).toHaveLength(2);
+    expect(host.querySelectorAll('.brakkevakt-week')).toHaveLength(4);
     expect(host.querySelector('a[href="/brakkevakt/manage"]')).toBeNull();
   });
   it('allows a designated student manager to prepare 10 unsaved weeks from a name-only roster', async () => {
