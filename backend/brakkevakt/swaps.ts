@@ -2,6 +2,7 @@ import { ApplicationError } from '../application-error';
 import type { ApplicationUser } from '../users';
 import type { BrakkevaktSwaps, BrakkevaktSwapRequest, BrakkevaktSwapProposal, BrakkevaktSwapHistory } from '../../shared/brakkevakt';
 import { osloDay, plusDays } from './week';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 
 export function swapId(value: unknown): string {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
@@ -94,6 +95,7 @@ export async function acceptSwap(db: D1Database, actor: ApplicationUser, request
       db.prepare('DELETE FROM brakkevakt_swap_reservations WHERE request_id = ?').bind(requestId),
       event(db, requestId, actor, 'PROPOSAL_ACCEPTED', now, proposalId),
     ]);
+  await reconcileExchangeV2IfInstalled(db, 'BRAKKEVAKT');
   return { id: requestId };
 }
 export async function cancelSwap(db: D1Database, actor: ApplicationUser, id: string) {

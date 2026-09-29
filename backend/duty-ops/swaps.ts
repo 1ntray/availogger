@@ -1,6 +1,7 @@
 import { activeReservations, effectiveAssignments } from './effective-assignments';
 import { creditAboveFloor, creditSummary, coverageTransfer, reconcileCoverage, reconcileCoverageStatement } from './credits';
 import { ApplicationError } from '../application-error';
+import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 import type { ApplicationUser } from '../users';
 import type { ExchangeRequest, ExchangeProposal, ExchangesResponse, ExchangeType, RequestStatus, ProposalStatus } from '../../shared/duty-ops-swaps';
 
@@ -92,6 +93,7 @@ export async function claimGiveAway(db: D1Database, actor: ApplicationUser, id: 
       db.prepare(`INSERT INTO duty_ops_swap_events SELECT ?, id, ?, 'GIVE_AWAY_CLAIMED', NULL, accepted_at
         FROM duty_ops_swap_requests WHERE id = ?`).bind(crypto.randomUUID(), actor.id, id),
     ], { userExpression: '(SELECT requester_user_id FROM duty_ops_swap_requests WHERE id = ?)', value: id, own: false });
+  await reconcileExchangeV2IfInstalled(db, 'DUTY_OPS');
   return { id };
 }
 export async function createProposal(db: D1Database, actor: ApplicationUser, id: string, shiftId: string, expected: { startsAt: string; endsAt: string }) {
@@ -142,6 +144,7 @@ export async function acceptProposal(db: D1Database, actor: ApplicationUser, id:
       db.prepare('DELETE FROM duty_ops_swap_reservations WHERE request_id = ?').bind(id),
       event(db, id, actor, 'PROPOSAL_ACCEPTED', now, proposalId),
     ]);
+  await reconcileExchangeV2IfInstalled(db, 'DUTY_OPS');
   return { id };
 }
 export async function cancelExchange(db: D1Database, actor: ApplicationUser, id: string) {
@@ -151,6 +154,7 @@ export async function cancelExchange(db: D1Database, actor: ApplicationUser, id:
     db.prepare(`UPDATE duty_ops_swap_proposals SET status = 'NOT_SELECTED', updated_at = ? WHERE request_id = ? AND status = 'OPEN'`).bind(now, id),
     db.prepare('DELETE FROM duty_ops_swap_reservations WHERE request_id = ?').bind(id), event(db, id, actor, 'REQUEST_CANCELLED', now),
   ]);
+  await reconcileExchangeV2IfInstalled(db, 'DUTY_OPS');
   return { id };
 }
 export async function withdrawProposal(db: D1Database, actor: ApplicationUser, id: string, proposalId: string) {
