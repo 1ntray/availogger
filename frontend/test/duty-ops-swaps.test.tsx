@@ -126,7 +126,8 @@ describe('Duty Ops shift exchange UI', () => {
     expect(host.textContent).not.toContain('Not selected'); expect(host.textContent).not.toContain('Exchange agreed');
     expect([...host.querySelectorAll('button')].some(b => /Choose this swap|Cancel request|Withdraw offer/.test(b.textContent!))).toBe(false);
     // This isolated component cannot replace its parent's read model; the page reloads it.
-    expect(host.querySelector('.duty-row')!.textContent).toContain('Simon Student');
+    expect(host.querySelector('.duty-row .duty-participants')!.textContent).toMatch(/^You/);
+    expect(host.querySelector('.duty-row .people-code.is-you')!.textContent).toBe('SST');
   });
   it('offers only eligible owned unreserved shifts', async () => {
     data.requests = [makeRequest({ type: 'DIRECT_SWAP' })]; await render([own, { ...own, id: 'cancelled', status: 'CANCELLED' }, { ...own, id: 'someone-else', participants: [] }]);
