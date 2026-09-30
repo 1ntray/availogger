@@ -1,21 +1,60 @@
 /* Existing Studentportal values. Reuse these before adding a new visual pattern. */
 :root {
-  --portal-navy: #172833;
+  color-scheme: light;
+  --portal-text: #172833;
+  --portal-header-background: #172833;
   --portal-background: #f5f7f7;
-  --portal-surface: #fff;
+  --portal-surface: #ffffff;
+  --portal-surface-muted: #f8faf9;
+  --portal-sidebar: #edf2f1;
+  --portal-sidebar-border: #d9e2e1;
   --portal-border: #d7e1df;
+  --portal-divider: #e1e8e4;
   --portal-control-border: #cbd6d9;
   --portal-control-text: #243b47;
+  --portal-secondary: #50656e;
   --portal-muted: #60767c;
+  --portal-nav-text: #687d83;
   --portal-accent: #23775e;
+  --portal-accent-fill: #23775e;
+  --portal-accent-fill-hover: #195a46;
+  --portal-on-accent: #ffffff;
   --portal-focus: #238568;
   --portal-control-hover: #eef4f2;
   --portal-nav-hover: #e0eae6;
   --portal-nav-active: #d5e8df;
   --portal-nav-active-text: #165c46;
+  --portal-highlight: #ecf4ef;
+  --portal-highlight-border: #328767;
   --portal-header-text: #d0dcdf;
+  --portal-header-strong: #ffffff;
+  --portal-header-subtle: #b7c5ca;
   --portal-header-border: #ffffff24;
   --portal-header-hover: #ffffff0d;
+  --portal-brand-mark: #67d4ae;
+  --portal-badge: #d5e8df;
+  --portal-badge-text: #165c46;
+  --portal-brand-mark-text: #12362e;
+  --portal-warning-text: #855b22;
+  --portal-warning-dot: #b57c25;
+  --portal-warning-border: #dfc597;
+  --portal-danger-text: #8b5143;
+  --portal-danger-strong: #9b3e36;
+  --portal-danger-background: #fff6f1;
+  --portal-danger-border: #e6c9b9;
+  --portal-danger-accent: #ad614d;
+  --portal-shadow: 0 2px 8px #17283314;
+  --portal-backdrop: rgb(20 35 44 / 45%);
+  --portal-calendar-available: #a9dfbf;
+  --portal-calendar-unavailable: #e9ada6;
+  --portal-calendar-undefined: #e1e7e9;
+  --portal-calendar-grid: #dbe3e5;
+  --portal-calendar-head: #f0f4f4;
+  --portal-calendar-weekend: #e9eeee;
+  --portal-calendar-corner: #e7eeed;
+  --portal-calendar-month-rule: #b9c9ce;
+  --portal-calendar-week-rule: #819aa3;
+  --portal-calendar-hover: #204c5a;
   --portal-radius: 6px;
   --portal-control-height: 40px;
   --portal-touch-height: 44px;
@@ -23,4 +62,68 @@
   --portal-space-2: 8px;
   --portal-space-3: 12px;
   --portal-space-4: 16px;
+}
+
+/*
+ * Dark theme: a separate palette, not an inversion. Surfaces step up in lightness
+ * (background < surface < raised), the navy/teal hue is kept throughout, the accent is
+ * lifted to a mint that reads on dark surfaces, and status colours are desaturated so
+ * they do not glow. Applied by the theme bootstrap in index.html (data-theme="dark").
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --portal-text: #e2eaec;
+  --portal-header-background: #0b161c;
+  --portal-background: #101c22;
+  --portal-surface: #16252c;
+  --portal-surface-muted: #1a2a31;
+  --portal-sidebar: #0e1a20;
+  --portal-sidebar-border: #1f2f36;
+  --portal-border: #283a42;
+  --portal-divider: #22333a;
+  --portal-control-border: #34484f;
+  --portal-control-text: #d3dee1;
+  --portal-secondary: #a9b9be;
+  --portal-muted: #8ea2a8;
+  --portal-nav-text: #8ea2a8;
+  --portal-accent: #5fc9a2;
+  --portal-accent-fill: #4fb892;
+  --portal-accent-fill-hover: #66cda7;
+  --portal-on-accent: #07261c;
+  --portal-focus: #5fc9a2;
+  --portal-control-hover: #1e3038;
+  --portal-nav-hover: #172a31;
+  --portal-nav-active: #173a30;
+  --portal-nav-active-text: #86dcbc;
+  --portal-highlight: #15302a;
+  --portal-highlight-border: #4fb892;
+  --portal-header-text: #b8c7cb;
+  --portal-header-strong: #eef4f5;
+  --portal-header-subtle: #8ea2a8;
+  --portal-header-border: #ffffff1f;
+  --portal-header-hover: #ffffff0f;
+  --portal-brand-mark: #5fc9a2;
+  --portal-badge: #5fc9a2;
+  --portal-badge-text: #07261c;
+  --portal-brand-mark-text: #07261c;
+  --portal-warning-text: #e3b86e;
+  --portal-warning-dot: #d49b42;
+  --portal-warning-border: #6b5530;
+  --portal-danger-text: #f0a08f;
+  --portal-danger-strong: #f4a898;
+  --portal-danger-background: #2c1c1a;
+  --portal-danger-border: #633a31;
+  --portal-danger-accent: #c96e59;
+  --portal-shadow: 0 4px 16px #0000008c;
+  --portal-backdrop: rgb(3 8 11 / 70%);
+  --portal-calendar-available: #2f7457;
+  --portal-calendar-unavailable: #83403b;
+  --portal-calendar-undefined: #23343b;
+  --portal-calendar-grid: #22333a;
+  --portal-calendar-head: #1a2a31;
+  --portal-calendar-weekend: #1d2e35;
+  --portal-calendar-corner: #1c2d34;
+  --portal-calendar-month-rule: #3d535b;
+  --portal-calendar-week-rule: #56717a;
+  --portal-calendar-hover: #bfe3d6;
 }

@@ -9,6 +9,16 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Studentportal" />
     <title>Luftfartsfag Studentportal</title>
+    <script>
+      // Apply the saved theme before first paint; src/app/theme.ts owns it after load.
+      (function () {
+        var preference = null;
+        try { preference = localStorage.getItem('portal-theme'); } catch (error) {}
+        var dark = preference === 'dark' || (preference !== 'light' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0b161c' : '#172833');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

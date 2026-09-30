@@ -3,11 +3,15 @@ import { usePwa } from '../pwa/PwaProvider';
 import { useState } from 'react';
 import { CredentialForm } from '../features/flightlogger/CredentialForm';
 import { displayName } from '../../../shared/display-name';
+import { useThemePreference, type ThemePreference } from '../app/theme';
+
+const themeOptions: [ThemePreference, string][] = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
 
 export function SettingsPage() {
   const { user, loading } = useCurrentUser();
   const { canInstall, installed, installing, needsUpdate, error, install, update } = usePwa();
   const [replacing, setReplacing] = useState(false);
+  const [theme, setTheme] = useThemePreference();
   return <section className="settings-page"><h1>Settings</h1>
     <div className="settings-list">
       <section className="settings-section">
@@ -20,6 +24,15 @@ export function SettingsPage() {
         <div>
           <div className="settings-inline"><p className="connection-status">Connected</p>{!replacing && <button className="refresh-button" onClick={() => setReplacing(true)}>Replace API key</button>}</div>
           {replacing && <><p>Verify a new API key before replacing your current connection.</p><CredentialForm replacement onCancel={() => setReplacing(false)} /></>}
+        </div>
+      </section>
+      <section className="settings-section">
+        <h2>Appearance</h2>
+        <div>
+          <p>Choose a theme, or follow your device setting.</p>
+          <div className="theme-options" role="group" aria-label="Theme">
+            {themeOptions.map(([value, label]) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => setTheme(value)}>{label}</button>)}
+          </div>
         </div>
       </section>
       <section className="settings-section">
