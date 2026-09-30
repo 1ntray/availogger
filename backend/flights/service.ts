@@ -4,6 +4,7 @@ import type { PlannedLesson, StudentFlight } from '../flightlogger/flights';
 import type { ApplicationUser } from '../users';
 import type { FlightWindow } from './window';
 import { beforeFlightUpsert, membershipChangeStatements } from './changes';
+import { scheduleNotificationsInstalled } from '../notifications/schedule';
 
 export const FLIGHT_TTL_MS = 5*60_000;
 const tokenHash=async(token:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)))].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -54,6 +55,7 @@ const canonical=(f:StudentFlight)=>({id:crypto.randomUUID(),changeEventId:crypto
 export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:StudentFlight[],window:FlightWindow,stamp:string,hash:string){
   const own=flights.filter(f=>f.studentIds.includes(user.flightlogger_user_id!));
   const rows=own.map(canonical),rowsJson=JSON.stringify(rows),ids=JSON.stringify(own.map(f=>f.id));
+  const groupAdditions=await scheduleNotificationsInstalled(db);
   const current=`EXISTS(SELECT 1 FROM users u JOIN flightlogger_credentials c ON c.user_id=u.id WHERE u.id=? AND u.flightlogger_user_id=? AND c.updated_at<=?)`;
   const changed=`(r.flightlogger_aircraft_id_snapshot IS NOT flights.flightlogger_aircraft_id OR flights.departure_airport_id IS NOT '2953')`;
   await db.batch([
@@ -98,7 +100,7 @@ export async function saveOwnFlights(db:D1Database,user:ApplicationUser,flights:
       FROM fuel_requests r JOIN flights f ON f.id=r.flight_id WHERE r.status='PENDING' AND f.status='CANCELLED'`).bind(stamp),
     db.prepare(`UPDATE fuel_requests SET status='CANCELLED',cancelled_at=?,updated_at=? WHERE status='PENDING' AND
       flight_id IN(SELECT id FROM flights WHERE status='CANCELLED')`).bind(stamp,stamp),
-    ...membershipChangeStatements(db,user.id,hash,rowsJson,ids,window,stamp),
+    ...membershipChangeStatements(db,user.id,hash,rowsJson,ids,window,stamp,groupAdditions),
     db.prepare(`DELETE FROM flight_students WHERE user_id=? AND last_seen_at<=? AND flight_id IN
       (SELECT id FROM flights WHERE starts_at<? AND ends_at>? AND flightlogger_booking_id NOT IN(SELECT value FROM json_each(?)))`)
       .bind(user.id,stamp,window.endsAt,window.startsAt,ids),

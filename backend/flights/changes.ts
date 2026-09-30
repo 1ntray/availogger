@@ -1,4 +1,5 @@
 import type { FlightWindow } from './window';
+import { flightAdditionGroupStatements } from '../notifications/groups';
 
 // All statements run inside saveOwnFlights' D1 batch. The event comparison must
 // precede the canonical upsert; membership additions/removals follow it.
@@ -61,7 +62,7 @@ export function beforeFlightUpsert(db:D1Database,rowsJson:string,stamp:string):D
 }
 
 export function membershipChangeStatements(db:D1Database,userId:string,hash:string,rowsJson:string,idsJson:string,
-  window:FlightWindow,stamp:string):D1PreparedStatement[]{
+  window:FlightWindow,stamp:string,groupAdditions=false):D1PreparedStatement[]{
   // The prior successful window is the observation baseline. Only its overlap
   // with this complete result may produce additions or removals.
   const overlap=`f.starts_at<min(ss.window_to,?) AND f.ends_at>max(ss.window_from,?)`;
@@ -92,5 +93,5 @@ export function membershipChangeStatements(db:D1Database,userId:string,hash:stri
     FROM flight_change_events e WHERE e.type='FLIGHT_REMOVED' AND e.subject_user_id=? AND e.detected_at=?
       AND NOT EXISTS(SELECT 1 FROM user_inbox_items i WHERE i.user_id=? AND i.source_type='FLIGHT_CHANGE' AND i.source_id=e.id)`)
     .bind(userId,stamp,userId,stamp,userId);
-  return [added,addedInbox,removed,removedInbox];
+  return [added,...(groupAdditions?flightAdditionGroupStatements(db,userId,rowsJson,stamp):[addedInbox]),removed,removedInbox];
 }
