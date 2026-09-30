@@ -32,3 +32,12 @@ a.chip:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; background-image: none; } }
 
 @media (max-width: 600px) { .card { padding: var(--portal-space-4); } }
+
+.people-stack { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.people-stack-faces { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.people-code { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--portal-nav-active); color: var(--portal-nav-active-text); font-size: 11px; font-weight: 800; letter-spacing: .04em; line-height: 1; }
+.people-code.is-you { background: var(--portal-accent-fill); color: var(--portal-on-accent); }
+.people-dot { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px dashed var(--portal-muted); background: var(--portal-surface-muted); color: var(--portal-muted); box-sizing: border-box; }
+.people-stack--26 .people-code { height: 26px; }
+.people-stack--26 .people-dot { width: 24px; height: 24px; }
+.people-stack-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

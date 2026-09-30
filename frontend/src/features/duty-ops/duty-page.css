@@ -1,0 +1,131 @@
+/* Duty Ops page redesign (docs/duty-ops-redesign-brief.md). Scoped to .duty-page so Flyvask, Brakkevakt and the
+   shift page, which share .duty-ops and the older row classes, are unchanged. */
+.duty-page { display: flex; flex-direction: column; gap: 14px; max-width: 1200px; }
+.duty-page h2 { font-size: 15px; font-weight: 800; letter-spacing: -.01em; margin: 0; padding: 0; border: 0; color: var(--portal-text); }
+.duty-page ul { list-style: none; margin: 0; padding: 0; }
+
+/* Title block */
+.duty-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.duty-title h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.duty-subline { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: var(--portal-muted); font-variant-numeric: tabular-nums; }
+.duty-refresh { flex: none; width: var(--portal-touch-height); padding: 0; color: var(--portal-secondary); }
+.duty-refresh-text { display: none; }
+
+/* Tabs */
+.duty-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 10px; background: var(--portal-surface-muted); }
+.duty-tabs--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.duty-tab { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: 8px; color: var(--portal-muted); font-size: 13px; font-weight: 700; text-decoration: none; }
+.duty-tab:hover { color: var(--portal-text); }
+.duty-tab.is-active { background: var(--portal-surface); color: var(--portal-text); box-shadow: var(--portal-shadow-card); }
+.duty-tab-badge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--portal-warning-background); color: var(--portal-warning-text); font-size: 11px; font-weight: 800; }
+
+/* Layout */
+.duty-layout { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.duty-page .card-aside { font-size: 12px; font-weight: 600; color: var(--portal-muted); white-space: nowrap; }
+.live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--portal-accent); box-shadow: 0 0 0 3px var(--portal-nav-active); flex: none; }
+.duty-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.duty-card-actions:empty { display: none; }
+.duty-card-actions > .exchange-assignment-state { display: contents; }
+.duty-card-actions > .exchange-assignment-state > span { flex-basis: 100%; }
+
+/* On duty now */
+.duty-now .card-head h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--portal-muted); }
+.duty-now-ends { font-size: 13px; font-weight: 700; color: var(--portal-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.duty-now-shift { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.duty-now-time { font-size: 24px; font-weight: 800; letter-spacing: -.02em; color: var(--portal-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.duty-now .people-stack { font-size: 14px; font-weight: 600; color: var(--portal-secondary); }
+.duty-progress { height: 6px; border-radius: 999px; background: var(--portal-divider); overflow: hidden; }
+.duty-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--portal-accent); }
+
+/* Your shifts */
+.duty-mine-list { display: flex; flex-direction: column; }
+.duty-page .duty-mine .duty-row.duty-mine-shift { display: flex; flex-direction: column; gap: 12px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; }
+.duty-mine-shift + .duty-mine-shift { padding-top: 14px; border-top: 1px solid var(--portal-border); margin-top: 14px; }
+.duty-mine-block { display: flex; align-items: center; gap: 12px; padding: 10px; margin: -2px -6px 0; border-radius: 10px; background: var(--portal-highlight); }
+.duty-mine-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.duty-mine-time { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: var(--portal-text); font-variant-numeric: tabular-nums; }
+.duty-mine-duration { font-size: 13px; color: var(--portal-muted); }
+.duty-mine .people-stack { font-size: 13px; font-weight: 600; color: var(--portal-secondary); }
+
+/* Exchanges */
+.duty-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.duty-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 10px; background: var(--portal-surface-muted); text-decoration: none; }
+.duty-stat strong { font-size: 22px; font-weight: 800; color: var(--portal-text); font-variant-numeric: tabular-nums; }
+.duty-stat span { font-size: 12px; font-weight: 700; color: var(--portal-muted); overflow-wrap: anywhere; }
+.duty-stat:hover span { color: var(--portal-text); }
+.duty-stat.is-warning { background: var(--portal-warning-background); }
+.duty-stat.is-warning strong, .duty-stat.is-warning span { color: var(--portal-warning-text); }
+.duty-credit { display: flex; align-items: center; gap: 10px; min-height: var(--portal-touch-height); padding-top: 12px; border-top: 1px solid var(--portal-border); color: var(--portal-secondary); font-size: 13px; font-weight: 600; text-decoration: none; }
+.duty-credit > svg { flex: none; color: var(--portal-accent); }
+.duty-credit > span:first-of-type { flex-grow: 1; }
+.duty-credit strong { color: var(--portal-text); font-variant-numeric: tabular-nums; }
+.duty-page .exchange-v2-overview { margin: 0; padding: 0; border: 0; }
+.duty-page .exchange-v2-overview:not(:has(li, [role=status], [role=alert], a, p)) { display: none; }
+.duty-page .exchange-v2-overview > p { font-size: 13px; color: var(--portal-muted); }
+
+/* Schedule */
+.duty-day + .duty-day { border-top: 1px solid var(--portal-border); }
+.duty-page .duty-day h3 { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 10px 0 6px; font-size: 12px; font-weight: 600; color: var(--portal-muted); }
+.duty-page .duty-day h3 strong { font-size: 13px; font-weight: 800; color: var(--portal-text); }
+.duty-page .duty-row { padding: 0; margin: 0 -10px; border: 0; border-radius: 10px; background: none; }
+.duty-page .duty-row.is-mine { background: var(--portal-highlight); }
+.duty-page .duty-row.is-cancelled { opacity: .7; }
+.duty-row-main { position: relative; display: flex; align-items: center; gap: 14px; min-height: var(--portal-touch-height); padding: 8px 10px; }
+.duty-row-time { display: flex; flex-direction: column; width: 48px; flex: none; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.duty-row-time strong { font-size: 15px; font-weight: 800; color: var(--portal-text); }
+.duty-row-time > span { font-size: 12px; font-weight: 600; color: var(--portal-muted); white-space: nowrap; }
+.duty-page .duty-row-date { font-size: 11px; font-weight: 700; color: var(--portal-muted); min-width: 0; }
+.duty-row-main .people-stack { flex-grow: 1; font-size: 13px; font-weight: 600; color: var(--portal-secondary); }
+.duty-row-end { display: inline-flex; align-items: center; gap: 6px; flex: none; margin-left: auto; }
+.duty-row-end .chip { gap: 5px; }
+.duty-page .duty-row-link { display: grid; place-items: center; width: 32px; min-height: 32px; padding: 0; color: var(--portal-muted); }
+.duty-page .duty-row.has-link .duty-row-link::after { content: ''; position: absolute; inset: 0; border-radius: 10px; }
+.duty-page .duty-row.has-link .duty-row-main:hover { background: var(--portal-control-hover); border-radius: 10px; }
+.duty-page .duty-row .attention-detail { margin: 0 10px 8px 72px; }
+.duty-page .duty-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0 10px 10px 72px; }
+
+/* Exchange centre tab: existing content inside a card */
+.duty-center { gap: 10px; }
+.duty-page .exchange-v2-center { margin: 0; }
+.duty-page .exchange-v2-center .duty-empty { margin: 0; }
+.duty-page .duty-exchanges:not(.exchange-v2-center) { margin: 0; padding: var(--portal-space-4); border: 1px solid var(--portal-border); border-radius: var(--portal-radius-lg); background: var(--portal-surface); box-shadow: var(--portal-shadow-card); }
+.duty-page .exchange-v2-center h3, .duty-page .duty-exchanges h3 { margin: 16px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--portal-muted); }
+.duty-page .exchange-v2-center h3:first-child, .duty-page .duty-exchanges h3:first-child { margin-top: 0; }
+
+.duty-skeleton { display: flex; flex-direction: column; gap: 14px; }
+.duty-skeleton .card { gap: 12px; }
+.duty-skeleton-row { display: flex; align-items: center; gap: 14px; }
+
+@media (min-width: 901px) {
+  .duty-page { gap: var(--portal-space-5); }
+  .duty-title h1 { font-size: 28px; letter-spacing: -.025em; }
+  .duty-refresh { width: auto; padding: 0 14px; }
+  .duty-refresh-text { display: inline; }
+  .duty-tabs { max-width: 420px; }
+  .duty-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: var(--portal-space-6); align-items: start; }
+  .duty-layout > * { grid-column: 2; }
+  .duty-layout > .duty-schedule { grid-column: 1; grid-row: 1 / span 8; }
+  .duty-page .card { padding: var(--portal-space-5); }
+}
+@media (max-width: 600px) {
+  .duty-page .duty-row-actions, .duty-page .duty-row .attention-detail { padding-left: 10px; margin-left: 0; }
+  .duty-row-main { gap: 10px; }
+}
+
+/* Exchange rows, restyled only (step 5). */
+.duty-page .exchange-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin: 0; border: 1px solid var(--portal-border); border-radius: 10px; background: var(--portal-surface); }
+.duty-page .exchange-row + .exchange-row { margin-top: 8px; }
+.duty-page .exchange-row.needs-answer { border-color: var(--portal-warning-border); }
+.duty-page .exchange-row > strong { font-size: 14px; font-weight: 700; color: var(--portal-text); }
+.duty-page .exchange-row .exchange-time { margin: 0; font-size: 13px; color: var(--portal-secondary); }
+.duty-page .exchange-row .exchange-note { margin: 0; }
+.duty-page .exchange-actions { margin: 2px 0 0; }
+.duty-page .exchange-give-get { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.duty-page .exchange-give-get .exchange-time { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--portal-surface-muted); color: var(--portal-text); font-weight: 700; }
+.duty-page .exchange-give-get-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--portal-muted); }
+.duty-page .exchange-assignment-state { gap: 8px; }
+.duty-page .exchange-assignment-state > span, .duty-page .exchange-inline-status { display: inline-flex; align-items: center; align-self: flex-start; width: fit-content; min-height: 22px; padding: 2px 8px; border-radius: 999px; background: var(--portal-surface-muted); color: var(--portal-secondary); font-size: 12px; font-weight: 700; }
+.duty-page .exchange-assignment-state > span[data-tone="warning"] { background: var(--portal-warning-background); color: var(--portal-warning-text); }
+.duty-page .exchange-assignment-state .ui-button, .duty-page .exchange-actions .ui-button { min-height: 36px; font-size: 13px; }
+.duty-page .exchange-assignment-state > a { font-size: 13px; font-weight: 700; }
+@media (max-width: 600px) { .duty-page .exchange-assignment-state .ui-button, .duty-page .exchange-actions .ui-button { min-height: var(--portal-touch-height); } }
