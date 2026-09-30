@@ -239,7 +239,7 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
       !!actorLeg(item, data.currentUserId)?.consentedAt);
     const incoming = data.intents.flatMap(intent => intent.targets.map(target => ({ intent, target })))
       .find(item => item.target.assignment.id === assignmentId && item.target.status === 'OPEN' && item.intent.owner.id !== data.currentUserId);
-    if (reviewCandidate && has('CONFIRM_CANDIDATE')) return <div className="exchange-assignment-state"><span>Needs review</span>
+    if (reviewCandidate && has('CONFIRM_CANDIDATE')) return <div className="exchange-assignment-state"><span data-tone="warning">Needs review</span>
       <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'confirm', id: reviewCandidate.id, assignmentId })}>Review exchange</ActionButton></div>;
     if (waitingCandidate) return <div className="exchange-assignment-state"><span>Waiting for others</span>
       <ContextLink to={`${path[domain]}/exchanges#candidate-${waitingCandidate.id}`}>Open exchange</ContextLink></div>;
@@ -250,7 +250,7 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
     if (ownOffer) return <div className="exchange-assignment-state"><span>Offer sent</span>
       {has('WITHDRAW_OFFER') && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'withdraw', id: ownOffer.offer.id, assignmentId })}>Withdraw</ActionButton>}
       <ContextLink to={`${path[domain]}/exchanges#intent-${ownOffer.intent.id}`}>Open exchange</ContextLink></div>;
-    if (incoming && has('ACCEPT_TARGET')) return <div className="exchange-assignment-state"><span>Request received</span>
+    if (incoming && has('ACCEPT_TARGET')) return <div className="exchange-assignment-state"><span data-tone="warning">Request received</span>
       <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'accept', id: incoming.target.id, assignmentId })}>Review request</ActionButton></div>;
     if (has('OPEN_EXCHANGE')) return <div className="exchange-assignment-state"><ActionButton disabled={busy} onClick={() => context.open({ kind: 'create', sourceId: assignmentId })}>Exchange</ActionButton>
       {has('OFFER_SHIFT') && <ActionButton variant="ghost" disabled={busy} onClick={() => context.open({ kind: 'action', action: 'offer', id: state.offerableIntentIds[0], assignmentId })}>Offer a shift</ActionButton>}</div>;
@@ -274,7 +274,29 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
   </div>;
 }
 
-export function ExchangeV2Summary({ domain, center = false }: { domain: ExchangeDomain; center?: boolean }) {
+/** The user's active exchange work, shared by the summary and the counts. */
+function exchangeLists(data: ExchangeV2StateResponse | null | undefined) {
+  const mine = data?.intents.filter(item => activeIntent(item) && item.owner.id === data.currentUserId) ?? [];
+  const available = data?.intents.filter(item => activeIntent(item) && item.owner.id !== data.currentUserId &&
+    data.assignmentStates.some(state => state.offerableIntentIds.includes(item.id) ||
+      state.relatedIntentIds.includes(item.id) &&
+      (state.availableActions.includes('ACCEPT_TARGET') || state.availableActions.includes('TAKE_GIVE_AWAY') ||
+        state.availableActions.includes('REQUEST_SWAP')))) ?? [];
+  const candidates = data?.candidates.filter(item => activeCandidate(item) && !!actorLeg(item, data.currentUserId)) ?? [];
+  const review = data ? candidates.filter(item => actorLeg(item, data.currentUserId)?.consentedAt === null) : [];
+  return { mine, available, candidates, review };
+}
+
+/** Counts for summary tiles: exchanges open to the user, the user's own requests, and items waiting on the user's answer. */
+export function useExchangeCounts() {
+  const context = useExchangeV2(), legacy = useLegacyOpportunities();
+  if (!context?.enabled) return null;
+  const { mine, available, review } = exchangeLists(context.data);
+  return { ready: !!context.data, available: available.length + legacy.filter(item => !item.own).length,
+    requests: mine.length + legacy.filter(item => item.own).length, review: review.length };
+}
+
+export function ExchangeV2Summary({ domain, center = false, embedded = false }: { domain: ExchangeDomain; center?: boolean; embedded?: boolean }) {
   const context = useExchangeV2(), location = useLocation();
   const legacy = useLegacyOpportunities();
   const currentData = context?.data;
@@ -284,19 +306,13 @@ export function ExchangeV2Summary({ domain, center = false }: { domain: Exchange
   }, [center, currentData, location.hash]);
   if (!context?.enabled) return null;
   const { data, error, loading, busy } = context;
-  const mine = data?.intents.filter(item => activeIntent(item) && item.owner.id === data.currentUserId) ?? [];
-  const available = data?.intents.filter(item => activeIntent(item) && item.owner.id !== data.currentUserId &&
-    data.assignmentStates.some(state => state.offerableIntentIds.includes(item.id) ||
-      state.relatedIntentIds.includes(item.id) &&
-      (state.availableActions.includes('ACCEPT_TARGET') || state.availableActions.includes('TAKE_GIVE_AWAY') ||
-        state.availableActions.includes('REQUEST_SWAP')))) ?? [];
-  const candidates = data?.candidates.filter(item => activeCandidate(item) && !!actorLeg(item, data.currentUserId)) ?? [];
-  const review = candidates.filter(item => actorLeg(item, data!.currentUserId)?.consentedAt === null);
+  const { mine, available, candidates, review } = exchangeLists(data);
   const previewV2 = available.slice(0, 4);
   const previewLegacy = legacy.slice(0, Math.max(0, 4 - previewV2.length));
   const extra = available.length + legacy.length - previewV2.length - previewLegacy.length;
   if (!center) return <section className="exchange-overview exchange-v2-overview" aria-label="Exchanges">
-    <div className="exchange-v2-summary-heading"><h2>Exchanges</h2><ContextLink to={`${path[domain]}/exchanges`}>View all →</ContextLink></div>
+    {!embedded && <div className="exchange-v2-summary-heading"><h2>Exchanges</h2><ContextLink to={`${path[domain]}/exchanges`}>View all →</ContextLink></div>}
+    {embedded && review.length > 0 && <ul className="exchange-preview-list">{review.map(candidate => <CandidateRow key={candidate.id} candidate={candidate} />)}</ul>}
     {loading && !data && <p role="status">Loading exchanges…</p>}
     {error && <p role="alert" className="duty-alert">{data ? 'Exchange refresh failed. Showing last available information.' : error}</p>}
     {(previewV2.length > 0 || previewLegacy.length > 0) && <ul className="exchange-preview-list">
@@ -326,9 +342,11 @@ function CandidateRow({ candidate }: { candidate: ExchangeV2Candidate }) {
   if (!leg) return null;
   const state = leg.give && context.state(leg.give.id);
   const canConfirm = !leg.consentedAt && state?.availableActions.includes('CONFIRM_CANDIDATE');
-  return <li id={`candidate-${candidate.id}`} tabIndex={-1} className="exchange-row"><strong>{candidate.legs.length === 3 ? '3-way exchange' : 'Exchange'}</strong>
-    <p className="exchange-time">You give {leg.give ? exchangeAssignmentLabel(leg.give) : 'no assignment'}</p>
-    <p className="exchange-time">You receive {leg.receive ? exchangeAssignmentLabel(leg.receive) : 'no assignment'}</p>
+  return <li id={`candidate-${candidate.id}`} tabIndex={-1} className={`exchange-row${canConfirm ? ' needs-answer' : ''}`}><strong>{candidate.legs.length === 3 ? '3-way exchange' : 'Exchange'}</strong>
+    <div className="exchange-give-get">
+      <p className="exchange-time"><span className="exchange-give-get-label">You give</span> {leg.give ? exchangeAssignmentLabel(leg.give) : 'no assignment'}</p>
+      <p className="exchange-time"><span className="exchange-give-get-label">You receive</span> {leg.receive ? exchangeAssignmentLabel(leg.receive) : 'no assignment'}</p>
+    </div>
     {canConfirm ? <div className="exchange-actions"><ActionButton onClick={() => context.open({ kind: 'action', action: 'confirm', id: candidate.id, assignmentId: leg.give!.id })}>Accept</ActionButton>
       <ActionButton variant="ghost" onClick={() => context.open({ kind: 'action', action: 'decline', id: candidate.id, assignmentId: leg.give!.id })}>Decline</ActionButton></div>
       : <p className="exchange-note">Waiting for others</p>}</li>;
