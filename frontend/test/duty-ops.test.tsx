@@ -86,8 +86,8 @@ describe('Duty Ops page', () => {
     vi.stubGlobal('fetch', fetcher);
     await act(async () => root.render(<MemoryRouter><DutyOpsPage /></MemoryRouter>));
     expect(host.querySelector('h1')!.textContent).toBe('Duty Ops');
-    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['On duty now', 'Schedule']);
-    expect(host.textContent).toContain('You · 2 others'); expect(host.textContent).toContain('07:00–14:00');
+    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['On duty now']);
+    expect(host.textContent).toContain('Simon · 2 others'); expect(host.textContent).toContain('07:00–14:00');
     expect(host.querySelectorAll('.is-mine')).toHaveLength(1);
     expect(host.querySelector('[role=status]')!.textContent).toContain('Refresh failed');
     await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Retry Duty Ops"]')!.click());
