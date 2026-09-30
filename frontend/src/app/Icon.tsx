@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { NavIcon } from './navigation';
 
 export type IconName = NavIcon | 'account' | 'arrow-right' | 'reload' | 'bell' | 'chevron-right' | 'check-circle' | 'inbox'
-  | 'users' | 'clock' | 'pin' | 'shield' | 'swap';
+  | 'users' | 'clock' | 'pin' | 'shield' | 'swap' | 'coins';
 
 // Lucide icons (ISC licence, lucide.dev), drawn on a 24px grid with a 2px stroke.
 const shapes: Record<IconName, ReactNode> = {
@@ -24,6 +24,7 @@ const shapes: Record<IconName, ReactNode> = {
   pin: <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></>,
   shield: <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />,
   swap: <path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" />,
+  coins: <><circle cx="8" cy="8" r="6" /><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82" /></>,
 };
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {

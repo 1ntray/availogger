@@ -1,4 +1,6 @@
-import { addDays, osloDate } from '../dates';
+import { addDays, durationLabel, osloDate } from '../dates';
+
+export { durationLabel };
 import type { FlightsData } from '../features/flights/api';
 import { flightLessonLabels, flightSegments } from '../features/flights/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
@@ -43,10 +45,6 @@ export function peopleLabel(others: number) {
   return others <= 0 ? 'Only you' : `You + ${others} ${others === 1 ? 'other' : 'others'}`;
 }
 
-export function durationLabel(start: number, end: number) {
-  const minutes = Math.max(0, Math.round((end - start) / 60_000)), hours = Math.floor(minutes / 60), rest = minutes % 60;
-  return hours && rest ? `${hours} h ${rest} min` : hours ? `${hours} h` : `${rest} min`;
-}
 
 export const timeRange = (item: Pick<HomeItem, 'at' | 'end'>) => `${clock.format(new Date(item.at))}–${clock.format(new Date(item.end))}`;
 
