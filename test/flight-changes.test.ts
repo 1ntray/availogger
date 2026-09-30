@@ -99,6 +99,26 @@ describe('flight changes and personal Inbox',()=>{
     expect((await listInbox(db,alice.id,new URL('https://portal.test/api/inbox'))).unreadCount).toBe(2);
     expect(await db.prepare("SELECT flight_id FROM flight_change_events WHERE type='FLIGHT_REMOVED'").first('flight_id')).toBeNull();
   },20000);
+  it('coalesces unread new flights without changing immutable events and starts a new group after read',async()=>{
+    await sync(alice,[flight()],1);
+    await sync(alice,[flight(),flight('new-one')],2);
+    await sync(alice,[flight(),flight('new-one'),flight('new-two')],3);
+    const group=(await listInbox(db,alice.id,new URL('https://portal.test/api/inbox')));
+    expect(group.unreadCount).toBe(1);
+    expect(group.items[0]).toMatchObject({sourceType:'SCHEDULE_NOTIFICATION_GROUP',title:'2 new flights',target:{path:'/flights'}});
+    expect(await db.prepare("SELECT count(*) n FROM flight_change_events WHERE type='FLIGHT_ADDED'").first('n')).toBe(2);
+    expect(await db.prepare('SELECT count(*) n FROM inbox_notification_group_events').first('n')).toBe(2);
+    const itemId=group.items[0].id;
+    const response=await markInboxReadEndpoint({request:new Request(`https://portal.test/api/inbox/${itemId}/read`,{method:'POST',headers:{Origin:'https://portal.test'}}),
+      env:{DB:db,FLIGHTLOGGER_CREDENTIAL_ENCRYPTION_KEY:testEncryptionKey},
+      data:{accessIdentity:{subject:alice.access_subject,email:alice.email}},params:{itemId}} as never);
+    expect(response.status).toBe(200);
+    await sync(alice,[flight(),flight('new-one'),flight('new-two'),flight('new-three')],4);
+    const later=await listInbox(db,alice.id,new URL('https://portal.test/api/inbox'));
+    expect(later.unreadCount).toBe(1);
+    expect(later.items[0]).toMatchObject({title:'New flight',sourceType:'SCHEDULE_NOTIFICATION_GROUP'});
+    expect(later.items[0].id).not.toBe(itemId);
+  },30000);
   it('starts a fresh baseline after credential replacement without flooding change history',async()=>{
     await sync(alice,[flight()],1);
     await db.prepare('UPDATE flightlogger_credentials SET token_ciphertext=token_ciphertext WHERE user_id=?').bind(alice.id).run();

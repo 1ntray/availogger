@@ -6,6 +6,7 @@ import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest';
 import { FlightsPage } from '../src/pages/FlightsPage';
 import { DutyShiftPage } from '../src/pages/DutyShiftPage';
 import { loadFlights } from '../src/features/flights/api';
+import { flightSegments } from '../src/features/flights/presentation';
 import { PERMISSIONS,type PermissionKey } from '../../shared/authorization';
 
 let permissions:PermissionKey[]=[],host:HTMLDivElement,root:Root,api:ReturnType<typeof vi.fn>;
@@ -34,6 +35,14 @@ beforeEach(()=>{vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);permissions=[PERM
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();});
 async function renderFlights(){await act(async()=>root.render(<MemoryRouter><FlightsPage /></MemoryRouter>));}
 describe('flights and fuel UI',()=>{
+  it('shows only meaningful Brief, Flight and End milestones',()=>{
+    const segments=flightSegments(flight);
+    expect(segments.brief).toEqual({start:future,end:null});
+    expect(segments.flight).toEqual({start:flightStart,end:flightEnd});
+    expect(segments.end).toEqual({start:end,end:null});
+    expect(flightSegments({...flight,endsAt:flightEnd}).end).toBeNull();
+    expect(flightSegments({...flight,endsAt:new Date(Date.parse(flightEnd)+30_000).toISOString()}).end).toBeNull();
+  });
   it('loads only from the same-origin API and hides request controls without permission',async()=>{
     expect((await loadFlights(new AbortController().signal)).flights).toHaveLength(1);
     expect(api).toHaveBeenCalledWith('/api/flights',expect.objectContaining({credentials:'same-origin',cache:'no-store'}));
@@ -44,7 +53,9 @@ describe('flights and fuel UI',()=>{
     await renderFlights();
     const row=host.querySelector('.flight-row')!;
     expect([...row.querySelectorAll('.flight-segment')].map(node=>node.textContent)).toEqual([
-      expect.stringContaining('Brief'),expect.stringContaining('Flight'),expect.stringContaining('Debrief')]);
+      expect.stringContaining('Brief'),expect.stringContaining('Flight'),expect.stringContaining('End')]);
+    expect(row.querySelectorAll('.flight-segment')[0].querySelectorAll('time')).toHaveLength(1);
+    expect(row.querySelectorAll('.flight-segment')[2].querySelectorAll('time')).toHaveLength(1);
     expect(row.querySelector('.flight-segment:first-child time')?.getAttribute('datetime')).toBe(future);
     expect(row.textContent).toContain('4.2 Instrument approaches');expect(row.textContent).toContain('Richard Nilsen');
     expect(row.textContent).toContain('LN-UPT');expect(row.textContent).not.toMatch(/Bardufoss|Tromsø|Z242L/);

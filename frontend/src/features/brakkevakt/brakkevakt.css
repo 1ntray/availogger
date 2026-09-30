@@ -2,7 +2,7 @@
 .brakkevakt-week time { font-weight: 650; font-size: 14px; font-variant-numeric: tabular-nums; }
 .brakkevakt-week p { margin: 6px 0; font-size: 13px; }
 .brakkevakt-current time { color: var(--portal-text); }
-.brakkevakt-mine { background: #ecf4ef; border-left: 3px solid var(--portal-accent); padding-left: 10px; }
+.brakkevakt-mine { background: var(--portal-highlight); border-left: 3px solid var(--portal-accent); padding-left: 10px; }
 .brakkevakt-exchange-target { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
 .brakkevakt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; margin-bottom: 28px; }
 .brakkevakt-grid > section { min-width: 0; }

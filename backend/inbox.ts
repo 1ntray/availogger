@@ -4,13 +4,17 @@ import type { AccessData, PagesEnv } from './env';
 import { json } from './response';
 import { requireSameOrigin } from './same-origin';
 import { resolveExchangeInbox } from './exchange-v2/inbox';
+import { contactNoticePresentation, scheduleChangePresentation, scheduleGroupPresentation } from './notifications/render';
 
 type Context={request:Request;env:PagesEnv;data:AccessData;params:Record<string,string|string[]>};
 type InboxRow={id:string;kind:string;source_type:string;source_id:string;created_at:string;read_at:string|null;
   event_type:string|null;flight_id:string|null;flightlogger_booking_id:string|null;starts_at_snapshot:string|null;
   ends_at_snapshot:string|null;flight_starts_at_snapshot:string|null;flight_ends_at_snapshot:string|null;
   aircraft_callsign_snapshot:string|null;aircraft_model_snapshot:string|null;status_snapshot:string|null;
-  contact_title:string|null;contact_body:string|null;contact_thread_id:string|null};
+  contact_title:string|null;contact_body:string|null;contact_thread_id:string|null;
+  group_domain:string|null;group_count:number|null;schedule_domain:string|null;schedule_type:string|null;
+  notice_type:string|null;notice_count:number|null;notice_thread_id:string|null;notice_title:string|null;
+  notice_body:string|null;notice_author_first:string|null;notice_author_last:string|null};
 type ChangeRow={event_id:string;field:string;old_value:string|null;new_value:string|null;old_label:string|null;new_label:string|null;
   old_detail:string|null;new_detail:string|null};
 const invalid=()=>new ApplicationError('Invalid Inbox request.',400,'INVALID_INBOX_REQUEST');
@@ -41,10 +45,21 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
   const cursor=rawCursor===null?null:decodeCursor(rawCursor);
   const {results}=await db.prepare(`SELECT i.*,e.type event_type,e.flight_id,e.flightlogger_booking_id,e.starts_at_snapshot,
     e.ends_at_snapshot,e.flight_starts_at_snapshot,e.flight_ends_at_snapshot,e.aircraft_callsign_snapshot,
-    e.aircraft_model_snapshot,e.status_snapshot,t.id contact_thread_id,t.title contact_title,m.body contact_body
+    e.aircraft_model_snapshot,e.status_snapshot,t.id contact_thread_id,t.title contact_title,m.body contact_body,
+    g.domain group_domain,g.item_count group_count,se.domain schedule_domain,se.type schedule_type,
+    cg.type notice_type,cg.item_count notice_count,ct.id notice_thread_id,ct.title notice_title,
+    cm.body notice_body,au.flightlogger_first_name notice_author_first,au.flightlogger_last_name notice_author_last
     FROM user_inbox_items i LEFT JOIN flight_change_events e ON i.source_type='FLIGHT_CHANGE' AND e.id=i.source_id
     LEFT JOIN contact_threads t ON i.source_type='CONTACT_MESSAGE' AND t.id=i.source_id AND t.created_by_user_id=i.user_id
     LEFT JOIN contact_messages m ON m.id=t.last_webmaster_message_id AND m.thread_id=t.id
+    LEFT JOIN inbox_notification_groups g ON i.source_type='SCHEDULE_NOTIFICATION_GROUP' AND g.id=i.source_id AND g.user_id=i.user_id
+    LEFT JOIN schedule_change_events se ON i.source_type='SCHEDULE_CHANGE' AND se.id=i.source_id AND se.user_id=i.user_id
+    LEFT JOIN contact_notification_groups cg ON i.source_type='CONTACT_NOTIFICATION' AND cg.id=i.source_id AND cg.user_id=i.user_id
+    LEFT JOIN contact_threads ct ON ct.id=cg.thread_id AND
+      (ct.created_by_user_id=i.user_id OR EXISTS(SELECT 1 FROM contact_channels cc JOIN effective_user_permissions p
+        ON p.permission_key=cc.recipient_permission_key WHERE cc.id=ct.channel_id AND p.user_id=i.user_id))
+    LEFT JOIN contact_messages cm ON cm.id=cg.latest_message_id AND cm.thread_id=ct.id
+    LEFT JOIN users au ON au.id=ct.created_by_user_id
     WHERE i.user_id=? AND (? IS NULL OR i.created_at<? OR (i.created_at=? AND i.id<?))
     ORDER BY i.created_at DESC,i.id DESC LIMIT ?`)
     .bind(userId,cursor?.date??null,cursor?.date??null,cursor?.date??null,cursor?.id??null,limit+1).all<InboxRow>();
@@ -63,6 +78,9 @@ export async function listInbox(db:D1Database,userId:string,url:URL){
     },
     CONTACT_MESSAGE: row => row.contact_thread_id ? {title:`Reply: ${row.contact_title}`,summary:row.contact_body?.slice(0,160)??null,
       target:{path:`/messages/${row.contact_thread_id}`},flight:null,changes:[]} : missing(),
+    CONTACT_NOTIFICATION: row => contactNoticePresentation(row)??missing(),
+    SCHEDULE_NOTIFICATION_GROUP: row => scheduleGroupPresentation(row)??missing(),
+    SCHEDULE_CHANGE: row => scheduleChangePresentation(row)??missing(),
     FLIGHT_CHANGE: row => {
     const eventChanges=byEvent.get(row.source_id)??[];
     if(!row.event_type)return missing();
@@ -101,10 +119,16 @@ export function markInboxReadEndpoint(context:Context):Promise<Response>|Respons
     }}finally{await reader.cancel().catch(()=>{});}}
     const id=context.params.itemId;
     if(typeof id!=='string'||!/^[a-f0-9]{32}$/.test(id))throw invalid();
-    await db.prepare('UPDATE user_inbox_items SET read_at=coalesce(read_at,?) WHERE id=? AND user_id=?')
-      .bind(new Date().toISOString(),id,user.id).run();
-    const item=await db.prepare('SELECT id,read_at FROM user_inbox_items WHERE id=? AND user_id=?').bind(id,user.id)
-      .first<{id:string;read_at:string}>();
+    const [,,,result]=await db.batch([
+      db.prepare('UPDATE user_inbox_items SET read_at=coalesce(read_at,?) WHERE id=? AND user_id=?')
+        .bind(new Date().toISOString(),id,user.id),
+      db.prepare(`UPDATE inbox_notification_groups SET open=0 WHERE id=(SELECT source_id FROM user_inbox_items
+        WHERE id=? AND user_id=? AND source_type='SCHEDULE_NOTIFICATION_GROUP') AND user_id=?`).bind(id,user.id,user.id),
+      db.prepare(`UPDATE contact_notification_groups SET open=0 WHERE id=(SELECT source_id FROM user_inbox_items
+        WHERE id=? AND user_id=? AND source_type='CONTACT_NOTIFICATION') AND user_id=?`).bind(id,user.id,user.id),
+      db.prepare('SELECT id,read_at FROM user_inbox_items WHERE id=? AND user_id=?').bind(id,user.id),
+    ]);
+    const item=(result.results as {id:string;read_at:string}[])[0];
     if(!item)throw new ApplicationError('Inbox item not found.',404,'INBOX_ITEM_NOT_FOUND');
     return json({id:item.id,readAt:item.read_at});
   });

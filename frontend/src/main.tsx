@@ -5,5 +5,9 @@ import './tokens.css';
 import './styles.css';
 import './app/portal.css';
 import './features/flightlogger/credentials.css';
+import { applyTheme, watchSystemTheme } from './app/theme';
+
+applyTheme();
+watchSystemTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<BrowserRouter><App /></BrowserRouter>);

@@ -2,8 +2,15 @@
 .exchange-v2-summary-heading h2 { border: 0; padding: 0; }
 .exchange-v2-summary-heading a { color: var(--portal-accent); font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
 .exchange-v2-summary-heading a:hover { text-decoration: underline; }
+.exchange-preview-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.exchange-preview-list .exchange-row { padding: 9px 0; }
+.exchange-preview-list .exchange-row strong { font-size: 13px; }
+.exchange-preview-list .exchange-time { margin: 3px 0; font-size: 13px; }
+.exchange-preview-list .exchange-actions { margin-top: 4px; }
+.exchange-preview-more { display: inline-flex; align-items: center; min-height: var(--portal-touch-height); color: var(--portal-accent); font-size: 13px; }
 .exchange-v2-overview { margin: 4px 0 22px; }
 .exchange-v2-overview p { margin: 5px 0 0; }
+.exchange-action-placeholder { display: inline-flex; align-items: center; min-height: var(--portal-touch-height); min-width: 112px; color: var(--portal-muted); font-size: 12px; }
 .exchange-v2-center { margin-top: 6px; }
 .exchange-v2-dialog { width: min(500px, calc(100% - 24px)); min-height: 0; max-height: min(640px, calc(100dvh - 24px)); }
 .exchange-v2-dialog form { min-height: 0; }
@@ -20,7 +27,7 @@
 .exchange-v2-sources legend { font-size: 13px; font-weight: 650; margin-bottom: 6px; }
 .exchange-v2-row-choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; font-weight: 650; color: var(--portal-accent); cursor: pointer; }
 .exchange-v2-outcome p { margin: 10px 0; font-size: 13px; }
-.exchange-browse-bar { position: fixed; z-index: 35; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; min-width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--portal-radius); box-shadow: 0 2px 8px #17283314; }
+.exchange-browse-bar { position: fixed; z-index: 35; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; min-width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--portal-radius); box-shadow: var(--portal-shadow); }
 .exchange-browse-bar span { flex: 1; font-size: 13px; font-weight: 650; }
 .exchange-browse-bar .ui-button { min-height: 44px; }
 @media (max-width: 900px) { .exchange-browse-bar { bottom: calc(72px + env(safe-area-inset-bottom)); } }
