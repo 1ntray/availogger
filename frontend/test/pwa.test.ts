@@ -17,7 +17,7 @@ describe('PWA assets and authentication boundaries', () => {
     expect(pwaOptions.useCredentials).toBe(true);
   });
   it('precaches only static assets, preserving network navigation and API calls', () => {
-    expect(pwaOptions.injectManifest?.globPatterns).toEqual(['assets/**/*.{js,css}', 'icons/*.{svg,png}']);
+    expect(pwaOptions.injectManifest?.globPatterns).toEqual(['assets/**/*.{js,css}', 'icons/*.{svg,png}', 'fonts/*.woff2']);
     const sw = readFileSync('src/pwa/sw.js','utf8');
     expect(sw).toContain('precacheAndRoute(self.__WB_MANIFEST)');
     expect(sw).not.toMatch(/registerRoute|NavigationRoute|requestPermission|pushManager|caches\.put/);
