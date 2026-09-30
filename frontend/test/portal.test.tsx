@@ -23,7 +23,9 @@ describe('portal routes', () => {
     ['/missing', 'Page not found'],
   ])('renders %s with the portal navigation', (route, heading) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={[route]}><PortalRoutes /></MemoryRouter>);
-    expect(html).toContain(`<h1>${heading}</h1>`);
+    // Home greets the user by time of day instead of titling itself "Home".
+    if (route === '/') expect(html).toMatch(/<h1>Good (morning|afternoon|evening)/);
+    else expect(html).toContain(`<h1>${heading}</h1>`);
     expect(html).toContain('Luftfartsfag');
     expect(html).toContain('aria-label="Mobile navigation"');
     expect(html).not.toContain('href="/transport"');

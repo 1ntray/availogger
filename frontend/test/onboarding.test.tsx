@@ -82,7 +82,7 @@ describe('mandatory FlightLogger onboarding', () => {
   it('redirects a completed user away from onboarding to Home', async () => {
     api.mockImplementation(async () => Response.json(connected)); await render('/onboarding');
     expect(host.querySelector('output')!.textContent).toBe('/');
-    expect(host.querySelector('h1')!.textContent).toBe('Home');
+    expect(host.querySelector('h1')!.textContent).toMatch(/^Good (morning|afternoon|evening)/);
   });
   it('does not render operations while identity is loading or unavailable', async () => {
     let resolve!: (value: Response) => void;
