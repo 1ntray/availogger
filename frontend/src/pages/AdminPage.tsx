@@ -1,5 +1,6 @@
 import { ContextLink } from '../app/controls';
 import { usePermissions } from '../app/permissions';
+import { otherEnvironment } from '../app/environments';
 import { PERMISSIONS } from '../../../shared/authorization';
 
 export function AdminPage() {
@@ -11,7 +12,14 @@ export function AdminPage() {
     { path: '/admin/contact', label: 'Contact messages', permission: PERMISSIONS.contactWebmasterManage },
     { path: '/admin/exchanges', label: 'Exchange audit', permission: PERMISSIONS.adminExchangeAudit },
   ];
+  const environment = hasPermission(PERMISSIONS.adminManageUsers) ? otherEnvironment(window.location.hostname) : null;
   return <section className="admin-hub"><h1>Administration</h1><nav aria-label="Administration tools">
     {entries.filter(entry => hasPermission(entry.permission)).map(entry => <ContextLink key={entry.path} to={entry.path}>{entry.label}<span aria-hidden="true">→</span></ContextLink>)}
-  </nav></section>;
+  </nav>
+    {environment && <section className="admin-environment" aria-labelledby="admin-environment-heading">
+      <h2 id="admin-environment-heading">Environments</h2>
+      <p>{environment.description}</p>
+      <nav aria-label="Environments"><a href={environment.href} target="_blank" rel="noopener noreferrer">{environment.label}<span aria-hidden="true">↗</span></a></nav>
+    </section>}
+  </section>;
 }
