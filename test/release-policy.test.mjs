@@ -21,7 +21,13 @@ describe('release selection and bootstrap controls', () => {
     expect(wranglerDatabaseArgs(preview)).toEqual(['studentportal-preview', '--remote', '--env', 'preview', '--config', 'wrangler.jsonc']);
     expect(wranglerDatabaseArgs(production)).toEqual(['studentportal-db', '--remote', '--config', 'wrangler.jsonc']);
   });
-  it.each(['refs/heads/feature/test', 'refs/pull/1/merge', 'refs/tags/master', 'develop', ''])('rejects untrusted ref %s', ref => {
+  it('deploys the redesign branch as its own preview alias on the preview database', () => {
+    const redesign = releasePlan({ ...input, ref: 'refs/heads/redesign' });
+    expect(redesign).toMatchObject({ branch: 'redesign', target: 'preview', database: 'studentportal-preview', environment: 'database-preview', enabled: true });
+    expect(wranglerDatabaseArgs(redesign)).toEqual(wranglerDatabaseArgs(preview));
+    expect(releasePlan({ ...input, ref: 'refs/heads/redesign', previewEnabled: 'false' }).enabled).toBe(false);
+  });
+  it.each(['refs/heads/feature/test', 'refs/heads/redesign/child', 'refs/pull/1/merge', 'refs/tags/redesign', 'develop', ''])('rejects untrusted ref %s', ref => {
     expect(() => releasePlan({ ...input, ref, event: 'workflow_dispatch' })).toThrow('branch refs');
   });
   it.each(['pull_request', 'pull_request_target', 'workflow_run'])('rejects event %s', event => {

@@ -3,7 +3,7 @@ run-name: Release ${{ github.ref_name }} at ${{ github.sha }}
 
 on:
   push:
-    branches: [develop, master]
+    branches: [develop, redesign, master]
   workflow_dispatch:
 
 permissions:

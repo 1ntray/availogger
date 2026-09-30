@@ -3,11 +3,13 @@ import { pathToFileURL } from 'node:url';
 
 const targets = {
   'refs/heads/develop': { branch: 'develop', target: 'preview', environment: 'database-preview', database: 'studentportal-preview', variable: 'AUTO_RELEASE_PREVIEW' },
+  // Temporary: the redesign branch gets its own Pages preview alias on the preview database and Access app.
+  'refs/heads/redesign': { branch: 'redesign', target: 'preview', environment: 'database-preview', database: 'studentportal-preview', variable: 'AUTO_RELEASE_PREVIEW' },
   'refs/heads/master': { branch: 'master', target: 'production', environment: 'database-production', database: 'studentportal-db', variable: 'AUTO_RELEASE_PRODUCTION' },
 };
 
 export function releasePlan({ ref, sha, event, previewEnabled, productionEnabled }) {
-  if (!Object.hasOwn(targets, ref)) throw new Error('Only develop and master branch refs may release; feature branches, tags and PR refs are rejected.');
+  if (!Object.hasOwn(targets, ref)) throw new Error('Only develop, redesign and master branch refs may release; feature branches, tags and PR refs are rejected.');
   if (!['push', 'workflow_dispatch'].includes(event)) throw new Error('Only push or workflow_dispatch may release.');
   if (!/^[a-f0-9]{40}$/.test(sha ?? '')) throw new Error('An exact 40-character commit SHA is required.');
   const target = targets[ref];
