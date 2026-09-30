@@ -129,6 +129,9 @@ p { line-height: 1.55; }
 .admin-hub nav { display: grid; margin-top: 20px; max-width: 640px; }
 .admin-hub nav a { display: flex; justify-content: space-between; min-height: var(--portal-touch-height); align-items: center; padding: 12px 0; border-bottom: 1px solid var(--portal-border); text-decoration: none; font-weight: 600; }
 .admin-hub nav a:hover { color: var(--portal-accent); }
+.admin-environment { margin-top: 32px; max-width: 640px; }
+.admin-environment p { margin: 6px 0 0; font-size: 13px; color: var(--portal-muted); }
+.admin-environment nav { margin-top: 8px; }
 .activity-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
 .activity-filters button, .activity-more button, .theme-options button { min-height: var(--portal-touch-height); padding: 8px 12px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); background: var(--portal-surface); color: var(--portal-control-text); }
 .activity-filters button[aria-pressed="true"], .theme-options button[aria-pressed="true"] { border-color: var(--portal-accent); background: var(--portal-nav-active); color: var(--portal-nav-active-text); }
