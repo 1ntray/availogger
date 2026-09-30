@@ -30,7 +30,7 @@
 .fuel-form select,.fuel-form input { min-height:40px; padding:7px; border:1px solid var(--portal-control-border); border-radius:var(--portal-radius); font:inherit; }
 .fuel-form-actions { display:flex; gap:8px; }
 .fuel-notice { font-size:13px; color:var(--portal-muted); }
-.fuel-error { font-size:13px; color:#8b5143; }
+.fuel-error { font-size:13px; color:var(--portal-danger-text); }
 .fuel-task-section h2 { margin:20px 0 0; padding-bottom:8px; border-bottom:1px solid var(--portal-border); font-size:18px; }
 .fuel-task-row.is-due { border-left:3px solid var(--portal-accent); padding-left:10px; }
 @media(max-width:560px){.flights-heading,.fuel-shift-heading{align-items:flex-start}.flight-row,.fuel-task-row{padding-left:0;padding-right:0}.flight-segments{gap:6px 14px}.flight-segment{min-width:90px}}

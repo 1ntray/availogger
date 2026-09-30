@@ -27,7 +27,7 @@
 .exchange-v2-sources legend { font-size: 13px; font-weight: 650; margin-bottom: 6px; }
 .exchange-v2-row-choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; font-weight: 650; color: var(--portal-accent); cursor: pointer; }
 .exchange-v2-outcome p { margin: 10px 0; font-size: 13px; }
-.exchange-browse-bar { position: fixed; z-index: 35; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; min-width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--portal-radius); box-shadow: 0 2px 8px #17283314; }
+.exchange-browse-bar { position: fixed; z-index: 35; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; min-width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--portal-radius); box-shadow: var(--portal-shadow); }
 .exchange-browse-bar span { flex: 1; font-size: 13px; font-weight: 650; }
 .exchange-browse-bar .ui-button { min-height: 44px; }
 @media (max-width: 900px) { .exchange-browse-bar { bottom: calc(72px + env(safe-area-inset-bottom)); } }

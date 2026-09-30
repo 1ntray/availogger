@@ -15,18 +15,18 @@
 .duty-row-actions > .exchange-assignment-state { display: contents; }
 .duty-row-actions > .exchange-assignment-state > span { flex-basis: 100%; }
 .exchange-row-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; font-size: 14px; }
-.exchange-row-heading span, .exchange-note { color: var(--portal-muted, #60767c); font-size: 12px; }
+.exchange-row-heading span, .exchange-note { color: var(--portal-muted); font-size: 12px; }
 .exchange-note { margin: 6px 0; }
 .exchange-time { margin: 8px 0 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
 .exchange-actions, .exchange-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.duty-ops .exchange-proposals { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--portal-border, #d7e1df); }
-.exchange-proposals > li { padding: 10px 0; border-top: 1px solid var(--portal-border, #d7e1df); font-size: 13px; }
+.duty-ops .exchange-proposals { margin-top: 14px; padding-left: 14px; border-left: 2px solid var(--portal-border); }
+.exchange-proposals > li { padding: 10px 0; border-top: 1px solid var(--portal-border); font-size: 13px; }
 .duty-ops .exchange-shift-action { margin-top: 8px; }
 .exchange-dialog { max-width: 500px; width: calc(100% - 32px); min-height: min(350px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); color: var(--portal-control-text); background: var(--portal-surface); }
 .exchange-dialog form { display: flex; flex-direction: column; min-height: 250px; }
 .exchange-dialog .exchange-actions:last-child { margin-top: auto; padding-top: 18px; }
 .exchange-decision-note { min-height: 70px; }
-.exchange-dialog::backdrop { background: rgb(20 35 44 / 45%); }
+.exchange-dialog::backdrop { background: var(--portal-backdrop); }
 .duty-ops .exchange-dialog h3 { margin: 0 0 14px; font-size: 17px; }
 .exchange-dialog p { overflow-wrap: anywhere; }
 .exchange-choices label { display: flex; align-items: center; gap: 8px; min-height: var(--portal-touch-height); padding: 10px 12px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); font-size: 14px; cursor: pointer; }
@@ -34,7 +34,7 @@
 .exchange-choices label:has(input:disabled) { opacity: .6; cursor: not-allowed; }
 .exchange-choices input { accent-color: var(--portal-accent); }
 .exchange-select { display: grid; gap: 8px; font-size: 14px; }
-.exchange-select select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--portal-border, #d7e1df); border-radius: 6px; background: white; padding: 6px; }
+.exchange-select select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--portal-border); border-radius: 6px; background: var(--portal-surface); color: var(--portal-control-text); padding: 6px; }
 .exchange-dialog .exchange-actions { justify-content: flex-end; }
 .exchange-start-assignment { margin: 0 0 14px; font-size: 14px; font-variant-numeric: tabular-nums; }
 .exchange-start h4 { margin: 0 0 6px; font-size: 13px; }

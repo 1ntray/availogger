@@ -4,12 +4,12 @@
 .duty-ops button:not(.ui-button) { border: 1px solid var(--portal-border); background: var(--portal-surface); color: var(--portal-control-text); border-radius: var(--portal-radius); padding: 9px 12px; font: inherit; font-size: 13px; min-height: var(--portal-touch-height); }
 .duty-ops button:not(.ui-button):hover { background: var(--portal-control-hover); }
 .duty-ops button:disabled { opacity: .6; cursor: wait; }
-.duty-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; color: #60767c; font-size: 12px; margin: 0 0 24px; }
+.duty-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--portal-muted); font-size: 12px; margin: 0 0 24px; }
 .duty-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-bottom: 20px; }
-.duty-ops h2 { font-size: 18px; margin: 0; padding-bottom: 10px; border-bottom: 1px solid #cbd9d4; }
-.duty-ops h3 { font-size: 13px; font-weight: 650; margin: 22px 0 6px; color: #48615b; }
+.duty-ops h2 { font-size: 18px; margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--portal-border); }
+.duty-ops h3 { font-size: 13px; font-weight: 650; margin: 22px 0 6px; color: var(--portal-secondary); }
 .duty-ops ul { list-style: none; padding: 0; margin: 0; }
-.duty-row { position: relative; padding: 12px 12px; border-bottom: 1px solid #e1e8e4; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+.duty-row { position: relative; padding: 12px 12px; border-bottom: 1px solid var(--portal-divider); border-left: 3px solid transparent; overflow-wrap: anywhere; }
 .duty-row:has(.duty-row-link):hover { background: var(--portal-control-hover); }
 .duty-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
 .duty-row-actions:empty { display: none; }
@@ -21,21 +21,21 @@
 .duty-heading-actions { display: flex; align-items: center; gap: 8px; }
 .duty-heading-actions a { font-size: 13px; color: var(--portal-accent); text-decoration: none; }
 .duty-row:last-child { border-bottom: 0; }
-.duty-row.is-mine { border-left-color: #328767; background: #ecf4ef; }
-.duty-row.is-cancelled { color: #60767c; }
+.duty-row.is-mine { border-left-color: var(--portal-highlight-border); background: var(--portal-highlight); }
+.duty-row.is-cancelled { color: var(--portal-muted); }
 .duty-row-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 14px; font-size: 14px; font-weight: 650; }
 .duty-row time { font-variant-numeric: tabular-nums; }
 .duty-row-date { min-width: 88px; }
-.duty-participants { font-size: 13px; margin: 5px 0 0; color: #48615b; line-height: 1.5; }
-.duty-status { font-weight: 400; font-size: 12px; color: #8b5143; }
-.duty-empty, .duty-loading { color: #60767c; font-size: 14px; margin: 14px 0; }
+.duty-participants { font-size: 13px; margin: 5px 0 0; color: var(--portal-secondary); line-height: 1.5; }
+.duty-status { font-weight: 400; font-size: 12px; color: var(--portal-danger-text); }
+.duty-empty, .duty-loading { color: var(--portal-muted); font-size: 14px; margin: 14px 0; }
 .duty-navigation { display: flex; flex-wrap: wrap; gap: var(--portal-space-4); margin: 0 0 20px; border-bottom: 1px solid var(--portal-border); }
 .duty-navigation a { padding: 10px 0; text-decoration: none; font-size: 13px; color: var(--portal-muted); border-bottom: 2px solid transparent; }
 .duty-navigation a[aria-current="page"] { color: var(--portal-accent); border-bottom-color: var(--portal-accent); font-weight: 650; }
 .duty-source { display: block; font-size: 11px; font-weight: 650; color: var(--portal-control-text); }
 .duty-source-inline { margin-left: 12px; font-size: 11px; color: var(--portal-muted); }
 .duty-source-secondary, .duty-source-secondary .duty-source { color: var(--portal-muted); }
-.duty-alert { border-left: 3px solid #ad614d; padding: 10px 12px; margin: 16px 0; font-size: 13px; background: #fff8f4; color: #744c40; line-height: 1.6; }
+.duty-alert { border-left: 3px solid var(--portal-danger-accent); padding: 10px 12px; margin: 16px 0; font-size: 13px; background: var(--portal-danger-background); color: var(--portal-danger-text); line-height: 1.6; }
 @media (max-width: 700px) {
   .duty-summary { grid-template-columns: minmax(0, 1fr); gap: 26px; }
   .duty-meta { margin-bottom: 20px; gap: 6px 16px; }
