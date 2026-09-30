@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useCurrentUser } from '../app/CurrentUser';
 import { OnboardingRequiredError } from '../api';
 import { cacheAgeLabel } from '../cache-age';
@@ -6,16 +6,22 @@ import { osloDate } from '../dates';
 import { loadDutyOps } from '../features/duty-ops/api';
 import { dateLabel, dutySections, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
-import { ShiftList } from '../features/duty-ops/ShiftList';
-import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
-import { ExchangeV2Provider, ExchangeV2Summary } from '../features/exchange/ExchangeV2';
+import { DutyExchanges } from '../features/duty-ops/DutyExchanges';
+import { DutyOpsSkeleton, DutyTabs, ExchangesCard, OnDutyNowCard, ScheduleCard, YourShiftsCard } from '../features/duty-ops/DutyCards';
+import { ExchangeV2Provider, ExchangeV2Summary, useExchangeCounts } from '../features/exchange/ExchangeV2';
 import { AttentionDetail } from '../app/AttentionDetail';
-import { BackLink, PageHeader, RefreshControl } from '../app/controls';
+import { Icon } from '../app/Icon';
+import { Skeleton } from '../app/ui';
+import { PERMISSIONS } from '../../../shared/authorization';
 import '../features/duty-ops/duty-ops.css';
 import '../features/duty-ops/credits.css';
 
+const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
 export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchanges' }) {
-  const { refresh } = useCurrentUser();
+  const { user, refresh } = useCurrentUser();
+  const canSwap = user?.permissions?.includes(PERMISSIONS.dutyOpsSwap) === true;
+  const [balance, setBalance] = useState<number | null>(null);
   const [data, setData] = useState<DutyOpsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,24 +49,46 @@ export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
   const assignments = data?.shifts.map(shift => ({ id: shift.id,
     label: `${dateLabel(shift.startsAt)} · ${timeLabel(shift)}`,
     ownerNames: participantLabel(shift), own: shift.participants.some(person => person.isCurrentUser) })) ?? [];
-  return <section className="duty-ops">
-    {center && <BackLink to="/duty-ops">Duty Ops</BackLink>}
-    <PageHeader title={center ? 'Exchanges' : 'Duty Ops'}><RefreshControl label="Duty Ops" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>
-    {data && <div className="duty-meta"><details><summary>Sync details</summary><span>Times in Europe/Oslo · Schedule: {cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)} · Assignments: {cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}</span></details></div>}
-    {loading && !data && <p className="duty-loading" role="status">Loading Duty Ops…</p>}
+  // Days ahead that FlightLogger is synced for, from today to the end of the window.
+  const windowDays = data ? Math.max(1, Math.round((Date.parse(`${data.to}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000) + 1) : 60;
+  const retry = !!error || !!data?.sync.stale;
+  return <section className={`duty-ops duty-page${center ? " duty-page--center" : ""}`}>
+    <header className="duty-title">
+      <div>
+        <h1>{center ? 'Exchanges' : 'Duty Ops'}</h1>
+        <p className="duty-subline" title={data ? `Times in Europe/Oslo · Schedule: ${cacheAgeLabel(data.sync.discovery.lastSyncedAt, now)} · Assignments: ${cacheAgeLabel(data.sync.assignments.lastSyncedAt, now)}` : undefined}>
+          {data ? `Synced ${clock.format(new Date(data.sync.assignments.lastSyncedAt))} · ${windowDays} days from FlightLogger` : <Skeleton width={220} height={12} />}</p>
+      </div>
+      <button type="button" className="ui-button duty-refresh" onClick={() => setReload(n => n + 1)} disabled={loading} aria-label={retry ? 'Retry Duty Ops' : 'Refresh Duty Ops'}>
+        <Icon name="reload" size={16} /><span className="duty-refresh-text">{retry ? 'Retry' : 'Refresh'}</span>
+      </button>
+    </header>
+    {!sections && <DutyTabs canSwap={canSwap} />}
+    {loading && !data && <DutyOpsSkeleton />}
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <div role="status"><AttentionDetail label="Schedule may be out of date"><p>{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p></AttentionDetail></div>}
     {sections && data && <ExchangeV2Provider domain="DUTY_OPS" assignments={assignments} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
-      <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center} legacyOnly afterBoard={!center && sections.schedule.length > 0 &&
-      <section id="exchange-schedule" className="duty-schedule" aria-labelledby="duty-schedule"><h2 id="duty-schedule">Upcoming schedule</h2>
-        {sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>)}
-      </section>}>
-      {!center && <div className="duty-summary">
-        {(sections.mine.length > 0 || sections.onDutyNow.length === 0) && <section aria-labelledby="duty-mine"><h2 id="duty-mine">My upcoming shifts</h2>{sections.mine.length ? <ShiftList shifts={sections.mine} showDate linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /> : <p className="duty-empty">No upcoming shifts</p>}</section>}
-        {sections.onDutyNow.length > 0 && <section aria-labelledby="duty-now"><h2 id="duty-now">On duty now</h2><ShiftList shifts={sections.onDutyNow} linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>}
-      </div>}
-      <ExchangeV2Summary domain="DUTY_OPS" center={center} />
-    </DutyExchanges></ExchangeV2Provider>}
+      <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} onBalanceChanged={setBalance} showBoard={center} legacyOnly>
+        <DutyTabs canSwap={canSwap} />
+        {center ? <div className="card duty-center"><ExchangeV2Summary domain="DUTY_OPS" center /></div> : <ScheduleLayout
+          onDuty={sections.onDutyNow.map(shift => <OnDutyNowCard key={shift.id} shift={shift} now={now} />)}
+          mine={(sections.mine.length > 0 || sections.onDutyNow.length === 0) && <YourShiftsCard shifts={sections.mine} now={now} windowDays={windowDays} canSwap={canSwap} />}
+          exchanges={<ExchangesCard balance={balance}><ExchangeV2Summary domain="DUTY_OPS" embedded /></ExchangesCard>}
+          schedule={<ScheduleCard groups={sections.schedule} now={now} windowDays={windowDays} />} />}
+      </DutyExchanges></ExchangeV2Provider>}
   </section>;
+}
+
+/** Phone order: on duty now, your shifts, exchanges, schedule; exchanges move up when something needs the user's answer. */
+function ScheduleLayout({ onDuty, mine, exchanges, schedule }: { onDuty: ReactNode[]; mine: ReactNode; exchanges: ReactNode; schedule: ReactNode }) {
+  const counts = useExchangeCounts();
+  const urgent = (counts?.review ?? 0) > 0;
+  return <div className="duty-layout">
+    {onDuty}
+    {urgent && exchanges}
+    {mine}
+    {!urgent && exchanges}
+    {schedule}
+  </div>;
 }
 export function DutyExchangeCenterPage() { return <DutyOpsPage view="exchanges" />; }
