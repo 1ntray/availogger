@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { navigation, visibleNavigation } from './navigation';
 import { Icon } from './Icon';
+import { Avatar } from './ui';
 import { useCurrentUser } from './CurrentUser';
 import { usePermissions } from './permissions';
 import { displayName } from '../../../shared/display-name';
@@ -57,8 +58,9 @@ export function AppShell() {
     <header className="portal-header">
       <Link className="brand" to="/" aria-label="Luftfartsfag Studentportal home"><span className="brand-mark">LF</span><div><strong>Luftfartsfag</strong><span>Studentportal</span></div></Link>
       <div className="header-actions"><Link className="header-inbox" to="/inbox" aria-label={`Inbox${unreadCount?`, ${unreadCount} unread`:''}`} title="Inbox"><Icon name="bell"/>{unreadCount>0&&<span className="header-inbox-count">{unreadCount>99?'99+':unreadCount}</span>}</Link><div className="account-control">
-        <button ref={accountButton} type="button" className="current-user" aria-expanded={accountOpen} aria-controls="account-menu" onClick={() => setAccountOpen(value => !value)}>
-          <Icon name="account" /><span className="account-identity"><strong>{user ? displayName(user) : loading ? 'Loading account…' : 'Account unavailable'}</strong></span><span aria-hidden="true">⌄</span>
+        <button ref={accountButton} type="button" className="current-user" aria-expanded={accountOpen} aria-controls="account-menu" onClick={() => setAccountOpen(value => !value)}
+          aria-label={user ? `Account menu, ${displayName(user)}` : 'Account menu'}>
+          <Avatar user={user} size={34} /><Icon name="account" /><span className="account-identity"><strong>{user ? displayName(user) : loading ? 'Loading account…' : 'Account unavailable'}</strong></span><span aria-hidden="true">⌄</span>
         </button>
         {accountOpen && <div className="account-menu" id="account-menu" ref={accountPanel}>
           {user?.email && <p className="account-menu-email">{user.email}</p>}
