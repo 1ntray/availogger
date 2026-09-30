@@ -5,6 +5,7 @@ import type { DutyMeeting, FlightLoggerProfile } from '../flightlogger/duty-ops'
 import type { ApplicationUser } from '../users';
 import type { DutyWindow } from './window';
 import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
+import { scheduleNotificationsInstalled, scheduleObservationStatements } from '../notifications/schedule';
 
 export const DUTY_OPS_TTL_MS = 5 * 60 * 1000;
 // Reserve headroom for Access verification and D1 calls on Workers Free.
@@ -74,10 +75,12 @@ export async function saveDiscovery(db: D1Database, meetings: DutyMeeting[], win
 export async function saveAssignments(db: D1Database, user: ApplicationUser, profile: FlightLoggerProfile, meetings: DutyMeeting[], window: DutyWindow, stamp: string, hash: string) {
   if (profile.id !== user.flightlogger_user_id) throw new ApplicationError('Your FlightLogger identity changed. Reconnect the API key in Settings.', 409);
   const ids = JSON.stringify(meetings.map(m => m.id));
+  const notifications = await scheduleNotificationsInstalled(db);
   await db.batch([
     // all:false can discover a newly created booking between global refreshes, but
     // only all:true replaces canonical metadata and removes absent shared shifts.
     shiftWrite(db, meetings, stamp, false, user),
+    ...(notifications ? scheduleObservationStatements(db,'DUTY_OPS',user,meetings,window,stamp,hash) : []),
     db.prepare(`DELETE FROM duty_ops_assignments WHERE user_id = ? AND last_seen_at <= ?
       AND shift_id IN (SELECT id FROM duty_ops_shifts WHERE starts_at < ? AND ends_at > ?
         AND flightlogger_booking_id NOT IN (SELECT value FROM json_each(?)))

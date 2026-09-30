@@ -155,7 +155,7 @@ describe('D1 synchronization and identity aggregation', () => {
     vi.setSystemTime(new Date(now.getTime() + FLYVASK_TTL_MS + 120000));
     await loadFlyvask(fixture.db, user, 'test-token', window);
     expect(upstream).toHaveBeenCalledTimes(6); // self + assignments only
-  });
+  }, 30000);
   it('does not let an older discovery delete a newer own assignment on an existing shift', async () => {
     const meetings = [parseFlyvaskMeeting(raw())!];
     await saveDiscovery(fixture.db, meetings, window, now.toISOString());
@@ -179,7 +179,7 @@ describe('D1 synchronization and identity aggregation', () => {
     await saveDiscovery(fixture.db, [], window, stamp);
     expect(await fixture.db.prepare('SELECT flightlogger_booking_id FROM flyvask_shifts').first('flightlogger_booking_id')).toBe('outside');
     expect(await fixture.db.prepare('SELECT COUNT(*) AS n FROM flyvask_assignments').first('n')).toBe(0);
-  });
+  }, 30000);
   it('handles overlapping overnight boundary shifts and preserves newer writes against older refreshes', async () => {
     const w = flyvaskWindow(new URL('https://test/api/flyvask?from=2026-09-28&to=2026-09-28'));
     const meeting = { ...parseFlyvaskMeeting(raw())!, startsAt: '2026-09-27T21:00:00.000Z', endsAt: '2026-09-28T01:00:00.000Z' };

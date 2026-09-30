@@ -5,6 +5,7 @@ import { json } from './response';
 import { requireSameOrigin } from './same-origin';
 import type { ApplicationUser } from './users';
 import { PERMISSIONS } from '../shared/authorization';
+import { contactNoticeStatements } from './notifications/contact';
 
 type Context = { request: Request; env: PagesEnv; data: AccessData; params: Record<string,string|string[]> };
 type Thread = { id:string;channel_id:string;category:string;title:string;current_path:string|null;status:'OPEN'|'RESOLVED';created_at:string;updated_at:string;resolved_at:string|null;created_by_user_id:string;first_name:string|null;last_name:string|null;email:string };
@@ -56,6 +57,7 @@ export async function createContact(db:D1Database,user:ApplicationUser,category:
     db.prepare("UPDATE contact_state SET revision=CASE WHEN EXISTS(SELECT 1 FROM contact_channels WHERE id='webmaster' AND active=1 AND user_facing=1) THEN revision+1 ELSE -1 END WHERE id=1"),
     db.prepare("INSERT INTO contact_threads (id,channel_id,created_by_user_id,category,title,current_path,status,created_at,updated_at) VALUES (?,'webmaster',?,?,?,?,'OPEN',?,?)").bind(id,user.id,category,title,route,now,now),
     db.prepare('INSERT INTO contact_messages (id,thread_id,author_user_id,body,created_at) VALUES (?,?,?,?,?)').bind(hexId(),id,user.id,body,now),
+    ...contactNoticeStatements(db,id,user.id,'NEW_FEEDBACK',null,now),
   ]);
   return {id,title};
 }
@@ -69,9 +71,7 @@ export async function replyContact(db:D1Database,user:ApplicationUser,id:string,
     db.prepare('INSERT INTO contact_messages (id,thread_id,author_user_id,body,created_at) VALUES (?,?,?,?,?)').bind(messageId,id,user.id,body,now),
     db.prepare("UPDATE contact_threads SET updated_at=?,status='OPEN',resolved_at=NULL,resolved_by_user_id=NULL"+(admin?',last_webmaster_message_id=?':'')+' WHERE id=?').bind(...(admin?[now,messageId,id]:[now,id])),
   ];
-  if(admin&&thread.created_by_user_id!==user.id) statements.push(db.prepare(`INSERT INTO user_inbox_items (id,user_id,kind,source_type,source_id,created_at,read_at)
-    VALUES (? ,?,'CONTACT_REPLY','CONTACT_MESSAGE',?,?,NULL)
-    ON CONFLICT(user_id,source_type,source_id) DO UPDATE SET created_at=excluded.created_at,read_at=NULL`).bind(hexId(),thread.created_by_user_id,id,now));
+  statements.push(...contactNoticeStatements(db,id,user.id,admin?'WEBMASTER_REPLY':'STUDENT_REPLY',messageId,now));
   await db.batch(statements);
   return {id:messageId,createdAt:now};
 }
@@ -121,11 +121,15 @@ export function contactStatusEndpoint(context:Context):Promise<Response>|Respons
   if(context.request.method!=='POST')return methodNotAllowed('POST');
   return withAuthorizedUser(context,PERMISSIONS.contactWebmasterManage,async(db,user)=>{
     const data=await input(context.request,['status']);if(data.status!=='OPEN'&&data.status!=='RESOLVED')throw invalid();
-    const id=threadId(context.params.threadId);await getThread(db,id,user,true);
+    const id=threadId(context.params.threadId),thread=await getThread(db,id,user,true);
+    if(thread.status===data.status)return json({status:data.status});
     const now=new Date().toISOString();
     await db.batch([
-      db.prepare(`UPDATE contact_state SET revision=CASE WHEN EXISTS(SELECT 1 FROM contact_threads t JOIN contact_channels c ON c.id=t.channel_id JOIN effective_user_permissions p ON p.permission_key=c.recipient_permission_key AND p.user_id=? WHERE t.id=?) THEN revision+1 ELSE -1 END WHERE id=1`).bind(user.id,id),
+      db.prepare(`UPDATE contact_state SET revision=CASE WHEN EXISTS(SELECT 1 FROM contact_threads t JOIN contact_channels c ON c.id=t.channel_id JOIN effective_user_permissions p ON p.permission_key=c.recipient_permission_key AND p.user_id=? WHERE t.id=? AND t.status=?) THEN revision+1 ELSE -1 END WHERE id=1`).bind(user.id,id,thread.status),
       db.prepare('UPDATE contact_threads SET status=?,resolved_at=?,resolved_by_user_id=?,updated_at=? WHERE id=?').bind(data.status,data.status==='RESOLVED'?now:null,data.status==='RESOLVED'?user.id:null,now,id),
+      db.prepare('INSERT INTO contact_thread_events(id,thread_id,actor_user_id,type,created_at) VALUES (?,?,?,?,?)')
+        .bind(hexId(),id,user.id,data.status==='RESOLVED'?'RESOLVED':'REOPENED',now),
+      ...contactNoticeStatements(db,id,user.id,data.status==='RESOLVED'?'RESOLVED':'REOPENED',null,now),
     ]);
     return json({status:data.status});
   });

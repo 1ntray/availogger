@@ -88,10 +88,16 @@ describe('Exchange v2 guarded outcomes',()=>{
     const a=await student('target-a'),b=await student('target-b'),c=await student('target-c');
     const x=await duty(a),y=await duty(b,second),z=await duty(c,third);
     const created=await createIntent(fixture.db,a,'DUTY_OPS',x,[y,z],false);
+    expect((await listInbox(fixture.db,b.id,new URL('https://portal.test/api/inbox'))).items
+      .some(item=>item.title==='Swap request')).toBe(true);
     const state=await listExchangeV2(fixture.db,b,'DUTY_OPS',[y]);
     const target=state.intents.find(i=>i.id===created.id)!.targets.find(t=>t.assignment.id===y)!;
     expect(state.assignmentStates.find(s=>s.assignmentId===y)?.availableActions).toContain('ACCEPT_TARGET');
     await acceptTarget(fixture.db,b,target.id);
+    expect((await listInbox(fixture.db,a.id,new URL('https://portal.test/api/inbox'))).items
+      .some(item=>item.title==='Exchange agreed')).toBe(true);
+    expect((await fixture.db.prepare("SELECT count(*) n FROM user_inbox_items WHERE user_id=? AND source_type='EXCHANGE' AND source_id=? AND kind='INFO'")
+      .bind(b.id,(await fixture.db.prepare('SELECT completed_candidate_id FROM exchange_v2_intents WHERE id=?').bind(created.id).first<string>('completed_candidate_id'))).first<number>('n'))).toBe(0);
     expect(await owner(x)).toBe(b.id);expect(await owner(y)).toBe(a.id);
     const statuses=(await fixture.db.prepare('SELECT status FROM exchange_v2_targets WHERE intent_id=? ORDER BY assignment_id')
       .bind(created.id).all<{status:string}>()).results.map(r=>r.status).sort();
@@ -106,7 +112,13 @@ describe('Exchange v2 guarded outcomes',()=>{
     const intent=await createIntent(fixture.db,a,'DUTY_OPS',x,[],false);
     const offered=await createOffer(fixture.db,b,intent.id,y);
     expect(offered.status).toBe('OPEN');expect(await owner(x)).toBe(a.id);
+    expect((await listInbox(fixture.db,a.id,new URL('https://portal.test/api/inbox'))).items
+      .some(item=>item.title==='Review exchange')).toBe(true);
     await confirmCandidate(fixture.db,a,offered.candidateId);
+    expect((await listInbox(fixture.db,b.id,new URL('https://portal.test/api/inbox'))).items
+      .some(item=>item.title==='Exchange agreed')).toBe(true);
+    expect((await fixture.db.prepare("SELECT count(*) n FROM user_inbox_items WHERE user_id=? AND source_type='EXCHANGE' AND source_id=? AND kind='INFO'")
+      .bind(a.id,offered.candidateId).first<number>('n'))).toBe(0);
     expect(await owner(x)).toBe(b.id);expect(await owner(y)).toBe(a.id);
     await expect(commitCandidate(fixture.db,a,offered.candidateId)).rejects.toMatchObject({status:409});
   },40_000);
@@ -137,6 +149,10 @@ describe('Exchange v2 guarded outcomes',()=>{
     expect((await fixture.db.prepare('SELECT count(*) n FROM duty_ops_assignments WHERE shift_id=? AND user_id=?')
       .bind(x,a.id).first<{n:number}>())?.n).toBe(1);
     const winner=(await owner(x))===b.id?b:c;
+    expect((await listInbox(fixture.db,a.id,new URL('https://portal.test/api/inbox'))).items
+      .some(item=>item.title==='Exchange agreed')).toBe(true);
+    expect((await fixture.db.prepare("SELECT count(*) n FROM user_inbox_items WHERE user_id=? AND source_type='EXCHANGE' AND kind='INFO' AND source_id=(SELECT completed_candidate_id FROM exchange_v2_intents WHERE id=?)")
+      .bind(winner.id,intent.id).first<number>('n'))).toBe(0);
     const ownerHistory=await listCredits(fixture.db,a,null);
     const winnerHistory=await listCredits(fixture.db,winner,null);
     expect(ownerHistory.entries.find(entry=>entry.shift.id===x)).toMatchObject({
