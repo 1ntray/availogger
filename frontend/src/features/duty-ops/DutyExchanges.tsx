@@ -7,11 +7,12 @@ import { creditSign } from './credit-api';
 import type { DutyShift } from './types';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import './exchanges.css';
-import { ActionButton } from '../../app/controls';
-import { Link, useLocation } from 'react-router';
+import { ActionButton, ContextLink } from '../../app/controls';
+import { useLocation } from 'react-router';
 import { ExchangeStart } from '../exchange/ExchangeStart';
 import { hasOwnOpenOffer, openProposals, openRequests, ownOfferFor, ownRequestFor } from '../exchange/v1-presentation';
 import { ExchangeV2AssignmentAction } from '../exchange/ExchangeV2';
+import { LegacyOpportunityProvider, type LegacyOpportunity } from '../exchange/legacy-preview';
 
 type DialogState = { kind: 'start'; shift: DutyShift } | { kind: 'create'; shift: DutyShift; type: 'GIVE_AWAY' | 'DIRECT_SWAP' }
   | { kind: 'claim' | 'cancel' | 'propose'; request: ExchangeRequest }
@@ -22,7 +23,7 @@ const ExchangeContext = createContext<Controls | null>(null);
 export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   const state = useContext(ExchangeContext);
   if (!state?.enabled || (!state.legacyOnly && (shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now))) return null;
-  if (state.legacyOnly && !state.data) return null;
+  if (state.legacyOnly && !state.data) return <ExchangeV2AssignmentAction assignmentId={shift.id} />;
   const own = shift.participants.some(p => p.isCurrentUser);
   const requests = state.data?.requests ?? [];
   const userId = state.data?.currentUserId ?? '';
@@ -32,23 +33,23 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
       const offers = openProposals(request).length;
       return <div className="exchange-assignment-state"><span>{request.type === 'GIVE_AWAY' ? 'Give-away posted' : `Looking for swap${offers ? ` · ${offers} ${offers === 1 ? 'offer' : 'offers'}` : ''}`}</span>
         <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'cancel', request })}>Cancel</ActionButton>
-        <Link to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>{offers ? 'Review offers' : 'Open exchange'}</Link></div>;
+        <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>{offers ? 'Review offers' : 'Open exchange'}</ContextLink></div>;
     }
     const offer = ownOfferFor(requests, userId, shift.id, item => item.offeredShift.id);
     if (offer) return <div className="exchange-assignment-state"><span>Offer sent</span>
       <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
-      <Link to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</Link></div>;
-    if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><Link to="/duty-ops/exchanges">Open exchange center</Link></div>;
+      <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</ContextLink></div>;
+    if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><ContextLink to="/duty-ops/exchanges">Open exchange center</ContextLink></div>;
     return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> :
       <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'start', shift })}>Exchange</ActionButton>;
   }
   const request = openRequests(requests).find(item => item.requestedShift.id === shift.id);
   if (!request) return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> : null;
   if (hasOwnOpenOffer(request, userId)) return <span className="exchange-inline-status">Offer sent</span>;
-  return <div className="exchange-assignment-state"><span>{request.type === 'GIVE_AWAY' ? 'Give-away' : 'Swap wanted'}</span>
+  return <div className="exchange-assignment-state"><span>{request.type === 'GIVE_AWAY' ? `Give-away available from ${userName(request.requester)}` : `Swap wanted by ${userName(request.requester)}`}</span>
     {request.eligible && (request.type === 'GIVE_AWAY'
-      ? <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'claim', request })}>Take shift</ActionButton>
-      : state.hasEligibleShift && <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'propose', request })}>Offer your shift</ActionButton>)}</div>;
+      ? <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'claim', request })}>Take shift · +1 credit</ActionButton>
+      : state.hasEligibleShift && <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'propose', request })}>Offer a shift</ActionButton>)}</div>;
 }
 
 export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, onChanged, onBalanceChanged, showBoard = true, showOverview = false, legacyOnly = false }: { children: ReactNode; afterBoard?: ReactNode; shifts: DutyShift[]; now: number; refreshKey: number; onChanged?: () => void; onBalanceChanged?: (balance: number) => void; showBoard?: boolean; showOverview?: boolean; legacyOnly?: boolean }) {
@@ -69,7 +70,8 @@ export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, o
   const location = useLocation();
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current++;
-    setData(null); setError(''); setLoading(enabled);
+    setError(''); setLoading(enabled);
+    if (!enabled) setData(null);
     if (!enabled) setDialog(null);
     let pending = false;
     const update = async () => {
@@ -158,19 +160,27 @@ export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, o
   const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   const ownRequests = active.filter(r => r.requester.id === data?.currentUserId);
   const offersForYou = ownRequests.reduce((count, request) => count + request.proposals.length, 0);
+  const legacyItems: LegacyOpportunity[] = [...available, ...ownRequests].map(request => ({
+    id: request.id, label: shiftLabel(request.requestedShift),
+    description: request.requester.id === data?.currentUserId ? 'Your exchange' :
+      request.type === 'GIVE_AWAY' ? `Give-away available from ${userName(request.requester)}` : `Swap wanted by ${userName(request.requester)}`,
+    action: request.requester.id === data?.currentUserId ? <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink> :
+      request.type === 'GIVE_AWAY' ? <ActionButton disabled={busy || loading} onClick={() => open({ kind: 'claim', request })}>Take shift · +1 credit</ActionButton> :
+        eligible.length > 0 ? <ActionButton disabled={busy || loading} onClick={() => open({ kind: 'propose', request })}>Offer a shift</ActionButton> :
+          <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink>,
+  }));
   useEffect(() => {
     if (!showBoard || !data || !location.hash.startsWith('#duty-exchange-')) return;
     const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
     target?.focus();
   }, [data, location.hash, showBoard]);
-  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, legacyOnly, open }}>{children}
+  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, legacyOnly, open }}><LegacyOpportunityProvider items={legacyItems}>{children}
     {enabled && showOverview && (!legacyOnly || active.length > 0 || !!error) && <section className="exchange-overview" aria-labelledby="exchange-overview-title"><h2 id="exchange-overview-title">{legacyOnly ? 'Existing exchanges' : 'Exchanges'}</h2>
       {error && <p role="alert" className="duty-alert">{error}</p>}
       {data && !data.nextCursor && <p>Available {available.length} · Your requests {ownRequests.length} · Offers for you {offersForYou}</p>}
-      <Link to="/duty-ops/exchanges">View exchange center →</Link>
+      <ContextLink to="/duty-ops/exchanges">View exchange center →</ContextLink>
     </section>}
-    {enabled && showBoard && (!legacyOnly || active.length > 0 || !!error || loading) && <section className="duty-exchanges" aria-label={legacyOnly ? 'Existing exchanges' : 'Exchanges'}>
-      {legacyOnly && active.length > 0 && <h2>Existing exchanges</h2>}
+    {enabled && showBoard && (!legacyOnly || active.length > 0 || !!error || loading) && <section className="duty-exchanges" aria-label="Exchanges">
       {loading && <p role="status" className="duty-loading">Loading exchanges…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
       {data && <>{available.length > 0 && <>{mine.length > 0 && <h3>Available</h3>}<ul>{available.map(renderRequest)}</ul></>}
@@ -208,5 +218,5 @@ export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, o
           </ActionButton>}</div>
       </form>
     </dialog>}
-  </ExchangeContext.Provider>;
+  </LegacyOpportunityProvider></ExchangeContext.Provider>;
 }

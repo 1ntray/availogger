@@ -2,7 +2,7 @@
 
 Brakkevakt is the student dormitory's weekly duty roster. The two assigned students keep shared spaces in order, including kitchens, trash and recycling. This version provides scheduling and direct swaps; it does not track individual chores. Studentportal's D1 assignments are the authoritative schedule. No FlightLogger booking, availability query or synchronization supplies it.
 
-Current UI: new week exchanges use [Exchange v2](exchange-v2.md). My upcoming and This week lead, followed by a compact Exchange summary and the full Schedule; own weeks remain in both personal and full views. Students can select multiple acceptable target assignments or request another week directly when the server permits it. Open v1 swaps remain manageable in Existing exchanges until resolved. Brakkevakt has no give-away or credit action.
+Current UI: new week exchanges use [Exchange v2](exchange-v2.md). My upcoming and This week lead, followed by a bounded Exchanges preview and the full Schedule; own weeks remain in both personal and full views. Students can select multiple acceptable target assignments or request another week directly when the server permits it. Open v1 swaps remain manageable in the same Exchange surface until resolved. Brakkevakt has no give-away or credit action.
 
 ## Weeks and assignments
 

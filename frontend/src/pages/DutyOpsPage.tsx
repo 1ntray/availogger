@@ -51,7 +51,7 @@ export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
     {error && <p className="duty-alert" role="alert">{error}</p>}
     {data?.sync.stale && <div role="status"><AttentionDetail label="Schedule may be out of date"><p>{data.sync.warning || 'Showing previously synchronized data. Reload to check for updates.'}</p></AttentionDetail></div>}
     {sections && data && <ExchangeV2Provider domain="DUTY_OPS" assignments={assignments} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
-      <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center} showOverview={!center} legacyOnly afterBoard={!center && sections.schedule.length > 0 &&
+      <DutyExchanges shifts={data.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={center} legacyOnly afterBoard={!center && sections.schedule.length > 0 &&
       <section id="exchange-schedule" className="duty-schedule" aria-labelledby="duty-schedule"><h2 id="duty-schedule">Upcoming schedule</h2>
         {sections.schedule.map(([date, shifts]) => <section key={date}><h3><time dateTime={date}>{dateLabel(shifts[0].startsAt)}{date.slice(0, 4) !== today.slice(0, 4) ? ` ${date.slice(0, 4)}` : ''}</time></h3><ShiftList shifts={shifts} linkToShift renderAction={shift => <ExchangeShiftActions shift={shift} />} /></section>)}
       </section>}>

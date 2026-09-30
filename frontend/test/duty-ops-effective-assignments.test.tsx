@@ -73,7 +73,7 @@ describe('effective Duty Ops presentation', () => {
     });
     vi.stubGlobal('fetch', fetcher); await render(<DutyOpsPage />);
     expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('No upcoming shifts');
-    await click('Take shift'); await click('Take shift');
+    await click('Take shift · +1 credit'); await click('Take shift');
     expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('Simon · 2 others');
     expect(host.querySelector('.duty-exchanges')).toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
@@ -89,7 +89,7 @@ describe('effective Duty Ops presentation', () => {
     await render(<DutyOpsPage />);
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/other"]')).toBeNull();
-    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Existing exchanges', 'Upcoming schedule']);
+    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Upcoming schedule']);
     expect(host.querySelectorAll('[aria-labelledby="duty-mine"] .is-mine')).toHaveLength(1);
     expect(host.querySelectorAll('.duty-schedule .is-mine')).toHaveLength(1);
     expect(host.querySelector('.duty-schedule .is-mine')?.textContent).toContain('Simon · 2 others');

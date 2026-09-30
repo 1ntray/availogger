@@ -58,7 +58,7 @@ export function FlightsPage(){
     <ul className="flight-list">{upcoming.map(f=>{const segments=flightSegments(f),lessons=flightLessonLabels(f);return <li className="flight-row" key={f.id}>
       <div className="flight-row-head"><strong><time dateTime={f.startsAt}>{date.format(new Date(f.startsAt))}</time></strong>
         <span>{f.aircraft?.callSign??'Aircraft pending'}</span><span className="flight-status">{label(f)}</span></div>
-      <div className="flight-segments"><Segment label="Brief" {...segments.brief}/>{segments.flight&&<Segment label="Flight" {...segments.flight}/>}{segments.debrief&&<Segment label="Debrief" {...segments.debrief}/>}</div>
+      <div className="flight-segments"><Segment label="Brief" {...segments.brief}/>{segments.flight&&<Segment label="Flight" {...segments.flight}/>}{segments.end&&<Segment label="End" {...segments.end}/>}</div>
       {lessons.length>0&&<p className="flight-meta">{lessons.length===1?'Lesson':'Lessons'}: {lessons.join(' · ')}</p>}
       {f.instructor&&<p className="flight-meta">Instructor: {f.instructor}</p>}
       {f.request&&<p className="flight-meta">{f.request.requestKind==='PRESET'?f.request.presetLabel:

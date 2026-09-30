@@ -2,8 +2,15 @@
 .exchange-v2-summary-heading h2 { border: 0; padding: 0; }
 .exchange-v2-summary-heading a { color: var(--portal-accent); font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
 .exchange-v2-summary-heading a:hover { text-decoration: underline; }
+.exchange-preview-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.exchange-preview-list .exchange-row { padding: 9px 0; }
+.exchange-preview-list .exchange-row strong { font-size: 13px; }
+.exchange-preview-list .exchange-time { margin: 3px 0; font-size: 13px; }
+.exchange-preview-list .exchange-actions { margin-top: 4px; }
+.exchange-preview-more { display: inline-flex; align-items: center; min-height: var(--portal-touch-height); color: var(--portal-accent); font-size: 13px; }
 .exchange-v2-overview { margin: 4px 0 22px; }
 .exchange-v2-overview p { margin: 5px 0 0; }
+.exchange-action-placeholder { display: inline-flex; align-items: center; min-height: var(--portal-touch-height); min-width: 112px; color: var(--portal-muted); font-size: 12px; }
 .exchange-v2-center { margin-top: 6px; }
 .exchange-v2-dialog { width: min(500px, calc(100% - 24px)); min-height: 0; max-height: min(640px, calc(100dvh - 24px)); }
 .exchange-v2-dialog form { min-height: 0; }

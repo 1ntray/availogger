@@ -1,7 +1,10 @@
 import { useEffect,useRef,useState,type FormEvent, type MouseEvent } from 'react';
 import { Link,useLocation,useNavigate,useParams } from 'react-router';
-import { ActionButton,BackLink,PageHeader,RefreshControl } from '../app/controls';
+import { ActionButton,BackLink,ContextLink,PageHeader,RefreshControl } from '../app/controls';
 import { contactApi,type ContactThread,type ContactMessage,type InboxItem } from '../features/contact/api';
+import { useCurrentUser } from '../app/CurrentUser';
+import { PERMISSIONS } from '../../../shared/authorization';
+import { currentReturnLocation } from '../app/return-navigation';
 
 const categories=[['BUG','Bug'],['IMPROVEMENT','Improvement'],['IDEA','Idea'],['OTHER','Other']] as const;
 const date=(value:string)=>new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Oslo'}).format(new Date(value));
@@ -22,15 +25,21 @@ export function FeedbackPage(){
 }
 
 export function ContactListPage({admin=false}:{admin?:boolean}){
+  const {user}=useCurrentUser();
+  const location=useLocation(),navigate=useNavigate();
+  const canWebmaster=user?.permissions.includes(PERMISSIONS.contactWebmasterManage)===true;
+  const showWebmaster=admin||canWebmaster&&new URLSearchParams(location.search).get('view')==='webmaster';
   const [threads,setThreads]=useState<ContactThread[]>([]),[cursor,setCursor]=useState<string|null>(null),[status,setStatus]=useState<'OPEN'|'RESOLVED'>('OPEN'),[loading,setLoading]=useState(true),[error,setError]=useState(''),[reload,setReload]=useState(0);
-  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');setThreads([]);void contactApi.list(admin,admin?status:undefined,undefined,controller.signal).then(data=>{if(!controller.signal.aborted){setThreads(data.threads);setCursor(data.nextCursor);}}).catch(cause=>{if(!controller.signal.aborted)setError(errorText(cause));}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[admin,status,reload]);
-  async function more(){if(!cursor||loading)return;setLoading(true);setError('');try{const data=await contactApi.list(admin,admin?status:undefined,cursor);setThreads(old=>[...old,...data.threads.filter(item=>!old.some(existing=>existing.id===item.id))]);setCursor(data.nextCursor);}catch(cause){setError(errorText(cause));}finally{setLoading(false);}}
-  return <section className="contact-page"><PageHeader title={admin?'Contact messages':'My messages'}><RefreshControl label="messages" loading={loading} retry={!!error} onRefresh={()=>setReload(n=>n+1)}/></PageHeader>
-    {!admin&&<Link className="action-link contact-new" to="/feedback">Send feedback →</Link>}
-    {admin&&<div className="activity-filters" aria-label="Message status"><button aria-pressed={status==='OPEN'} onClick={()=>setStatus('OPEN')}>Open</button><button aria-pressed={status==='RESOLVED'} onClick={()=>setStatus('RESOLVED')}>Resolved</button></div>}
+  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');setThreads([]);void contactApi.list(showWebmaster,showWebmaster?status:undefined,undefined,controller.signal).then(data=>{if(!controller.signal.aborted){setThreads(data.threads);setCursor(data.nextCursor);}}).catch(cause=>{if(!controller.signal.aborted)setError(errorText(cause));}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[showWebmaster,status,reload]);
+  async function more(){if(!cursor||loading)return;setLoading(true);setError('');try{const data=await contactApi.list(showWebmaster,showWebmaster?status:undefined,cursor);setThreads(old=>[...old,...data.threads.filter(item=>!old.some(existing=>existing.id===item.id))]);setCursor(data.nextCursor);}catch(cause){setError(errorText(cause));}finally{setLoading(false);}}
+  return <section className="contact-page"><PageHeader title="Messages"><RefreshControl label="messages" loading={loading} retry={!!error} onRefresh={()=>setReload(n=>n+1)}/></PageHeader>
+    {canWebmaster&&!admin&&<div className="activity-filters" role="tablist" aria-label="Message views"><button id="messages-my-tab" type="button" role="tab" aria-selected={!showWebmaster} aria-controls="messages-panel" onClick={()=>navigate('/messages')}>My messages</button><button id="messages-webmaster-tab" type="button" role="tab" aria-selected={showWebmaster} aria-controls="messages-panel" onClick={()=>navigate('/messages?view=webmaster')}>Webmaster</button></div>}
+    <div id="messages-panel" role={canWebmaster&&!admin?'tabpanel':undefined} aria-labelledby={canWebmaster&&!admin?showWebmaster?'messages-webmaster-tab':'messages-my-tab':undefined}>
+    {!showWebmaster&&<ContextLink className="action-link contact-new" to="/feedback">Send feedback →</ContextLink>}
+    {showWebmaster&&<div className="activity-filters" aria-label="Message status"><button aria-pressed={status==='OPEN'} onClick={()=>setStatus('OPEN')}>Open</button><button aria-pressed={status==='RESOLVED'} onClick={()=>setStatus('RESOLVED')}>Resolved</button></div>}
     {error&&<p role="alert" className="contact-error">{error}</p>}{loading&&threads.length===0&&<p role="status">Loading messages…</p>}
-    <ul className="contact-list">{threads.map(thread=><li key={thread.id}><Link to={`${admin?'/admin/contact':'/messages'}/${thread.id}`}><span className="contact-list-main"><strong>{thread.title}</strong><small>{admin?name(thread.author):thread.channelId==='webmaster'?'Webmaster':thread.channelId}</small></span><span className="contact-list-meta"><span className={`contact-status contact-status--${thread.status.toLowerCase()}`}>{thread.status==='OPEN'?'Open':'Resolved'}</span><time dateTime={thread.updatedAt}>{date(thread.updatedAt)}</time></span></Link></li>)}</ul>
-    {!loading&&!error&&threads.length===0&&<p>No {admin?status.toLowerCase()+' ':''}messages yet.</p>}{cursor&&<ActionButton onClick={()=>void more()} disabled={loading}>Load more</ActionButton>}</section>;
+    <ul className="contact-list">{threads.map(thread=><li key={thread.id}><ContextLink to={`${showWebmaster?'/admin/contact':'/messages'}/${thread.id}`}><span className="contact-list-main"><strong>{thread.title}</strong><small>{showWebmaster?name(thread.author):thread.channelId==='webmaster'?'Webmaster':thread.channelId}</small></span><span className="contact-list-meta"><span className={`contact-status contact-status--${thread.status.toLowerCase()}`}>{thread.status==='OPEN'?'Open':'Resolved'}</span><time dateTime={thread.updatedAt}>{date(thread.updatedAt)}</time></span></ContextLink></li>)}</ul>
+    {!loading&&!error&&threads.length===0&&<p>No {showWebmaster?status.toLowerCase()+' ':''}messages yet.</p>}{cursor&&<ActionButton onClick={()=>void more()} disabled={loading}>Load more</ActionButton>}</div></section>;
 }
 
 export function ContactDetailPage({admin=false}:{admin?:boolean}){
@@ -48,7 +57,7 @@ export function ContactDetailPage({admin=false}:{admin?:boolean}){
 }
 
 export function InboxPage(){
-  const navigate=useNavigate(),pendingReads=useRef(new Map<string,Promise<void>>());
+  const navigate=useNavigate(),location=useLocation(),pendingReads=useRef(new Map<string,Promise<void>>());
   const [items,setItems]=useState<InboxItem[]>([]),[cursor,setCursor]=useState<string|null>(null),[unread,setUnread]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState(''),[reload,setReload]=useState(0);
   useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');void contactApi.inbox(undefined,controller.signal).then(data=>{if(!controller.signal.aborted){setItems(data.items);setCursor(data.nextCursor);setUnread(data.unreadCount);}}).catch(cause=>{if(!controller.signal.aborted)setError(errorText(cause));}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[reload]);
   function mark(item:InboxItem){
@@ -68,7 +77,7 @@ export function InboxPage(){
     let timer:number|undefined;
     await Promise.race([mark(item),new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2000);})]);
     if(timer!==undefined)window.clearTimeout(timer);
-    navigate(item.target.path);
+    navigate(item.target.path,{state:{returnTo:currentReturnLocation(location)}});
   }
   async function more(){if(!cursor||loading)return;setLoading(true);try{const data=await contactApi.inbox(cursor);setItems(old=>[...old,...data.items.filter(item=>!old.some(existing=>existing.id===item.id))]);setCursor(data.nextCursor);setUnread(data.unreadCount);}catch(cause){setError(errorText(cause));}finally{setLoading(false);}}
   return <section className="contact-page"><PageHeader title="Inbox"><RefreshControl label="Inbox" loading={loading} retry={!!error} onRefresh={()=>setReload(n=>n+1)}/></PageHeader><p className="contact-intro">{unread} unread. Inbox read status is separate from the source item itself.</p>

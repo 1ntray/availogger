@@ -1,7 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, type LinkProps } from 'react-router';
 import { cacheAgeLabel, cacheTimeInOslo } from '../cache-age';
 import { Icon } from './Icon';
+import { currentReturnLocation, safeReturnLocation } from './return-navigation';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -14,7 +15,15 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 }
 
 export function BackLink({ to, children }: { to: string; children: ReactNode }) {
-  return <Link className="back-link" to={to}><span aria-hidden="true">←</span> {children}</Link>;
+  const location = useLocation();
+  const previous = safeReturnLocation((location.state as { returnTo?: unknown } | null)?.returnTo);
+  return <Link className="back-link" to={previous ? `${previous.pathname}${previous.search}${previous.hash}` : to}
+    state={previous?.returnTo ? { returnTo: previous.returnTo } : null}><span aria-hidden="true">←</span> {previous?.label ?? children}</Link>;
+}
+
+export function ContextLink({ state, ...props }: LinkProps) {
+  const location = useLocation();
+  return <Link {...props} state={{ ...(state && typeof state === 'object' ? state : {}), returnTo: currentReturnLocation(location) }} />;
 }
 
 export function RefreshControl({ onRefresh, label, loading = false, updatedAt, now = Date.now(), retry = false }: {

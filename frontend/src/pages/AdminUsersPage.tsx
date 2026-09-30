@@ -12,6 +12,7 @@ const groups = [
   { title: 'Duty Ops', prefix: ['duty_ops.'] },
   { title: 'Flyvask', prefix: ['flyvask.'] },
   { title: 'Brakkevakt', prefix: ['brakkevakt.'] },
+  { title: 'Messages & feedback', prefix: ['contact.'] },
   { title: 'Administration', prefix: ['availability.', 'admin.'] },
 ];
 

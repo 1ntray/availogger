@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AssignmentActionState, ExchangeAssignmentSnapshot, ExchangeDomain, ExchangeV2StateResponse } from '../../shared/exchange-v2';
 import { ExchangeV2AssignmentAction, ExchangeV2Provider, ExchangeV2Summary } from '../src/features/exchange/ExchangeV2';
+import { LegacyOpportunityProvider } from '../src/features/exchange/legacy-preview';
+import { compactSwapperNames } from '../src/features/exchange/presentation';
 
 const permissions = ['duty_ops.swap', 'flyvask.swap', 'brakkevakt.swap'];
 vi.mock('../src/app/CurrentUser', () => ({ useCurrentUser: () => ({ user: { permissions } }) }));
@@ -60,6 +62,65 @@ async function click(label: string, scope: ParentNode = host.querySelector('dial
 function posted() { return fetcher.mock.calls.filter(([, init]) => init?.method === 'POST'); }
 
 describe('Exchange v2 assignment actions', () => {
+  it('formats one, two and several actual swapper names compactly', () => {
+    expect(compactSwapperNames(['Håvard Olsen'])).toBe('Håvard');
+    expect(compactSwapperNames(['Håvard Olsen', 'Lisa Hansen'])).toBe('Håvard and Lisa');
+    expect(compactSwapperNames(['Håvard Olsen', 'Lisa Hansen', 'Gustav', 'Nora'])).toBe('Håvard, Lisa +2');
+  });
+  it('keeps prior actions during refresh and after a failed refresh', async () => {
+    await render();
+    expect(host.querySelector('[data-assignment="a"]')?.textContent).toContain('Exchange');
+    let rejectRefresh: (error: Error) => void = () => {};
+    fetcher.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRefresh = reject; }));
+    await act(async () => root.render(<MemoryRouter><ExchangeV2Provider domain="DUTY_OPS" assignments={descriptors} refreshKey={1}
+      onChanged={vi.fn()}><ExchangeV2AssignmentAction assignmentId="a" /><ExchangeV2Summary domain="DUTY_OPS" /></ExchangeV2Provider></MemoryRouter>));
+    expect(host.textContent).toContain('Exchange');
+    await act(async () => rejectRefresh(new Error('Offline')));
+    expect(host.textContent).toContain('Exchange refresh failed');
+    expect(host.querySelector('button')?.textContent).toBe('Exchange');
+  });
+  it('reserves action space before its first authoritative load', async () => {
+    fetcher.mockImplementationOnce(() => new Promise(() => {}));
+    await act(async () => root.render(<MemoryRouter><ExchangeV2Provider domain="DUTY_OPS" assignments={descriptors} refreshKey={0}
+      onChanged={vi.fn()}><ExchangeV2AssignmentAction assignmentId="a" /></ExchangeV2Provider></MemoryRouter>));
+    expect(host.querySelector('.exchange-action-placeholder')?.textContent).toBe('Loading options…');
+    expect(host.querySelector('button')).toBeNull();
+  });
+  it('shows a bounded unified preview with actionable legacy work', async () => {
+    opportunities();
+    response.assignmentStates[0] = state('a', 'OWN_IDLE', ['OFFER_SHIFT'], { offerableIntentIds: ['intent-b', 'intent-c', 'intent-d'] });
+    response.assignmentStates[1] = state('b', 'SWAP_AVAILABLE', ['REQUEST_SWAP'], { relatedIntentIds: ['intent-b'] });
+    response.assignmentStates[2] = state('c', 'SWAP_AVAILABLE', ['REQUEST_SWAP'], { relatedIntentIds: ['intent-c'] });
+    response.assignmentStates[3] = state('d', 'SWAP_AVAILABLE', ['REQUEST_SWAP'], { relatedIntentIds: ['intent-d'] });
+    await act(async () => root.render(<MemoryRouter><ExchangeV2Provider domain="DUTY_OPS" assignments={descriptors} refreshKey={0}
+      onChanged={vi.fn()}><LegacyOpportunityProvider items={[{ id: 'old', label: 'Fri 9 Oct · 10:00–12:00', description: 'Swap wanted by Lisa', action: <button>Offer a shift</button> },
+        { id: 'old-2', label: 'Sat 10 Oct · 10:00–12:00', description: 'Your exchange', action: <button>Open exchange</button> }]}>
+      <ExchangeV2Summary domain="DUTY_OPS" /></LegacyOpportunityProvider></ExchangeV2Provider></MemoryRouter>));
+    expect(host.querySelectorAll('.exchange-preview-list > li')).toHaveLength(4);
+    expect(host.querySelector('.exchange-preview-list')?.textContent).toContain('Swap wanted by Lisa');
+    expect(host.querySelector('.exchange-preview-more')?.textContent).toContain('1 more exchange');
+    expect(host.querySelectorAll('h2')).toHaveLength(1);
+    expect(host.querySelector('.exchange-preview-list button')?.textContent).toBe('Offer a shift');
+  });
+  it('keeps swap and give-away as distinct canonical Duty Ops choices', async () => {
+    response.intents = [{ id: 'intent', status: 'OPEN', reason: null, owner: { id: 'anna', firstName: 'Anna', lastName: null },
+      source: b, allowGiveAway: true, createdAt: a.startsAt, targets: [], offers: [] }];
+    response.assignmentStates[0] = state('a', 'OWN_IDLE', ['OFFER_SHIFT'], { offerableIntentIds: ['intent'] });
+    response.assignmentStates[1] = state('b', 'GIVE_AWAY_AVAILABLE', ['TAKE_GIVE_AWAY', 'REQUEST_SWAP'], { relatedIntentIds: ['intent'] });
+    await render();
+    const row = host.querySelector('[data-assignment="b"]')!;
+    expect([...row.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Offer a shift', 'Take shift · +1 credit']);
+    expect(row.textContent).toContain('Anna is open to swap or give-away');
+  });
+  it('shows only the credit action when only a give-away is available', async () => {
+    response.intents = [{ id: 'intent', status: 'OPEN', reason: null, owner: { id: 'anna', firstName: 'Anna', lastName: null },
+      source: b, allowGiveAway: true, createdAt: a.startsAt, targets: [], offers: [] }];
+    response.assignmentStates[1] = state('b', 'GIVE_AWAY_AVAILABLE', ['TAKE_GIVE_AWAY'], { relatedIntentIds: ['intent'] });
+    await render();
+    const row = host.querySelector('[data-assignment="b"]')!;
+    expect(row.textContent).toContain('Give-away available from Anna');
+    expect([...row.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Take shift · +1 credit']);
+  });
   it.each([{ selected: [] }, { selected: ['b'] }, { selected: ['b', 'c'] }])('creates one implicit open intent with targets $selected', async ({ selected }) => {
     opportunities();
     await render(); await click('Exchange', host.querySelector('[data-assignment="a"]')!);
@@ -153,8 +214,8 @@ describe('Exchange v2 assignment actions', () => {
     response.assignmentStates[3] = state('d', 'OWN_IDLE', ['OFFER_SHIFT'], { offerableIntentIds: ['intent'] });
     await render();
     expect(host.querySelector('[data-assignment="b"]')!.textContent).toContain('Swap wanted');
-    expect(host.querySelector('[data-assignment="b"]')!.textContent).toContain('Offer your shift');
-    await click('Offer your shift', host.querySelector('[data-assignment="b"]')!);
+    expect(host.querySelector('[data-assignment="b"]')!.textContent).toContain('Offer a shift');
+    await click('Offer a shift', host.querySelector('[data-assignment="b"]')!);
     expect(host.querySelectorAll('dialog input[type="radio"]')).toHaveLength(2);
     await act(async () => host.querySelectorAll<HTMLInputElement>('dialog input[type="radio"]')[1].click());
     await click('Offer assignment');
