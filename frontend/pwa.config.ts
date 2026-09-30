@@ -8,7 +8,7 @@ export const pwaOptions: Partial<VitePWAOptions> = {
   injectRegister: false,
   useCredentials: true,
   includeManifestIcons: false, // Icons are already covered by the explicit glob.
-  injectManifest: { globPatterns: ['assets/**/*.{js,css}', 'icons/*.{svg,png}', 'fonts/*.woff2'] },
+  injectManifest: { globPatterns: ['assets/**/*.{js,css}', 'icons/*.{svg,png}'] },
   manifest: {
     id: '/', name: 'Luftfartsfag Studentportal', short_name: 'Studentportal',
     description: 'Training and daily operations for Luftfartsfag students.',

@@ -8,10 +8,8 @@ export function timeLabel(shift: Pick<DutyShift, 'startsAt' | 'endsAt'>) {
   const end = osloDate(new Date(shift.endsAt)) !== osloDate(new Date(shift.startsAt)) ? `${dateLabel(shift.endsAt)} ` : '';
   return `${clock.format(new Date(shift.startsAt))}–${end}${clock.format(new Date(shift.endsAt))}`;
 }
-/** "Anna Berg · Erik Eide · 1 other", or "3 students" when nobody on the shift has signed in. `you` names the current user "You", first. */
-export function participantLabel(shift: Pick<DutyShift, 'participants' | 'participantCount'>, { you = false }: { you?: boolean } = {}) {
-  const people = you ? [...shift.participants].sort((a, b) => Number(b.isCurrentUser) - Number(a.isCurrentUser)) : shift.participants;
-  const names = people.map(p => you && p.isCurrentUser ? 'You' : `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || 'Student');
+export function participantLabel(shift: Pick<DutyShift, 'participants' | 'participantCount'>) {
+  const names = shift.participants.map(p => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || 'Student');
   const remaining = Math.max(0, shift.participantCount - shift.participants.length);
   if (remaining) names.push(`${remaining} ${names.length ? (remaining === 1 ? 'other' : 'others') : (remaining === 1 ? 'student' : 'students')}`);
   return names.join(' · ') || 'No participants recorded';

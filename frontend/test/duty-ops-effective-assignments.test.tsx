@@ -45,8 +45,7 @@ describe('effective Duty Ops presentation', () => {
     await render(<ShiftList shifts={[shift]} />);
     const labels = host.querySelectorAll('.duty-participants');
     expect(labels).toHaveLength(1);
-    // The current user is shown as "You" on their own rows.
-    expect(labels[0].textContent).toBe('You · 2 others');
+    expect(labels[0].textContent).toBe('Simon · 2 others');
     const details = host.querySelector<HTMLDetailsElement>('.attention-detail')!;
     expect(details.open).toBe(false);
     expect(details.querySelector('summary')!.textContent).toContain('Assignments differ from FlightLogger');
@@ -75,7 +74,7 @@ describe('effective Duty Ops presentation', () => {
     vi.stubGlobal('fetch', fetcher); await render(<DutyOpsPage />);
     expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('No upcoming shifts');
     await click('Take shift · +1 credit'); await click('Take shift');
-    expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('You · 2 others');
+    expect(host.querySelector('[aria-labelledby=duty-mine]')!.textContent).toContain('Simon · 2 others');
     expect(host.querySelector('.duty-exchanges')).toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(fetcher.mock.calls.filter(([path]) => path === '/api/duty-ops')).toHaveLength(2);
@@ -90,10 +89,10 @@ describe('effective Duty Ops presentation', () => {
     await render(<DutyOpsPage />);
     expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
     expect(host.querySelector('a[href="/duty-ops/shifts/other"]')).toBeNull();
-    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['Your shifts', 'Exchanges', 'Schedule']);
+    expect([...host.querySelectorAll('h2')].map(h => h.textContent)).toEqual(['My upcoming shifts', 'Exchanges', 'Upcoming schedule']);
     expect(host.querySelectorAll('[aria-labelledby="duty-mine"] .is-mine')).toHaveLength(1);
     expect(host.querySelectorAll('.duty-schedule .is-mine')).toHaveLength(1);
-    expect(host.querySelector('.duty-schedule .is-mine')?.textContent).toContain('You · 2 others');
+    expect(host.querySelector('.duty-schedule .is-mine')?.textContent).toContain('Simon · 2 others');
     const action = [...host.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'Exchange')!;
     await act(async () => { action.focus(); action.click(); });
     expect(host.querySelector('dialog')).not.toBeNull();

@@ -31,7 +31,7 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
     const request = ownRequestFor(requests, userId, shift.id, item => item.requestedShift.id);
     if (request) {
       const offers = openProposals(request).length;
-      return <div className="exchange-assignment-state"><span data-tone={offers ? 'warning' : undefined}>{request.type === 'GIVE_AWAY' ? 'Give-away posted' : `Looking for swap${offers ? ` · ${offers} ${offers === 1 ? 'offer' : 'offers'}` : ''}`}</span>
+      return <div className="exchange-assignment-state"><span>{request.type === 'GIVE_AWAY' ? 'Give-away posted' : `Looking for swap${offers ? ` · ${offers} ${offers === 1 ? 'offer' : 'offers'}` : ''}`}</span>
         <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'cancel', request })}>Cancel</ActionButton>
         <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>{offers ? 'Review offers' : 'Open exchange'}</ContextLink></div>;
     }
@@ -161,7 +161,7 @@ export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, o
   const ownRequests = active.filter(r => r.requester.id === data?.currentUserId);
   const offersForYou = ownRequests.reduce((count, request) => count + request.proposals.length, 0);
   const legacyItems: LegacyOpportunity[] = [...available, ...ownRequests].map(request => ({
-    id: request.id, label: shiftLabel(request.requestedShift), own: request.requester.id === data?.currentUserId,
+    id: request.id, label: shiftLabel(request.requestedShift),
     description: request.requester.id === data?.currentUserId ? 'Your exchange' :
       request.type === 'GIVE_AWAY' ? `Give-away available from ${userName(request.requester)}` : `Swap wanted by ${userName(request.requester)}`,
     action: request.requester.id === data?.currentUserId ? <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink> :

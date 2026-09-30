@@ -44,9 +44,3 @@ export function datesInRange(from: string, to: string): Date[] {
 export function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
-
-/** "5 h", "1 h 30 min" or "45 min". */
-export function durationLabel(start: number, end: number) {
-  const minutes = Math.max(0, Math.round((end - start) / 60_000)), hours = Math.floor(minutes / 60), rest = minutes % 60;
-  return hours && rest ? `${hours} h ${rest} min` : hours ? `${hours} h` : `${rest} min`;
-}
