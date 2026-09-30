@@ -6,11 +6,12 @@ import { shiftLabel, userName } from './exchange-presentation';
 import type { FlyvaskShift } from './types';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import '../duty-ops/exchanges.css';
-import { ActionButton } from '../../app/controls';
-import { Link, useLocation } from 'react-router';
+import { ActionButton, ContextLink } from '../../app/controls';
+import { useLocation } from 'react-router';
 import { ExchangeStart } from '../exchange/ExchangeStart';
 import { hasOwnOpenOffer, openProposals, openRequests, ownOfferFor, ownRequestFor } from '../exchange/v1-presentation';
 import { ExchangeV2AssignmentAction } from '../exchange/ExchangeV2';
+import { LegacyOpportunityProvider, type LegacyOpportunity } from '../exchange/legacy-preview';
 
 type DialogState = { kind: 'start'; shift: FlyvaskShift } | { kind: 'create'; shift: FlyvaskShift } | { kind: 'cancel' | 'propose'; request: ExchangeRequest }
   | { kind: 'accept' | 'withdraw'; request: ExchangeRequest; proposal: ExchangeProposal };
@@ -20,7 +21,7 @@ const ExchangeContext = createContext<Controls | null>(null);
 export function ExchangeShiftActions({ shift }: { shift: FlyvaskShift }) {
   const state = useContext(ExchangeContext);
   if (!state?.enabled || (!state.legacyOnly && (shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now))) return null;
-  if (state.legacyOnly && !state.data) return null;
+  if (state.legacyOnly && !state.data) return <ExchangeV2AssignmentAction assignmentId={shift.id} />;
   const own = shift.participants.some(p => p.isCurrentUser);
   const requests = state.data?.requests ?? [];
   const userId = state.data?.currentUserId ?? '';
@@ -30,20 +31,20 @@ export function ExchangeShiftActions({ shift }: { shift: FlyvaskShift }) {
       const offers = openProposals(request).length;
       return <div className="exchange-assignment-state"><span>Looking for swap{offers ? ` · ${offers} ${offers === 1 ? 'offer' : 'offers'}` : ''}</span>
         <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'cancel', request })}>Cancel</ActionButton>
-        <Link to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(request.id)}`}>{offers ? 'Review offers' : 'Open exchange'}</Link></div>;
+        <ContextLink to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(request.id)}`}>{offers ? 'Review offers' : 'Open exchange'}</ContextLink></div>;
     }
     const offer = ownOfferFor(requests, userId, shift.id, item => item.offeredShift.id);
     if (offer) return <div className="exchange-assignment-state"><span>Offer sent</span><ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
-      <Link to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</Link></div>;
-    if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><Link to="/flyvask/exchanges">Open exchange center</Link></div>;
+      <ContextLink to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</ContextLink></div>;
+    if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><ContextLink to="/flyvask/exchanges">Open exchange center</ContextLink></div>;
     return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> :
       <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'start', shift })}>Exchange</ActionButton>;
   }
   const request = openRequests(requests).find(item => item.requestedShift.id === shift.id);
   if (!request) return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> : null;
   if (hasOwnOpenOffer(request, userId)) return <span className="exchange-inline-status">Offer sent</span>;
-  return <div className="exchange-assignment-state"><span>Swap wanted</span>{request.eligible && state.hasEligibleShift &&
-    <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'propose', request })}>Offer your shift</ActionButton>}</div>;
+  return <div className="exchange-assignment-state"><span>Swap wanted by {userName(request.requester)}</span>{request.eligible && state.hasEligibleShift &&
+    <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'propose', request })}>Offer a shift</ActionButton>}</div>;
 }
 
 export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged, showBoard = false, legacyOnly = false }: { children: ReactNode; shifts: FlyvaskShift[]; now: number; refreshKey: number; onChanged?: () => void; showBoard?: boolean; legacyOnly?: boolean }) {
@@ -64,7 +65,8 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged,
   const location = useLocation();
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current++;
-    setData(null); setError(''); setLoading(enabled); setDialog(null);
+    setError(''); setLoading(enabled);
+    if (!enabled) { setData(null); setDialog(null); }
     if (enabled) loadExchanges(controller.signal).then(value => { if (!controller.signal.aborted) setData(value); })
       .catch((cause: unknown) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not load swaps.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -131,18 +133,24 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged,
   const available = active.filter(r => r.eligible && r.requester.id !== data?.currentUserId && !mine.includes(r));
   const ownRequests = active.filter(r => r.requester.id === data?.currentUserId);
   const offersForYou = ownRequests.reduce((count, request) => count + request.proposals.length, 0);
+  const legacyItems: LegacyOpportunity[] = [...available, ...ownRequests].map(request => ({
+    id: request.id, label: shiftLabel(request.requestedShift),
+    description: request.requester.id === data?.currentUserId ? 'Your exchange' : `Swap wanted by ${userName(request.requester)}`,
+    action: request.requester.id === data?.currentUserId ? <ContextLink to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink> :
+      eligible.length > 0 ? <ActionButton disabled={busy || loading} onClick={() => open({ kind: 'propose', request })}>Offer a shift</ActionButton> :
+        <ContextLink to={`/flyvask/exchanges#flyvask-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink>,
+  }));
   useEffect(() => {
     if (!showBoard || !data || !location.hash.startsWith('#flyvask-exchange-')) return;
     document.getElementById(decodeURIComponent(location.hash.slice(1)))?.focus();
   }, [data, location.hash, showBoard]);
-  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, legacyOnly, open }}>{children}
-    {enabled && !showBoard && (!legacyOnly || active.length > 0 || !!error) && <section className="exchange-overview" aria-labelledby="flyvask-exchange-overview"><h2 id="flyvask-exchange-overview">{legacyOnly ? 'Existing exchanges' : 'Exchanges'}</h2>
+  return <ExchangeContext.Provider value={{ enabled, busy: busy || loading, data, now, hasEligibleShift: eligible.length > 0, legacyOnly, open }}><LegacyOpportunityProvider items={legacyItems}>{children}
+    {enabled && !showBoard && !legacyOnly && <section className="exchange-overview" aria-labelledby="flyvask-exchange-overview"><h2 id="flyvask-exchange-overview">Exchanges</h2>
       {error && <p role="alert" className="duty-alert">{error}</p>}
       {data && !data.nextCursor && <p>Available {available.length} · Your requests {ownRequests.length} · Offers for you {offersForYou}</p>}
-      <Link to="/flyvask/exchanges">View exchange center →</Link>
+      <ContextLink to="/flyvask/exchanges">View exchange center →</ContextLink>
     </section>}
-    {enabled && showBoard && (!legacyOnly || active.length > 0 || !!error || loading) && <section className="duty-exchanges" aria-label={legacyOnly ? 'Existing exchanges' : 'Exchanges'}>
-      {legacyOnly && active.length > 0 && <h2>Existing exchanges</h2>}
+    {enabled && showBoard && (!legacyOnly || active.length > 0 || !!error || loading) && <section className="duty-exchanges" aria-label="Exchanges">
       {loading && <p role="status" className="duty-loading">Loading swaps…</p>}
       {error && !dialog && <p role="alert" className="duty-alert">{error}</p>}
       {data && <>{available.length > 0 && <>{mine.length > 0 && <h3>Available</h3>}<ul>{available.map(renderRequest)}</ul></>}
@@ -172,5 +180,5 @@ export function FlyvaskExchanges({ children, shifts, now, refreshKey, onChanged,
         </div>
       </form>
     </dialog>}
-  </ExchangeContext.Provider>;
+  </LegacyOpportunityProvider></ExchangeContext.Provider>;
 }

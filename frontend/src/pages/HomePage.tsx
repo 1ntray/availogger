@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { ContextLink } from '../app/controls';
 import { osloDate } from '../dates';
 import { useCurrentUser } from '../app/CurrentUser';
 import { PERMISSIONS } from '../../../shared/authorization';
@@ -69,8 +70,9 @@ export function HomePage() {
     if (flight.status === 'CANCELLED' || Date.parse(flight.endsAt) <= now) continue;
     const segment=flightSegments(flight),lessons=flightLessonLabels(flight);
     const flightTime=segment.flight?.start?` · ${clock.format(new Date(segment.flight.start))}${segment.flight.end?`–${clock.format(new Date(segment.flight.end))}`:''} Flight`:'';
+    const endTime=segment.end?.start?` · End ${clock.format(new Date(segment.end.start))}`:'';
     items.push({ id: `flight:${flight.id}`, at: Date.parse(flight.startsAt), title: 'Flight',
-      detail: `${clock.format(new Date(flight.startsAt))} Brief${flightTime} · ${flight.aircraft?.callSign ?? 'Aircraft pending'}${lessons.length?` · ${lessons.join(' · ')}`:''}`, path: '/flights' });
+      detail: `${clock.format(new Date(flight.startsAt))} Brief${flightTime}${endTime} · ${flight.aircraft?.callSign ?? 'Aircraft pending'}${lessons.length?` · ${lessons.join(' · ')}`:''}`, path: '/flights' });
   }
   for (const shift of data.duty?.shifts ?? []) {
     if (shift.status === 'CANCELLED' || shift.status === 'COMPLETED' || Date.parse(shift.endsAt) <= now || !shift.participants.some(person => person.isCurrentUser)) continue;
@@ -100,7 +102,7 @@ export function HomePage() {
     <div className="home-layout"><section className="home-schedule"><h2>My schedule</h2>
       {loading && !items.length && !currentWeek && <p role="status">Loading schedule…</p>}
       {!loading && !items.length && !nextOwnWeek && <p className="home-muted">Nothing upcoming</p>}
-      {[...grouped].map(([label, rows]) => <div className="home-day" key={label}><h3>{label}</h3><ul>{rows.map(item => <li key={item.id}><Link to={item.path}><strong>{item.title}</strong><span>{label === 'Upcoming' ? `${pointDate(item.at, today)} · ${item.detail}` : item.detail}</span><span aria-hidden="true">→</span></Link></li>)}</ul></div>)}
+      {[...grouped].map(([label, rows]) => <div className="home-day" key={label}><h3>{label}</h3><ul>{rows.map(item => <li key={item.id}><ContextLink to={item.path}><strong>{item.title}</strong><span>{label === 'Upcoming' ? `${pointDate(item.at, today)} · ${item.detail}` : item.detail}</span><span aria-hidden="true">→</span></ContextLink></li>)}</ul></div>)}
       {nextOwnWeek && <div className="home-week"><Link to="/brakkevakt"><strong>Brakkevakt · Week {weekNumber(nextOwnWeek.weekStart)}</strong><span>{nextOwnPartner ? `With ${personName(nextOwnPartner)}` : 'Your week'} <span aria-hidden="true">→</span></span></Link></div>}
     </section>
     <div className="home-context">

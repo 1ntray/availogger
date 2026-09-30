@@ -131,6 +131,7 @@ p { line-height: 1.55; }
 .activity-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
 .activity-filters button, .activity-more button { min-height: var(--portal-touch-height); padding: 8px 12px; border: 1px solid var(--portal-border); border-radius: var(--portal-radius); background: var(--portal-surface); color: var(--portal-control-text); }
 .activity-filters button[aria-pressed="true"] { border-color: var(--portal-accent); background: var(--portal-nav-active); color: var(--portal-nav-active-text); }
+.activity-filters button[role="tab"][aria-selected="true"] { border-color: var(--portal-accent); background: var(--portal-nav-active); color: var(--portal-nav-active-text); }
 .activity-list li { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--portal-border); font-size: 13px; }
 .activity-list li span, .activity-list li time, .activity-list li p { color: var(--portal-muted); }
 .activity-list li p { grid-column: 2 / -1; margin: 0; }

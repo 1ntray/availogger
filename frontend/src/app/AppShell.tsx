@@ -33,7 +33,11 @@ export function AppShell() {
     setAccountOpen(false);
     window.scrollTo?.(0, 0);
     content.current?.focus({ preventScroll: true });
-    document.title = `${navigation.find(item => item.path === pathname)?.label || (pathname.startsWith('/admin') ? 'Administration' : pathname.startsWith('/activity') ? 'My activity' : pathname.startsWith('/messages') ? 'My messages' : pathname==='/inbox' ? 'Inbox' : pathname==='/feedback' ? 'Send feedback' : 'Studentportal')} · Luftfartsfag Studentportal`;
+    document.title = `${navigation.find(item => item.path === pathname)?.label ||
+      (pathname.startsWith('/duty-ops/shifts/') ? 'Duty Ops shift' : pathname.endsWith('/exchanges') ? 'Exchanges' :
+        pathname.startsWith('/admin') ? 'Administration' : pathname.startsWith('/activity') ? 'My activity' :
+          pathname.startsWith('/messages') ? 'Messages' : pathname === '/inbox' ? 'Inbox' :
+            pathname === '/feedback' ? 'Send feedback' : 'Studentportal')} · Luftfartsfag Studentportal`;
   }, [pathname]);
   useEffect(() => {
     if (!accountOpen) return;
@@ -60,7 +64,7 @@ export function AppShell() {
           {user?.email && <p className="account-menu-email">{user.email}</p>}
           <NavLink to="/activity">My activity</NavLink>
           <NavLink to="/inbox">Inbox{unreadCount>0?` (${unreadCount})`:''}</NavLink>
-          <NavLink to="/messages">My messages</NavLink>
+          <NavLink to="/messages">Messages</NavLink>
           <NavLink to="/feedback" state={{from:pathname}}>Send feedback</NavLink>
           <NavLink to="/settings">Settings</NavLink>
           {canAdmin && <NavLink to="/admin">Administration</NavLink>}
