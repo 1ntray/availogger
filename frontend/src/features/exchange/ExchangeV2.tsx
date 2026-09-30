@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { useCurrentUser } from '../../app/CurrentUser';
-import { ActionButton } from '../../app/controls';
+import { ActionButton, ContextLink } from '../../app/controls';
 import { PERMISSIONS } from '../../../../shared/authorization';
 import { displayName } from '../../../../shared/display-name';
 import type { AssignmentActionState, ExchangeAssignmentSnapshot, ExchangeDomain, ExchangeV2Candidate,
@@ -9,6 +9,8 @@ import type { AssignmentActionState, ExchangeAssignmentSnapshot, ExchangeDomain,
 import { compactWeekTitle } from '../brakkevakt/presentation';
 import { creditSign, loadCreditSummary } from '../duty-ops/credit-api';
 import { exchangeV2, loadExchangeV2 } from './v2-api';
+import { useLegacyOpportunities } from './legacy-preview';
+import { compactSwapperNames } from './presentation';
 import './exchange-v2.css';
 
 export type ExchangeAssignment = { id: string; label: string; ownerNames: string; own: boolean };
@@ -38,6 +40,10 @@ export function exchangeAssignmentLabel(assignment: ExchangeAssignmentSnapshot):
 const activeIntent = (intent: ExchangeV2Intent) => intent.status === 'OPEN';
 const activeCandidate = (candidate: ExchangeV2Candidate) => candidate.status === 'WAITING';
 const actorLeg = (candidate: ExchangeV2Candidate, userId: string) => candidate.legs.find(leg => leg.user.id === userId);
+function intentOwners(data: ExchangeV2StateResponse, assignmentId: string): string {
+  return compactSwapperNames(data.intents.filter(item => activeIntent(item) && item.source.id === assignmentId)
+    .map(item => displayName(item.owner)));
+}
 
 export function ExchangeV2Provider({ domain, assignments, refreshKey, onChanged, children }: {
   domain: ExchangeDomain; assignments: ExchangeAssignment[]; refreshKey: number; onChanged: () => void; children: ReactNode;
@@ -45,7 +51,7 @@ export function ExchangeV2Provider({ domain, assignments, refreshKey, onChanged,
   const { user } = useCurrentUser();
   const enabled = user?.permissions.includes(swapPermission[domain]) === true;
   const [data, setData] = useState<ExchangeV2StateResponse | null>(null);
-  const [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [loading, setLoading] = useState(enabled), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [version, setVersion] = useState(0), [dialog, setDialog] = useState<Dialog | null>(null);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]), [browseSource, setBrowseSource] = useState<string | null>(null);
   const [allowGiveAway, setAllowGiveAway] = useState(false), [balance, setBalance] = useState<number | null>(null);
@@ -55,7 +61,8 @@ export function ExchangeV2Provider({ domain, assignments, refreshKey, onChanged,
   const stateMap = useMemo(() => new Map(data?.assignmentStates.map(item => [item.assignmentId, item]) ?? []), [data]);
   const state = (id: string) => stateMap.get(id);
   useEffect(() => {
-    const controller = new AbortController(); setData(null); setError(''); setLoading(enabled);
+    const controller = new AbortController(); setError(''); setLoading(enabled);
+    if (!enabled) setData(null);
     if (enabled) void loadExchangeV2(domain, idsKey ? idsKey.split(',') : [], controller.signal)
       .then(result => { if (!controller.signal.aborted) setData(result); })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not load exchanges.'); })
@@ -87,7 +94,7 @@ export function ExchangeV2Provider({ domain, assignments, refreshKey, onChanged,
   async function mutate(operation: () => Promise<void>) {
     if (saving.current) return;
     saving.current = true; setBusy(true); setError('');
-    try { await operation(); setDialog(null); setBrowseSource(null); setData(null); setVersion(value => value + 1); onChanged(); }
+    try { await operation(); setDialog(null); setBrowseSource(null); setVersion(value => value + 1); onChanged(); }
     catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Exchange changed. Refresh and try again.');
       setVersion(value => value + 1); onChanged();
@@ -207,7 +214,9 @@ export function ExchangeV2Provider({ domain, assignments, refreshKey, onChanged,
 
 export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: string }) {
   const context = useExchangeV2();
-  if (!context?.data) return null;
+  if (!context?.enabled) return null;
+  if (!context?.data) return context?.enabled && context.loading
+    ? <span className="exchange-action-placeholder" role="status">Loading options…</span> : null;
   const state = context.state(assignmentId), assignment = context.assignments.find(item => item.id === assignmentId);
   if (!state || !assignment) return null;
   const { data, domain, busy, browseSource, selectedTargets } = context;
@@ -233,18 +242,18 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
     if (reviewCandidate && has('CONFIRM_CANDIDATE')) return <div className="exchange-assignment-state"><span>Needs review</span>
       <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'confirm', id: reviewCandidate.id, assignmentId })}>Review exchange</ActionButton></div>;
     if (waitingCandidate) return <div className="exchange-assignment-state"><span>Waiting for others</span>
-      <Link to={`${path[domain]}/exchanges#candidate-${waitingCandidate.id}`}>Open exchange</Link></div>;
+      <ContextLink to={`${path[domain]}/exchanges#candidate-${waitingCandidate.id}`}>Open exchange</ContextLink></div>;
     if (ownIntent) return <div className="exchange-assignment-state"><span>Looking for exchange{ownIntent.offers.filter(item => item.status === 'OPEN').length ?
       ` · ${ownIntent.offers.filter(item => item.status === 'OPEN').length} offers` : ''}{ownIntent.allowGiveAway ? ' · Give-away enabled' : ''}</span>
       {has('CANCEL_INTENT') && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'cancel', id: ownIntent.id, assignmentId })}>Cancel</ActionButton>}
-      <Link to={`${path[domain]}/exchanges#intent-${ownIntent.id}`}>Open exchange</Link></div>;
+      <ContextLink to={`${path[domain]}/exchanges#intent-${ownIntent.id}`}>Open exchange</ContextLink></div>;
     if (ownOffer) return <div className="exchange-assignment-state"><span>Offer sent</span>
       {has('WITHDRAW_OFFER') && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'withdraw', id: ownOffer.offer.id, assignmentId })}>Withdraw</ActionButton>}
-      <Link to={`${path[domain]}/exchanges#intent-${ownOffer.intent.id}`}>Open exchange</Link></div>;
+      <ContextLink to={`${path[domain]}/exchanges#intent-${ownOffer.intent.id}`}>Open exchange</ContextLink></div>;
     if (incoming && has('ACCEPT_TARGET')) return <div className="exchange-assignment-state"><span>Request received</span>
       <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'accept', id: incoming.target.id, assignmentId })}>Review request</ActionButton></div>;
     if (has('OPEN_EXCHANGE')) return <div className="exchange-assignment-state"><ActionButton disabled={busy} onClick={() => context.open({ kind: 'create', sourceId: assignmentId })}>Exchange</ActionButton>
-      {has('OFFER_SHIFT') && <ActionButton variant="ghost" disabled={busy} onClick={() => context.open({ kind: 'action', action: 'offer', id: state.offerableIntentIds[0], assignmentId })}>Offer your shift</ActionButton>}</div>;
+      {has('OFFER_SHIFT') && <ActionButton variant="ghost" disabled={busy} onClick={() => context.open({ kind: 'action', action: 'offer', id: state.offerableIntentIds[0], assignmentId })}>Offer a shift</ActionButton>}</div>;
     return null;
   }
   if (state.relationship === 'REQUEST_SENT') return <span className="exchange-inline-status">Request sent</span>;
@@ -252,11 +261,14 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
   const intent = data.intents.find(item => state.relatedIntentIds.includes(item.id) && item.source.id === assignmentId && activeIntent(item));
   const offerSources = intent ? data.assignmentStates.filter(item => item.offerableIntentIds.includes(intent.id)).map(item => item.assignmentId) : [];
   if (!giveaway && state.relationship !== 'SWAP_AVAILABLE' && !has('REQUEST_SWAP')) return null;
+  const owner = intentOwners(data, assignmentId);
+  const canTake = has('TAKE_GIVE_AWAY') && !!intent;
+  const canOffer = !!intent && offerSources.length > 0;
   return <div className="exchange-assignment-state">
-    {giveaway && <span>Give-away available</span>}{state.relationship === 'SWAP_AVAILABLE' && <span>Swap wanted</span>}
-    {has('TAKE_GIVE_AWAY') && intent && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'claim', id: intent.id, assignmentId })}>Take shift</ActionButton>}
-    {intent && offerSources.length > 0 && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'offer',
-      id: intent.id, assignmentId: offerSources[0], offerSourceIds: offerSources })}>Offer your shift</ActionButton>}
+    <span>{canTake && canOffer ? `${owner} is open to swap or give-away` : canTake ? `Give-away available from ${owner}` : `Swap wanted by ${owner}`}</span>
+    {canOffer && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'offer',
+      id: intent.id, assignmentId: offerSources[0], offerSourceIds: offerSources })}>Offer a shift</ActionButton>}
+    {canTake && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'action', action: 'claim', id: intent.id, assignmentId })}>Take shift · +1 credit</ActionButton>}
     {has('REQUEST_SWAP') && offerSources.length === 0 && <ActionButton disabled={busy} onClick={() => context.open({ kind: 'target', targetId: assignmentId,
       sourceId: state.requestableSourceAssignmentIds[0] })}>Request swap</ActionButton>}
   </div>;
@@ -264,6 +276,7 @@ export function ExchangeV2AssignmentAction({ assignmentId }: { assignmentId: str
 
 export function ExchangeV2Summary({ domain, center = false }: { domain: ExchangeDomain; center?: boolean }) {
   const context = useExchangeV2(), location = useLocation();
+  const legacy = useLegacyOpportunities();
   const currentData = context?.data;
   useEffect(() => {
     if (!center || !currentData || !location.hash) return;
@@ -273,26 +286,36 @@ export function ExchangeV2Summary({ domain, center = false }: { domain: Exchange
   const { data, error, loading, busy } = context;
   const mine = data?.intents.filter(item => activeIntent(item) && item.owner.id === data.currentUserId) ?? [];
   const available = data?.intents.filter(item => activeIntent(item) && item.owner.id !== data.currentUserId &&
-    data.assignmentStates.some(state => state.relatedIntentIds.includes(item.id) &&
+    data.assignmentStates.some(state => state.offerableIntentIds.includes(item.id) ||
+      state.relatedIntentIds.includes(item.id) &&
       (state.availableActions.includes('ACCEPT_TARGET') || state.availableActions.includes('TAKE_GIVE_AWAY') ||
-        state.offerableIntentIds.includes(item.id)))) ?? [];
+        state.availableActions.includes('REQUEST_SWAP')))) ?? [];
   const candidates = data?.candidates.filter(item => activeCandidate(item) && !!actorLeg(item, data.currentUserId)) ?? [];
   const review = candidates.filter(item => actorLeg(item, data!.currentUserId)?.consentedAt === null);
+  const previewV2 = available.slice(0, 4);
+  const previewLegacy = legacy.slice(0, Math.max(0, 4 - previewV2.length));
+  const extra = available.length + legacy.length - previewV2.length - previewLegacy.length;
   if (!center) return <section className="exchange-overview exchange-v2-overview" aria-label="Exchanges">
-    <div className="exchange-v2-summary-heading"><h2>Exchanges</h2><Link to={`${path[domain]}/exchanges`}>View all →</Link></div>
-    {loading && <p role="status">Loading exchanges…</p>}
-    {error && <p role="alert" className="duty-alert">{error}</p>}
-    {data && <p>{available.length} available · {mine.length} requests · {review.length} needs review</p>}
+    <div className="exchange-v2-summary-heading"><h2>Exchanges</h2><ContextLink to={`${path[domain]}/exchanges`}>View all →</ContextLink></div>
+    {loading && !data && <p role="status">Loading exchanges…</p>}
+    {error && <p role="alert" className="duty-alert">{data ? 'Exchange refresh failed. Showing last available information.' : error}</p>}
+    {(previewV2.length > 0 || previewLegacy.length > 0) && <ul className="exchange-preview-list">
+      {previewV2.map(intent => <IntentRow key={intent.id} intent={intent} preview />)}
+      {previewLegacy.map(item => <li key={`legacy-${item.id}`} className="exchange-row"><strong>{item.label}</strong><p className="exchange-note">{item.description}</p><div className="exchange-actions">{item.action}</div></li>)}
+    </ul>}
+    {extra > 0 && <ContextLink className="exchange-preview-more" to={`${path[domain]}/exchanges`}>{extra} more exchange{extra === 1 ? '' : 's'} →</ContextLink>}
+    {data && !previewV2.length && !previewLegacy.length && (mine.length > 0 || review.length > 0) &&
+      <p>{mine.length + review.length} exchange{mine.length + review.length === 1 ? '' : 's'} in progress</p>}
   </section>;
   return <section className="duty-exchanges exchange-v2-center" aria-label="Current exchanges">
-    {loading && <p role="status">Loading exchanges…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
+    {loading && !data && <p role="status">Loading exchanges…</p>}{error && <p role="alert" className="duty-alert">{data ? 'Exchange refresh failed. Showing last available information.' : error}</p>}
     {data && <>
       {review.length > 0 && <><h3>Needs review</h3><ul>{review.map(candidate => <CandidateRow key={candidate.id} candidate={candidate} />)}</ul></>}
       {mine.length > 0 && <><h3>My exchanges</h3><ul>{mine.map(intent => <IntentRow key={intent.id} intent={intent} />)}</ul></>}
       {available.length > 0 && <><h3>Available</h3><ul>{available.map(intent => <IntentRow key={intent.id} intent={intent} />)}</ul></>}
       {candidates.filter(item => actorLeg(item, data.currentUserId)?.consentedAt).length > 0 && <><h3>Waiting for others</h3><ul>{candidates.filter(item => actorLeg(item, data.currentUserId)?.consentedAt).map(candidate =>
         <CandidateRow key={candidate.id} candidate={candidate} />)}</ul></>}
-      {!mine.length && !available.length && !candidates.length && <p className="duty-empty">No open exchanges</p>}
+      {!mine.length && !available.length && !candidates.length && !legacy.length && <p className="duty-empty">No open exchanges</p>}
     </>}
     {busy && <p role="status">Saving exchange…</p>}
   </section>;
@@ -311,23 +334,28 @@ function CandidateRow({ candidate }: { candidate: ExchangeV2Candidate }) {
       : <p className="exchange-note">Waiting for others</p>}</li>;
 }
 
-function IntentRow({ intent }: { intent: ExchangeV2Intent }) {
+function IntentRow({ intent, preview = false }: { intent: ExchangeV2Intent; preview?: boolean }) {
   const context = useExchangeV2()!, data = context.data!;
   const own = intent.owner.id === data.currentUserId;
   const state = context.state(intent.source.id);
   const offerSourceIds = data.assignmentStates.filter(item => item.offerableIntentIds.includes(intent.id)).map(item => item.assignmentId);
+  const canTake = state?.availableActions.includes('TAKE_GIVE_AWAY') === true;
+  const canOffer = offerSourceIds.length > 0;
   const target = intent.targets.find(item => item.status === 'OPEN' && context.state(item.assignment.id)?.availableActions.includes('ACCEPT_TARGET'));
-  return <li id={`intent-${intent.id}`} tabIndex={-1} className="exchange-row"><strong>{own ? 'Your exchange' : `${displayName(intent.owner)} wants to exchange`}</strong>
+  return <li id={`intent-${intent.id}`} tabIndex={-1} className="exchange-row"><strong>{own ? 'Your exchange' : canTake && canOffer ? `${displayName(intent.owner)} is open to swap or give-away` : canTake ? `Give-away available from ${displayName(intent.owner)}` : `Swap wanted by ${displayName(intent.owner)}`}</strong>
     <p className="exchange-time">{exchangeAssignmentLabel(intent.source)}</p>
-    {intent.targets.filter(item => item.status === 'OPEN').length > 0 && <p className="exchange-note">{intent.targets.filter(item => item.status === 'OPEN').length} selected target{intent.targets.filter(item => item.status === 'OPEN').length === 1 ? '' : 's'}</p>}
-    {intent.allowGiveAway && <p className="exchange-note">Give-away enabled</p>}
+    {!preview && intent.targets.filter(item => item.status === 'OPEN').length > 0 && <p className="exchange-note">{intent.targets.filter(item => item.status === 'OPEN').length} selected target{intent.targets.filter(item => item.status === 'OPEN').length === 1 ? '' : 's'}</p>}
+    {!preview && intent.allowGiveAway && <p className="exchange-note">Give-away enabled</p>}
     {own && intent.offers.some(item => item.status === 'OPEN') && <p className="exchange-note">{intent.offers.filter(item => item.status === 'OPEN').length} offers</p>}
     <div className="exchange-actions">
       {own && state?.availableActions.includes('CANCEL_INTENT') && <ActionButton onClick={() => context.open({ kind: 'action', action: 'cancel', id: intent.id, assignmentId: intent.source.id })}>Cancel</ActionButton>}
       {!own && target && <ActionButton onClick={() => context.open({ kind: 'action', action: 'accept', id: target.id, assignmentId: target.assignment.id })}>Accept request</ActionButton>}
-      {!own && state?.availableActions.includes('TAKE_GIVE_AWAY') && <ActionButton onClick={() => context.open({ kind: 'action', action: 'claim', id: intent.id, assignmentId: intent.source.id })}>Take shift</ActionButton>}
-      {!own && offerSourceIds.length > 0 && <ActionButton onClick={() => context.open({ kind: 'action', action: 'offer', id: intent.id,
-        assignmentId: offerSourceIds[0], offerSourceIds })}>Offer your assignment</ActionButton>}
+      {!own && canOffer && <ActionButton onClick={() => context.open({ kind: 'action', action: 'offer', id: intent.id,
+        assignmentId: offerSourceIds[0], offerSourceIds })}>Offer a shift</ActionButton>}
+      {!own && canTake && <ActionButton onClick={() => context.open({ kind: 'action', action: 'claim', id: intent.id, assignmentId: intent.source.id })}>Take shift · +1 credit</ActionButton>}
+      {!own && !canOffer && !canTake && state?.availableActions.includes('REQUEST_SWAP') &&
+        <ActionButton onClick={() => context.open({ kind: 'target', targetId: intent.source.id,
+          sourceId: state.requestableSourceAssignmentIds[0] })}>Request swap</ActionButton>}
     </div>
   </li>;
 }

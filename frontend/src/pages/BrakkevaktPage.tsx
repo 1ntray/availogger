@@ -7,10 +7,11 @@ import type { BrakkevaktSchedule, BrakkevaktWeek, BrakkevaktSwaps, BrakkevaktSwa
 import { loadSchedule, loadSwaps, mutateSwap } from '../features/brakkevakt/api';
 import { addDays, compactWeekTitle, ownAssignment, personName, weekLabel } from '../features/brakkevakt/presentation';
 import { ActionButton, PageHeader, RefreshControl } from '../app/controls';
-import { BackLink } from '../app/controls';
-import { Link, useLocation } from 'react-router';
+import { BackLink, ContextLink } from '../app/controls';
+import { useLocation } from 'react-router';
 import { ExchangeStart } from '../features/exchange/ExchangeStart';
 import { ExchangeV2AssignmentAction, ExchangeV2Provider, ExchangeV2Summary, useExchangeV2 } from '../features/exchange/ExchangeV2';
+import { LegacyOpportunityProvider, type LegacyOpportunity } from '../features/exchange/legacy-preview';
 import { hasOwnOpenOffer, openProposals, openRequests, ownOfferFor, ownRequestFor } from '../features/exchange/v1-presentation';
 import '../features/duty-ops/duty-ops.css';
 import '../features/duty-ops/exchanges.css';
@@ -95,12 +96,12 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
       {action && canSwap && addDays(week.weekStart, 7) > today && (assignment
         ? request ? <div className="exchange-assignment-state"><span>Looking for swap{openProposals(request).length ? ` · ${openProposals(request).length} ${openProposals(request).length === 1 ? 'offer' : 'offers'}` : ''}</span>
             <ActionButton disabled={busy} onClick={() => open({ kind: 'cancel', request })}>Cancel</ActionButton>
-            <Link to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(request.id)}`}>{openProposals(request).length ? 'Review offers' : 'Open exchange'}</Link></div>
+            <ContextLink to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(request.id)}`}>{openProposals(request).length ? 'Review offers' : 'Open exchange'}</ContextLink></div>
           : offer ? <div className="exchange-assignment-state"><span>Offer sent</span><ActionButton disabled={busy} onClick={() => open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
-            <Link to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</Link></div>
-          : swaps?.lockedAssignmentIds.includes(assignment.id) ? <div className="exchange-assignment-state"><span>Exchange active</span><Link to="/brakkevakt/exchanges">Open exchange center</Link></div>
+            <ContextLink to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</ContextLink></div>
+          : swaps?.lockedAssignmentIds.includes(assignment.id) ? <div className="exchange-assignment-state"><span>Exchange active</span><ContextLink to="/brakkevakt/exchanges">Open exchange center</ContextLink></div>
           : swaps && <ExchangeV2AssignmentAction assignmentId={assignment.id} />
-        : otherRequest ? <div className="exchange-assignment-state"><span>{hasOwnOpenOffer(otherRequest, userId) ? 'Offer sent' : 'Swap wanted'}</span>
+        : otherRequest ? <div className="exchange-assignment-state"><span>{hasOwnOpenOffer(otherRequest, userId) ? 'Offer sent' : `Swap wanted by ${personName(otherRequest.requester)}`}</span>
             {otherRequest.eligible && !hasOwnOpenOffer(otherRequest, userId) && eligible.some(a => a.weekStart !== otherRequest.requestedWeekStart) &&
               <ActionButton disabled={busy} onClick={() => open({ kind: 'propose', request: otherRequest })}>Offer your week</ActionButton>}</div>
           : swaps && week.assignments.filter(slot => {
@@ -132,13 +133,20 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
   const active = openRequests(swaps?.requests ?? []).map(request => ({ ...request, proposals: openProposals(request) }));
   const ownRequests = active.filter(r => r.requester.id === swaps?.currentUserId || r.proposals.some(p => p.proposer.id === swaps?.currentUserId));
   const available = active.filter(r => r.requester.id !== swaps?.currentUserId && r.eligible && !ownRequests.includes(r));
+  const legacyItems: LegacyOpportunity[] = [...available, ...ownRequests].map(request => ({
+    id: request.id, label: weekLabel(request.requestedWeekStart),
+    description: request.requester.id === swaps?.currentUserId ? 'Your exchange' : `Swap wanted by ${personName(request.requester)}`,
+    action: request.requester.id === swaps?.currentUserId ? <ContextLink to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink> :
+      eligible.length > 0 ? <ActionButton disabled={busy || loading} onClick={() => open({ kind: 'propose', request })}>Offer a week</ActionButton> :
+        <ContextLink to={`/brakkevakt/exchanges#brakkevakt-exchange-${encodeURIComponent(request.id)}`}>Open exchange</ContextLink>,
+  }));
   useEffect(() => {
     if (!center || !swaps || !location.hash.startsWith('#brakkevakt-exchange-')) return;
     document.getElementById(decodeURIComponent(location.hash.slice(1)))?.focus();
   }, [center, swaps, location.hash]);
-  return <ExchangeV2Provider domain="BRAKKEVAKT" assignments={assignments} refreshKey={reload} onChanged={() => setReload(v => v + 1)}><section className="duty-ops brakkevakt">
+  return <ExchangeV2Provider domain="BRAKKEVAKT" assignments={assignments} refreshKey={reload} onChanged={() => setReload(v => v + 1)}><LegacyOpportunityProvider items={legacyItems}><section className="duty-ops brakkevakt">
     {center && <BackLink to="/brakkevakt">Brakkevakt</BackLink>}
-    <PageHeader title={center ? 'Exchanges' : 'Brakkevakt'}><div className="duty-heading-actions">{!center && user?.permissions.includes(PERMISSIONS.brakkevaktManageSchedule) && <Link to="/brakkevakt/manage">Manage schedule</Link>}<RefreshControl label="Brakkevakt" onRefresh={() => setReload(v => v + 1)} loading={loading} retry={!!error} /></div></PageHeader>
+    <PageHeader title={center ? 'Exchanges' : 'Brakkevakt'}><div className="duty-heading-actions">{!center && user?.permissions.includes(PERMISSIONS.brakkevaktManageSchedule) && <ContextLink to="/brakkevakt/manage">Manage schedule</ContextLink>}<RefreshControl label="Brakkevakt" onRefresh={() => setReload(v => v + 1)} loading={loading} retry={!!error} /></div></PageHeader>
     {loading && !data && <p role="status" className="duty-loading">Loading Brakkevakt…</p>}{error && <p role="alert" className="duty-alert">{error}</p>}
     {data && !center && <div className="brakkevakt-grid">
       <section><h2>My upcoming</h2>{mine.length ? <ul>{mine.map(w => <Week key={w.id} week={w} action />)}</ul> : <p className="duty-empty">No upcoming weeks</p>}</section>
@@ -147,8 +155,7 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
     <ExchangeV2Summary domain="BRAKKEVAKT" center={center} />
     {swapError && <p role="alert" className="duty-alert">{swapError}</p>}
     {data && !center && <section id="exchange-schedule"><h2>Schedule</h2><ul>{[...(current ? [current] : []), ...upcoming].map(w => <Week key={w.id} week={w} action />)}</ul></section>}
-    {canSwap && center && (active.length > 0 || !!swapError) && <section className="duty-exchanges" aria-label="Existing exchanges">
-      {active.length > 0 && <h2>Existing exchanges</h2>}
+    {canSwap && center && (active.length > 0 || !!swapError) && <section className="duty-exchanges" aria-label="Exchanges">
       {swapError && !dialog && <p role="alert" className="duty-alert">{swapError}</p>}
       {swaps && <>{available.length > 0 && <><h3>Available swaps</h3><ul>{available.map(renderRequest)}</ul></>}
         {ownRequests.length > 0 && <><h3>My swaps</h3><ul>{ownRequests.map(renderRequest)}</ul></>}
@@ -171,6 +178,6 @@ export function BrakkevaktPage({ view = 'schedule' }: { view?: 'schedule' | 'exc
         <div className="exchange-actions"><ActionButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>{dialog.kind === 'start' ? 'Close' : 'Cancel'}</ActionButton>
           {dialog.kind !== 'start' && <ActionButton variant="primary" type="submit" disabled={busy || (dialog.kind === 'propose' && !offeredId)}>{busy ? 'Saving…' : dialog.kind === 'create' ? 'Publish request' : dialog.kind === 'accept' ? 'Confirm swap' : dialog.kind === 'propose' ? 'Offer week' : dialog.kind === 'withdraw' ? 'Withdraw offer' : 'Cancel request'}</ActionButton>}</div>
       </form></dialog>}
-  </section></ExchangeV2Provider>;
+  </section></LegacyOpportunityProvider></ExchangeV2Provider>;
 }
 export function BrakkevaktExchangeCenterPage() { return <BrakkevaktPage view="exchanges" />; }

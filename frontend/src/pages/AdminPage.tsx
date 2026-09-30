@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { ContextLink } from '../app/controls';
 import { usePermissions } from '../app/permissions';
 import { PERMISSIONS } from '../../../shared/authorization';
 
@@ -12,6 +12,6 @@ export function AdminPage() {
     { path: '/admin/exchanges', label: 'Exchange audit', permission: PERMISSIONS.adminExchangeAudit },
   ];
   return <section className="admin-hub"><h1>Administration</h1><nav aria-label="Administration tools">
-    {entries.filter(entry => hasPermission(entry.permission)).map(entry => <Link key={entry.path} to={entry.path}>{entry.label}<span aria-hidden="true">→</span></Link>)}
+    {entries.filter(entry => hasPermission(entry.permission)).map(entry => <ContextLink key={entry.path} to={entry.path}>{entry.label}<span aria-hidden="true">→</span></ContextLink>)}
   </nav></section>;
 }

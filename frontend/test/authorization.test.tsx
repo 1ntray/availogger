@@ -48,6 +48,12 @@ async function changePermission(value: string) {
 async function save() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
 
 describe('admin access editor', () => {
+  it('places webmaster message management in a visible permission group', async () => {
+    await render(); await selectUser();
+    const group = [...host.querySelectorAll('.admin-permission-group')].find(item => item.querySelector('h3')?.textContent === 'Messages & feedback');
+    expect(group).toBeDefined();
+    expect(group?.querySelector('select[id="permission-contact.webmaster.manage"]')).not.toBeNull();
+  });
   it('shows FlightLogger names first and searches first, last, full name and email', async () => {
     await render();
     const listed = host.querySelector('.admin-user-list button')!;

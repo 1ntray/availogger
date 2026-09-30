@@ -117,7 +117,7 @@ describe('Home composition', () => {
     const upcoming = [...host.querySelectorAll('.home-day')].find(group => group.querySelector('h3')?.textContent === 'Upcoming')!;
     const rows = [...upcoming.querySelectorAll('li a')].map(row => ({ title: row.querySelector('strong')?.textContent, detail: row.querySelector('span')?.textContent }));
     expect(rows).toEqual([
-      { title: 'Flight', detail: 'Sun 4 Oct · 09:00 Brief · 09:30–10:30 Flight · LN-ABC · 4.2 Instrument approaches' },
+      { title: 'Flight', detail: 'Sun 4 Oct · 09:00 Brief · 09:30–10:30 Flight · End 11:00 · LN-ABC · 4.2 Instrument approaches' },
       { title: 'Duty Ops', detail: 'Mon 5 Oct · 08:00–14:00' },
     ]);
     expect(rows.every(row => /^\w{3} \d{1,2} \w{3}(?: \d{4})? · \d{2}:\d{2}/.test(row.detail ?? ''))).toBe(true);
