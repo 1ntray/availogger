@@ -18,7 +18,7 @@ describe('admin environment link', () => {
   it('links production and other hosts to the development build, and development back to production', () => {
     expect(otherEnvironment('student.luftfartsfag.no').href).toBe(`${DEVELOPMENT_ORIGIN}/`);
     expect(otherEnvironment('localhost').href).toBe(`${DEVELOPMENT_ORIGIN}/`);
-    expect(DEVELOPMENT_ORIGIN).toBe('https://develop-6vlt.availogger.pages.dev');
+    expect(DEVELOPMENT_ORIGIN).toBe('https://dev.student.luftfartsfag.no');
     for (const hostname of ['develop-6vlt.availogger.pages.dev', 'dev.student.luftfartsfag.no']) {
       expect(otherEnvironment(hostname)).toMatchObject({ href: `${PRODUCTION_ORIGIN}/`, label: 'Open production portal' });
     }
