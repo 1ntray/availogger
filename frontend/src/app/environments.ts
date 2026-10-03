@@ -1,8 +1,8 @@
 // Deployed portal hosts. Production serves `master`; development serves `develop` against the preview database.
 export const PRODUCTION_ORIGIN = 'https://student.luftfartsfag.no';
-// Pages branch alias for `develop`. Switch to https://dev.student.luftfartsfag.no once that custom domain is active.
-export const DEVELOPMENT_ORIGIN = 'https://develop-6vlt.availogger.pages.dev';
-const DEVELOPMENT_HOSTS = new Set([new URL(DEVELOPMENT_ORIGIN).hostname, 'dev.student.luftfartsfag.no']);
+// Custom domain for the `develop` deployment.
+export const DEVELOPMENT_ORIGIN = 'https://dev.student.luftfartsfag.no';
+const DEVELOPMENT_HOSTS = new Set([new URL(DEVELOPMENT_ORIGIN).hostname, 'develop-6vlt.availogger.pages.dev']);
 
 export type PortalEnvironmentLink = { label: string; description: string; href: string };
 
