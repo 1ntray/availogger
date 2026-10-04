@@ -49,6 +49,8 @@ If refresh fails, overlapping prior discovery **and matching-credential own** sn
 
 ## API and UI
 
+Accepted v1/v2 exchanges now reconcile as slot transfers rather than separate remove/add effects. FlightLogger's global participant count remains authoritative even when personal identity rows are stale. See [assignment reconciliation](assignment-reconciliation.md) for the base/portal/FlightLogger three-way model, conflict presentation and exchange guards.
+
 `GET /api/duty-ops` uses the existing `/api/*` Access middleware and authorized-user wrapper. `duty_ops.view` is required before date validation, credential decryption or synchronization. STUDENT has this permission by default; explicit DENY or a removed role is enforced on every API call, including fresh D1 snapshots. The router/navigation use the same permission. It returns:
 
 ```json
@@ -63,7 +65,10 @@ If refresh fails, overlapping prior discovery **and matching-credential own** sn
       "endsAt": "2026-09-28T12:00:00.000Z",
       "status": "OPEN",
       "participantCount": 3,
-      "participants": [{ "userId": "portal-user-uuid", "firstName": "Simon", "lastName": null, "isCurrentUser": true }]
+      "participants": [{ "userId": "portal-user-uuid", "firstName": "Simon", "lastName": null, "isCurrentUser": true }],
+      "participantIntegrity": { "status": "PARTIAL", "reason": "IDENTITIES_INCOMPLETE" },
+      "isCurrentUserAssigned": true,
+      "assignmentsDiffer": false
     }
   ],
   "sync": {
@@ -132,7 +137,7 @@ Tests use synthetic users/keys, real disposable Miniflare D1 and mocked FlightLo
 ## Limitations and next phase
 
 - Shared discovery assumes the authorized program students have the tested visibility of classroom 852. It reflects the requesting credential's permitted schedule, not administrative access; no cross-program/tenant isolation is added. Existing portal permissions control access to the module. A masked/unreadable meeting classroom fails synchronization conservatively because it cannot prove whether the record is Duty Ops; prior snapshots are preserved.
-- Participant identities are incomplete until students use Duty Ops. Other students' assignments can remain stale until they revisit; known names may briefly exceed a newly reduced slot count. Unknown counts clamp at zero instead of inventing negative slots.
+- Participant identities are incomplete until students use Duty Ops. Other students' assignments can remain stale until they revisit. If cached identities exceed the current global slot count, the response keeps that count and marks the roster conflicted rather than displaying an inflated name list.
 - Refresh happens on visits/reload, not Cron/polling. No historical UI or date-range controls are added; recent history is available through the bounded API.
 - Requests exceeding pagination budgets fail safely. Large schedules and actual Workers Free CPU behavior still need staging verification with real permitted data.
 - Local/browser/CI checks validate behavior using synthetic data; they do not establish a successful live rollout or device installation.

@@ -6,7 +6,7 @@ import type { DutyOpsData } from '../features/duty-ops/types';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
 import { ExchangeV2Provider } from '../features/exchange/ExchangeV2';
 import { useCurrentUser } from '../app/CurrentUser';
-import { dateLabel, participantLabel, timeLabel } from '../features/duty-ops/presentation';
+import { dateLabel, isOwnShift, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import { AttentionDetail } from '../app/AttentionDetail';
 import { ActionButton, BackLink, PageHeader, RefreshControl } from '../app/controls';
 import { osloDate } from '../dates';
@@ -65,7 +65,7 @@ export function DutyShiftPage(){const {shiftId}=useParams();const [data,setData]
   </section>;
   return schedule && shift ? <ExchangeV2Provider domain="DUTY_OPS" assignments={schedule.shifts.map(item => ({
     id: item.id, label: `${dateLabel(item.startsAt)} · ${timeLabel(item)}`, ownerNames: participantLabel(item),
-    own: item.participants.some(person => person.isCurrentUser),
+    own: isOwnShift(item),
   }))} refreshKey={reload} onChanged={() => setReload(n => n + 1)}>
     <DutyExchanges shifts={schedule.shifts} now={now} refreshKey={reload} onChanged={() => setReload(n => n + 1)} showBoard={false} legacyOnly>{workspace}</DutyExchanges>
   </ExchangeV2Provider> : workspace;

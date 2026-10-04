@@ -1,4 +1,5 @@
 import { readAssignmentStates, type DutyParticipant } from './effective-assignments';
+import type { ParticipantIntegrity } from '../assignment-reconciliation';
 import { ApplicationError } from '../application-error';
 import { FlightLoggerClient, FlightLoggerError } from '../flightlogger/client';
 import type { DutyMeeting, FlightLoggerProfile } from '../flightlogger/duty-ops';
@@ -17,7 +18,8 @@ export interface DutyOpsResponse {
   from: string; to: string; timeZone: 'Europe/Oslo';
   shifts: { id: string; startsAt: string; endsAt: string; status: string; participantCount: number;
     participants: DutyParticipant[];
-    flightlogger: { participantCount: number; participants: DutyParticipant[] }; assignmentsDiffer: boolean }[];
+    flightlogger: { participantCount: number; participants: DutyParticipant[] }; assignmentsDiffer: boolean;
+    participantIntegrity: ParticipantIntegrity; isCurrentUserAssigned: boolean }[];
   sync: { stale: boolean; warning: string | null; discovery: SyncMetadata; assignments: SyncMetadata };
 }
 type SyncMetadata = { lastSyncedAt: string; stale: boolean; from: string; to: string };

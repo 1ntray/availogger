@@ -6,9 +6,11 @@ import type { ExchangeRequest, ExchangeProposal, ExchangesResponse, RequestStatu
 
 // Consent covers the displayed times, not a subsequently rescheduled booking.
 const requestedEligible = `EXISTS (SELECT 1 FROM flyvask_shifts s JOIN ${effectiveAssignments} a ON a.shift_id = s.id
+  JOIN assignment_reconciliation integrity ON integrity.domain='FLYVASK' AND integrity.shift_id=s.id AND integrity.status<>'CONFLICT'
   WHERE s.id = r.requested_shift_id AND a.user_id = r.requester_user_id AND s.status = 'OPEN'
   AND s.starts_at > ? AND s.starts_at = r.requested_starts_at AND s.ends_at = r.requested_ends_at)`;
 const offeredEligible = `EXISTS (SELECT 1 FROM flyvask_shifts s JOIN ${effectiveAssignments} a ON a.shift_id = s.id
+  JOIN assignment_reconciliation integrity ON integrity.domain='FLYVASK' AND integrity.shift_id=s.id AND integrity.status<>'CONFLICT'
   WHERE s.id = p.offered_shift_id AND a.user_id = p.proposer_user_id AND s.status = 'OPEN'
   AND s.starts_at > ? AND s.starts_at = p.offered_starts_at AND s.ends_at = p.offered_ends_at)`;
 const requestReservation = `EXISTS (SELECT 1 FROM ${activeReservations} l
@@ -60,6 +62,7 @@ function reservation(db: D1Database, userId: string, shiftId: string, requestId:
 export async function createExchange(db: D1Database, actor: ApplicationUser, shiftId: string, expected: { startsAt: string; endsAt: string }) {
   const now = stamp(), id = crypto.randomUUID();
   await transaction(db, actor, `EXISTS (SELECT 1 FROM flyvask_shifts s JOIN ${effectiveAssignments} a ON a.shift_id = s.id
+    JOIN assignment_reconciliation integrity ON integrity.domain='FLYVASK' AND integrity.shift_id=s.id AND integrity.status<>'CONFLICT'
     WHERE s.id = ? AND a.user_id = ? AND s.status = 'OPEN' AND s.starts_at > ? AND s.starts_at = ? AND s.ends_at = ?) AND ${freeShift}`,
     [shiftId, actor.id, now, expected.startsAt, expected.endsAt, actor.id, shiftId], [
       db.prepare(`INSERT INTO flyvask_swap_requests
@@ -79,6 +82,7 @@ export async function createProposal(db: D1Database, actor: ApplicationUser, id:
     AND NOT EXISTS (SELECT 1 FROM ${effectiveAssignments} a JOIN users u ON u.id = a.user_id
       WHERE a.shift_id = r.requested_shift_id AND u.flightlogger_user_id = (SELECT flightlogger_user_id FROM users WHERE id = ?)))
     AND EXISTS (SELECT 1 FROM flyvask_shifts s JOIN ${effectiveAssignments} a ON a.shift_id = s.id
+      JOIN assignment_reconciliation integrity ON integrity.domain='FLYVASK' AND integrity.shift_id=s.id AND integrity.status<>'CONFLICT'
       WHERE s.id = ? AND a.user_id = ? AND s.status = 'OPEN' AND s.starts_at > ? AND s.starts_at = ? AND s.ends_at = ?)
     AND ${freeShift} AND ${noAssignment}`,
     [id, now, actor.id, shiftId, actor.id, actor.id, shiftId, actor.id, now, expected.startsAt, expected.endsAt, actor.id, shiftId, shiftId,

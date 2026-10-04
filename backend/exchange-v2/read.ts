@@ -3,6 +3,7 @@ import { hasPermission } from '../authorization';
 import { PERMISSIONS } from '../../shared/authorization';
 import type { AssignmentActionState, ExchangeAction, ExchangeDomain, ExchangeRelationship } from '../../shared/exchange-v2';
 import { hasLegacyReservation, isExchangeable, readExchangeableOwnedIds, readMembers, snapshot, type AssignmentMember } from './assignments';
+import { conflictedAssignmentIds } from '../assignment-reconciliation';
 import { reconcileExchangeV2 } from './reconciliation';
 
 const swapPermission={DUTY_OPS:PERMISSIONS.dutyOpsSwap,FLYVASK:PERMISSIONS.flyvaskSwap,
@@ -64,6 +65,8 @@ export async function listExchangeV2(db:D1Database,actor:ApplicationUser,domain:
   const stateIds=distinct([...assignmentIds,...ownedIds,...intents.filter(i=>i.owner_user_id===actor.id).map(i=>i.source_assignment_id),
     ...offers.filter(o=>o.offerer_user_id===actor.id).map(o=>o.assignment_id),
     ...targets.map(t=>t.assignment_id)]);
+  const conflictedIds = domain === 'BRAKKEVAKT' ? new Set<string>() :
+    await conflictedAssignmentIds(db,domain,stateIds);
   const assignmentStates:AssignmentActionState[]=[];
   const actorIdentity=await db.prepare("SELECT COALESCE(flightlogger_user_id,'portal:'||id) identity FROM users WHERE id=?")
     .bind(actor.id).first<string>('identity');
@@ -76,6 +79,7 @@ export async function listExchangeV2(db:D1Database,actor:ApplicationUser,domain:
   }
   const currentSources=new Map<string,AssignmentMember>();
   if(canSwap)for(const item of intents.filter(i=>i.status==='OPEN')){
+    if(conflictedIds.has(item.source_assignment_id))continue;
     const member=(await readMembers(db,domain,item.source_assignment_id)).find(m=>m.userId===item.owner_user_id);
     const saved=JSON.parse(item.source_snapshot) as {version:string};
     if(member&&isExchangeable(domain,member)&&member.version===saved.version)currentSources.set(item.id,member);
@@ -137,7 +141,8 @@ export async function listExchangeV2(db:D1Database,actor:ApplicationUser,domain:
     }
     if(requestableSourceAssignmentIds.length&&canSwap)actions.push('REQUEST_SWAP');
     if(canSwap&&eligible&&relatedCandidateIds.length&&relationship==='NONE')actions.push('VIEW_EXCHANGE');
-    assignmentStates.push({assignmentId,relationship,availableActions:actions,
+    assignmentStates.push({assignmentId,relationship,availableActions:conflictedIds.has(assignmentId)
+      ? actions.filter(action=>['CANCEL_INTENT','WITHDRAW_OFFER','DECLINE_CANDIDATE','VIEW_EXCHANGE'].includes(action)) : actions,
       relatedIntentIds:distinct([...intents.filter(i=>i.source_assignment_id===assignmentId).map(i=>i.id),
         ...incoming.map(t=>t.intent_id),...sentTargets.map(t=>t.intent_id)]),relatedCandidateIds,
       requestableSourceAssignmentIds,requestableSourceAssignments,offerableIntentIds});

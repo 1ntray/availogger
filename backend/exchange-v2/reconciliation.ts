@@ -2,6 +2,7 @@ import type { ExchangeDomain } from '../../shared/exchange-v2';
 import { currentMemberPredicate, hasLegacyReservation, isExchangeable, legacyReservationPredicate,
   memberPredicateValues, readMembers } from './assignments';
 import { osloDay } from '../brakkevakt/week';
+import { hasAssignmentConflict } from '../assignment-reconciliation';
 
 type Intent={id:string;domain:ExchangeDomain;owner_user_id:string;source_assignment_id:string;source_version:string;
   source_snapshot:string;status:string};
@@ -89,6 +90,7 @@ export async function reconcileExchangeV2(db:D1Database,domain:ExchangeDomain,as
     ORDER BY created_at,id`).bind(domain).all<Intent>()).results;
   for(const row of intents){
     if(assignmentIds?.length&& !assignmentIds.includes(row.source_assignment_id))continue;
+    if(domain!=='BRAKKEVAKT'&&await hasAssignmentConflict(db,domain,[row.source_assignment_id]))continue;
     const member=(await readMembers(db,domain,row.source_assignment_id)).find(m=>m.userId===row.owner_user_id);
     if(!member||!isExchangeable(domain,member,now)||member.version!==row.source_version||
       await hasLegacyReservation(db,domain,row.source_assignment_id,row.owner_user_id)){
@@ -101,6 +103,7 @@ export async function reconcileExchangeV2(db:D1Database,domain:ExchangeDomain,as
     WHERE i.domain=? AND i.status='OPEN' AND t.status='OPEN'`).bind(domain).all<Target>()).results;
   for(const row of targets){
     if(assignmentIds?.length&&!assignmentIds.includes(row.assignment_id))continue;
+    if(domain!=='BRAKKEVAKT'&&await hasAssignmentConflict(db,domain,[row.assignment_id]))continue;
     const members=await readMembers(db,domain,row.assignment_id),first=members[0];
     const old=JSON.parse(row.assignment_snapshot) as {startsAt:string;endsAt:string;status:string};
     if(first&&isExchangeable(domain,first,now)&&first.startsAt===old.startsAt&&first.endsAt===old.endsAt){
@@ -125,6 +128,7 @@ export async function reconcileExchangeV2(db:D1Database,domain:ExchangeDomain,as
     WHERE i.domain=? AND i.status='OPEN' AND o.status='OPEN'`).bind(domain).all<Offer>()).results;
   for(const row of offers){
     if(assignmentIds?.length&&!assignmentIds.includes(row.assignment_id))continue;
+    if(domain!=='BRAKKEVAKT'&&await hasAssignmentConflict(db,domain,[row.assignment_id]))continue;
     const member=(await readMembers(db,domain,row.assignment_id)).find(m=>m.userId===row.offerer_user_id);
     if(member&&isExchangeable(domain,member,now)&&member.version===row.assignment_version&&
       !await hasLegacyReservation(db,domain,row.assignment_id,row.offerer_user_id))continue;
@@ -150,6 +154,7 @@ export async function reconcileExchangeV2(db:D1Database,domain:ExchangeDomain,as
     .bind(domain).all<Leg>()).results;
   for(const leg of candidateLegs){
     if(assignmentIds?.length&&!assignmentIds.includes(leg.give_assignment_id!))continue;
+    if(domain!=='BRAKKEVAKT'&&await hasAssignmentConflict(db,domain,[leg.give_assignment_id!]))continue;
     const member=(await readMembers(db,domain,leg.give_assignment_id!)).find(m=>m.userId===leg.user_id);
     if(member&&isExchangeable(domain,member,now)&&member.version===leg.give_version&&
       !await hasLegacyReservation(db,domain,leg.give_assignment_id!,leg.user_id))continue;

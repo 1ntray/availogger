@@ -6,6 +6,7 @@ import { currentMemberPredicate, isExchangeable, legacyReservationPredicate, mem
   type AssignmentMember } from './assignments';
 import { findDirectMatches, findThreeWayCycles, matchKey, type MatchIntent } from './matching';
 import { reconcileExchangeV2IfInstalled } from './reconciliation';
+import { assignmentConflict, hasAssignmentConflict } from '../assignment-reconciliation';
 
 type IntentRow = { id:string;domain:ExchangeDomain;owner_user_id:string;source_assignment_id:string;
   source_snapshot:string;source_version:string;allow_give_away:number;status:string;created_at:string };
@@ -45,7 +46,16 @@ async function guarded(db:D1Database,domain:ExchangeDomain,actorId:string,predic
   try {
     await db.batch([db.prepare(`UPDATE exchange_v2_state SET revision=CASE WHEN ${permissionPredicate(domain)}
       AND (${predicate}) THEN revision+1 ELSE -1 END WHERE id=1`).bind(actorId,...values),...writes]);
-  } catch { throw conflict(); }
+  } catch {
+    if (domain !== 'BRAKKEVAKT') {
+      const ids=values.filter((value):value is string=>typeof value==='string');
+      if(await hasAssignmentConflict(db,domain,ids) || await db.prepare(`SELECT 1 FROM assignment_reconciliation r
+        JOIN exchange_v2_candidate_legs l ON l.give_assignment_id=r.shift_id
+        WHERE r.domain=? AND r.status='CONFLICT' AND l.candidate_id IN (SELECT value FROM json_each(?)) LIMIT 1`)
+        .bind(domain,JSON.stringify(ids)).first())throw assignmentConflict();
+    }
+    throw conflict();
+  }
 }
 async function intent(db:D1Database,id:string):Promise<IntentRow>{
   const row=await db.prepare('SELECT * FROM exchange_v2_intents WHERE id=?').bind(id).first<IntentRow>();
@@ -304,7 +314,7 @@ export async function commitCandidate(db:D1Database,actor:ApplicationUser,candid
         AND COALESCE(u.flightlogger_user_id,'portal:'||u.id)=?)`);
       values.push(leg.receive_assignment_id,leg.receive_assignment_id,identity);
     }else{
-      const view=row.domain==='DUTY_OPS'?'duty_ops_effective_assignments':'flyvask_effective_assignments';
+      const view=row.domain==='DUTY_OPS'?'duty_ops_candidate_assignments':'flyvask_candidate_assignments';
       guardParts.push(`NOT EXISTS(SELECT 1 FROM ${view} a JOIN users u ON u.id=a.user_id
         WHERE a.shift_id=? AND COALESCE(u.flightlogger_user_id,'portal:'||u.id)=?)`);
       values.push(leg.receive_assignment_id,identity);
@@ -418,9 +428,18 @@ export async function commitCandidate(db:D1Database,actor:ApplicationUser,candid
 export async function confirmCandidate(db:D1Database,actor:ApplicationUser,candidateId:string){
   const row=await candidate(db,candidateId),now=nowStamp();
   if(row.status!=='WAITING')throw conflict();
+  if(row.domain!=='BRAKKEVAKT'){
+    const giving=(await db.prepare(`SELECT give_assignment_id id FROM exchange_v2_candidate_legs
+      WHERE candidate_id=? AND give_assignment_id IS NOT NULL`).bind(candidateId).all<{id:string}>()).results.map(item=>item.id);
+    if(await hasAssignmentConflict(db,row.domain,giving))throw assignmentConflict();
+  }
   await guarded(db,row.domain,actor.id,`EXISTS(SELECT 1 FROM exchange_v2_candidate_legs l
     JOIN exchange_v2_candidates c ON c.id=l.candidate_id WHERE l.candidate_id=? AND l.user_id=?
-    AND l.consented_at IS NULL AND c.status='WAITING')`,[candidateId,actor.id],[
+    AND l.consented_at IS NULL AND c.status='WAITING')
+    ${row.domain==='BRAKKEVAKT'?'':`AND NOT EXISTS (SELECT 1 FROM exchange_v2_candidate_legs l
+      JOIN assignment_reconciliation r ON r.domain='${row.domain}' AND r.shift_id=l.give_assignment_id
+      WHERE l.candidate_id=? AND r.status='CONFLICT')`}`,
+    row.domain==='BRAKKEVAKT'?[candidateId,actor.id]:[candidateId,actor.id,candidateId],[
     db.prepare(`UPDATE exchange_v2_candidate_legs SET consent_source='CONFIRMATION',consented_at=?
       WHERE candidate_id=? AND user_id=? AND consented_at IS NULL`).bind(now,candidateId,actor.id),
     db.prepare(`DELETE FROM user_inbox_items WHERE user_id=? AND source_type='EXCHANGE'
@@ -468,6 +487,8 @@ async function generateMatchesForNewIntent(db:D1Database,actor:ApplicationUser,d
 export async function generateMatches(db:D1Database,actor:ApplicationUser,intentId:string){
   const rootRow=await intent(db,intentId);
   if(rootRow.owner_user_id!==actor.id||rootRow.status!=='OPEN')throw conflict();
+  if(rootRow.domain!=='BRAKKEVAKT'&&await hasAssignmentConflict(db,rootRow.domain,[rootRow.source_assignment_id]))
+    throw assignmentConflict();
   return generateMatchesFromRoot(db,actor,rootRow);
 }
 async function generateMatchesFromRoot(db:D1Database,actor:ApplicationUser,rootRow:IntentRow){

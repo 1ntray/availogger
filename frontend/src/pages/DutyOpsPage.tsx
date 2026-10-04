@@ -4,7 +4,7 @@ import { OnboardingRequiredError } from '../api';
 import { cacheAgeLabel } from '../cache-age';
 import { osloDate } from '../dates';
 import { loadDutyOps } from '../features/duty-ops/api';
-import { dateLabel, dutySections, participantLabel, timeLabel } from '../features/duty-ops/presentation';
+import { dateLabel, dutySections, isOwnShift, participantLabel, timeLabel } from '../features/duty-ops/presentation';
 import type { DutyOpsData } from '../features/duty-ops/types';
 import { ShiftList } from '../features/duty-ops/ShiftList';
 import { DutyExchanges, ExchangeShiftActions } from '../features/duty-ops/DutyExchanges';
@@ -42,7 +42,7 @@ export function DutyOpsPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
   const center = view === 'exchanges';
   const assignments = data?.shifts.map(shift => ({ id: shift.id,
     label: `${dateLabel(shift.startsAt)} · ${timeLabel(shift)}`,
-    ownerNames: participantLabel(shift), own: shift.participants.some(person => person.isCurrentUser) })) ?? [];
+    ownerNames: participantLabel(shift), own: isOwnShift(shift) })) ?? [];
   return <section className="duty-ops">
     {center && <BackLink to="/duty-ops">Duty Ops</BackLink>}
     <PageHeader title={center ? 'Exchanges' : 'Duty Ops'}><RefreshControl label="Duty Ops" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>

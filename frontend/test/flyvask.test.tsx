@@ -70,6 +70,18 @@ describe('Flyvask navigation and schedule',()=>{
     expect(mine.querySelector('.duty-participants')!.textContent).toBe('Simon · 13 others');expect(mine.querySelector('.attention-detail')!.textContent).toContain('FlightLogger records: Anna · 13 others');expect(mine.querySelector('details')!.hasAttribute('open')).toBe(false);expect(mine.querySelector('.sr-only')!.textContent).toBe('Your shift');
     expect(mine.textContent).not.toContain('Hangar UTSA');expect(mine.textContent).not.toContain('17 Oct');
   });
+  it('keeps the portal receiver visible but pauses exchange on a source conflict',async()=>{
+    data.shifts=[{...a,participantCount:3,participants:[me],isCurrentUserAssigned:true,
+      participantIntegrity:{status:'CONFLICT',reason:'PORTAL_SOURCE_DIVERGED'},
+      flightlogger:{participantCount:3,participants:[]},assignmentsDiffer:true}];
+    await render();
+    const row=host.querySelector('.flyvask-schedule .duty-row')!;
+    expect(row.classList.contains('is-mine')).toBe(true);
+    expect(row.querySelector('.duty-participants')?.textContent).toBe('Simon · 2 others');
+    expect(row.querySelector('.attention-detail summary')?.textContent).toContain('FlightLogger assignment differs');
+    expect(row.textContent).not.toContain('Anna');
+    expect(row.querySelector('button')?.textContent).not.toBe('Exchange');
+  });
   it('does not enable past, cancelled, started or non-own shifts for exchange',async()=>{
     data.shifts=[{...a,status:'CANCELLED'},{...a,id:'started',startsAt:new Date(now).toISOString(),endsAt:'2026-09-27T12:00:00.000Z'},b];await render();
     expect(host.textContent).not.toContain('Look for swap');
@@ -82,6 +94,7 @@ describe('Flyvask navigation and schedule',()=>{
   });
   it('rejects malformed source metadata rather than rendering a partial schedule',()=>{
     expect(isFlyvaskData(data)).toBe(true);expect(isFlyvaskData({...data,shifts:[{...a,classroomName:42}]})).toBe(false);expect(isFlyvaskData({...data,shifts:[{...a,flightlogger:undefined}]})).toBe(false);
+    expect(isFlyvaskData({...data,shifts:[{...a,participantCount:1,participants:[me,anna]}]})).toBe(false);
   });
 });
 
