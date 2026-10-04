@@ -5,6 +5,7 @@ import { osloDate } from '../../dates';
 import { shiftLabel, userName } from './exchange-presentation';
 import { creditSign } from './credit-api';
 import type { DutyShift } from './types';
+import { isOwnShift } from './presentation';
 import { loadExchanges, saveExchange, type ExchangeRequest, type ExchangeProposal, type ExchangesResponse } from './exchange-api';
 import './exchanges.css';
 import { ActionButton, ContextLink } from '../../app/controls';
@@ -23,8 +24,8 @@ const ExchangeContext = createContext<Controls | null>(null);
 export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
   const state = useContext(ExchangeContext);
   if (!state?.enabled || (!state.legacyOnly && (shift.status !== 'OPEN' || Date.parse(shift.startsAt) <= state.now))) return null;
-  if (state.legacyOnly && !state.data) return <ExchangeV2AssignmentAction assignmentId={shift.id} />;
-  const own = shift.participants.some(p => p.isCurrentUser);
+  if (state.legacyOnly && !state.data) return shift.participantIntegrity?.status === 'CONFLICT' ? null : <ExchangeV2AssignmentAction assignmentId={shift.id} />;
+  const own = isOwnShift(shift);
   const requests = state.data?.requests ?? [];
   const userId = state.data?.currentUserId ?? '';
   if (own) {
@@ -40,10 +41,12 @@ export function ExchangeShiftActions({ shift }: { shift: DutyShift }) {
       <ActionButton disabled={state.busy} onClick={() => state.open({ kind: 'withdraw', ...offer })}>Withdraw offer</ActionButton>
       <ContextLink to={`/duty-ops/exchanges#duty-exchange-${encodeURIComponent(offer.request.id)}`}>Open exchange</ContextLink></div>;
     if (state.data?.lockedShiftIds.includes(shift.id)) return <div className="exchange-assignment-state"><span>Exchange active</span><ContextLink to="/duty-ops/exchanges">Open exchange center</ContextLink></div>;
+    if (shift.participantIntegrity?.status === 'CONFLICT') return <span className="exchange-inline-status">Exchange paused while assignments reconcile</span>;
     return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> :
       <ActionButton className="exchange-shift-action" disabled={state.busy || !state.data} onClick={() => state.open({ kind: 'start', shift })}>Exchange</ActionButton>;
   }
   const request = openRequests(requests).find(item => item.requestedShift.id === shift.id);
+  if (shift.participantIntegrity?.status === 'CONFLICT') return null;
   if (!request) return state.legacyOnly ? <ExchangeV2AssignmentAction assignmentId={shift.id} /> : null;
   if (hasOwnOpenOffer(request, userId)) return <span className="exchange-inline-status">Offer sent</span>;
   return <div className="exchange-assignment-state"><span>{request.type === 'GIVE_AWAY' ? `Give-away available from ${userName(request.requester)}` : `Swap wanted by ${userName(request.requester)}`}</span>
@@ -96,7 +99,7 @@ export function DutyExchanges({ children, afterBoard, shifts, now, refreshKey, o
     if (!dialog && opener.current?.isConnected) { opener.current.focus(); opener.current = null; }
   }, [dialog]);
   const open = (next: DialogState, selectedShiftId = '') => { if (!dialog) opener.current = document.activeElement as HTMLElement; setError(''); setOfferedId(selectedShiftId); setDialog(next); };
-  const eligible = shifts.filter(s => s.status === 'OPEN' && Date.parse(s.startsAt) > now && s.participants.some(p => p.isCurrentUser) && !data?.lockedShiftIds.includes(s.id));
+  const eligible = shifts.filter(s => s.status === 'OPEN' && Date.parse(s.startsAt) > now && isOwnShift(s) && s.participantIntegrity?.status !== 'CONFLICT' && !data?.lockedShiftIds.includes(s.id));
   async function confirm() {
     if (!dialog || dialog.kind === 'start' || saving.current) return;
     saving.current = true; setBusy(true); setError(''); const generation = lifecycle.current;

@@ -138,9 +138,12 @@ describe('effective assignment overlay and chaining', () => {
     await give(alice, bob); const window = await fresh(alice);
     await saveAssignments(fixture.db, alice, { id: 'fl-alice', firstName: 'alice', lastName: null }, [], window, now, 'hash');
     await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?, ?, ?)').bind(a, other.id, now).run();
-    await assertMembers(a, bob, other); expect(await members(a, true)).toEqual([other.id]);
+    // FlightLogger removed the source identity without observing the portal
+    // receiver. The unrelated raw identity is ambiguous until more self-syncs.
+    await assertMembers(a, bob); expect(await members(a, true)).toEqual([other.id]);
     const read = await readAssignmentStates(fixture.db, [a], bob.id);
     expect(read(a, 3).participantCount).toBe(3);
+    expect(read(a, 3).participantIntegrity).toMatchObject({ status: 'CONFLICT', reason: 'PORTAL_SOURCE_DIVERGED' });
   });
   it('deduplicates multiple Access accounts for one FlightLogger identity when transferring', async () => {
     const alias = await seedCredential(fixture.db, 'alias', 'alias-token', 'alias@test', 'fl-alice');
@@ -282,14 +285,17 @@ describe('0006 upgrade from populated v1', () => {
       await legacy.db.batch(sql.split('-- statement-breakpoint').filter(s => s.trim()).map(s => legacy.db.prepare(s)));
       expect((await legacy.db.prepare('SELECT * FROM duty_ops_swap_reservations').all()).results).toHaveLength(8);
       expect((await legacy.db.prepare('SELECT * FROM duty_ops_active_swap_reservations').all()).results).toHaveLength(2);
+      expect((await legacy.db.prepare('SELECT user_id FROM duty_ops_effective_assignments WHERE shift_id=?').bind(shiftId).all<{user_id:string}>()).results.map(r=>r.user_id)).toEqual([to.id]);
+      // The current reader and mutations run only after every ordered migration.
+      for (const migration of ['0007_flyvask.sql','0008_duty_ops_credits.sql','0009_flights_fuel.sql',
+        '0010_brakkevakt.sql','0011_flight_changes.sql','0012_exchange_v2.sql',
+        '0013_contact_messages.sql','0014_flight_schedule_details.sql','0015_schedule_notifications.sql',
+        '0016_assignment_reconciliation.sql']) await applyTestMigration(legacy.db,migration);
       const read = await readAssignmentStates(legacy.db, [shiftId], to.id);
       expect(read(shiftId, 3).participants.map(p => p.userId)).toEqual([to.id]);
       const directRead = await readAssignmentStates(legacy.db, [directA, directB], from.id);
       expect(directRead(directA, 3).participants.map(p => p.userId)).toEqual([to.id]);
       expect(directRead(directB, 3).participants.map(p => p.userId)).toEqual([from.id]);
-      // Current application runs only after the ordered migrations have landed.
-      await applyTestMigration(legacy.db, '0007_flyvask.sql');
-      await applyTestMigration(legacy.db, '0008_duty_ops_credits.sql');
       await createExchange(legacy.db, to, shiftId, 'GIVE_AWAY', times);
       expect((await legacy.db.prepare('SELECT * FROM duty_ops_swap_reservations WHERE request_id = ?').bind(accepted).all()).results).toEqual([]);
       expect((await listExchanges(legacy.db, from)).requests.find(r => r.id === open)?.proposals.map(p => p.id)).toEqual([openProposal]);

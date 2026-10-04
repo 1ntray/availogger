@@ -127,6 +127,7 @@ describe('Exchange v2 guarded outcomes',()=>{
     const a=await student('target-race-a'),b=await student('target-race-b'),c=await student('target-race-c');
     const x=await duty(a),y=await duty(b,second);
     await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(y,c.id,now).run();
+    await fixture.db.prepare('UPDATE duty_ops_shifts SET participant_count=2 WHERE id=?').bind(y).run();
     const request=await createIntent(fixture.db,a,'DUTY_OPS',x,[y],false);
     const target=(await fixture.db.prepare('SELECT id FROM exchange_v2_targets WHERE intent_id=?')
       .bind(request.id).first<{id:string}>())!.id;
@@ -135,6 +136,45 @@ describe('Exchange v2 guarded outcomes',()=>{
     expect([b.id,c.id]).toContain(await owner(x));
     expect((await fixture.db.prepare('SELECT count(*) n FROM exchange_v2_candidates WHERE intent_id=? AND status=\'COMPLETED\'')
       .bind(request.id).first<{n:number}>())?.n).toBe(1);
+  },40_000);
+
+  it('rejects a target that diverges after page load before writing effects or credits',async()=>{
+    const a=await student('conflict-target-a'),b=await student('conflict-target-b'),c=await student('conflict-target-c');
+    const source=await duty(a),target=await duty(b,second);
+    const intent=await createIntent(fixture.db,a,'DUTY_OPS',source,[target],false);
+    const targetId=(await fixture.db.prepare('SELECT id FROM exchange_v2_targets WHERE intent_id=?')
+      .bind(intent.id).first<string>('id'))!;
+    expect((await listExchangeV2(fixture.db,b,'DUTY_OPS',[target])).assignmentStates
+      .find(item=>item.assignmentId===target)?.availableActions).toContain('ACCEPT_TARGET');
+    await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(target,c.id,now).run();
+    const state=(await listExchangeV2(fixture.db,b,'DUTY_OPS',[target])).assignmentStates
+      .find(item=>item.assignmentId===target)!;
+    expect(state.availableActions).not.toContain('ACCEPT_TARGET');
+    await expect(acceptTarget(fixture.db,b,targetId)).rejects.toMatchObject({
+      status:409,code:'EXCHANGE_ASSIGNMENT_SYNC_CONFLICT',
+    });
+    expect((await fixture.db.prepare('SELECT count(*) n FROM exchange_v2_assignment_effects WHERE assignment_id=?')
+      .bind(target).first<number>('n'))).toBe(0);
+    expect((await fixture.db.prepare('SELECT count(*) n FROM exchange_v2_credit_entries WHERE candidate_id IN (SELECT id FROM exchange_v2_candidates WHERE intent_id=?)')
+      .bind(intent.id).first<number>('n'))).toBe(0);
+  },40_000);
+  it('keeps a waiting candidate intact when an assignment conflicts before confirmation',async()=>{
+    const a=await student('conflict-confirm-a'),b=await student('conflict-confirm-b'),c=await student('conflict-confirm-c');
+    const source=await duty(a),offered=await duty(b,second);
+    const intent=await createIntent(fixture.db,a,'DUTY_OPS',source,[],false);
+    const offer=await createOffer(fixture.db,b,intent.id,offered);
+    await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(offered,c.id,now).run();
+    await expect(confirmCandidate(fixture.db,a,offer.candidateId)).rejects.toMatchObject({
+      status:409,code:'EXCHANGE_ASSIGNMENT_SYNC_CONFLICT',
+    });
+    expect(await fixture.db.prepare('SELECT status FROM exchange_v2_candidates WHERE id=?')
+      .bind(offer.candidateId).first<string>('status')).toBe('WAITING');
+    expect(await fixture.db.prepare('SELECT consented_at FROM exchange_v2_candidate_legs WHERE candidate_id=? AND user_id=?')
+      .bind(offer.candidateId,a.id).first<string|null>('consented_at')).toBeNull();
+    expect(await fixture.db.prepare('SELECT count(*) n FROM exchange_v2_assignment_effects WHERE candidate_id=?')
+      .bind(offer.candidateId).first<number>('n')).toBe(0);
+    expect(await fixture.db.prepare('SELECT count(*) n FROM exchange_v2_credit_entries WHERE candidate_id=?')
+      .bind(offer.candidateId).first<number>('n')).toBe(0);
   },40_000);
 
   it('allows one give-away winner and writes balanced immutable credit entries',async()=>{
@@ -259,6 +299,7 @@ describe('Exchange v2 guarded outcomes',()=>{
     const a=await student('inbox-a'),b=await student('inbox-b'),c=await student('inbox-c');
     const x=await duty(a),y=await duty(b,second);
     await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(y,c.id,now).run();
+    await fixture.db.prepare('UPDATE duty_ops_shifts SET participant_count=2 WHERE id=?').bind(y).run();
     const created=await createIntent(fixture.db,a,'DUTY_OPS',x,[y],false);
     const target=(await fixture.db.prepare('SELECT id FROM exchange_v2_targets WHERE intent_id=?')
       .bind(created.id).first<{id:string}>())!;
@@ -269,6 +310,7 @@ describe('Exchange v2 guarded outcomes',()=>{
       .bind(target.id,c.id).first<{n:number}>();expect(after?.n).toBe(0);
     const x2=await duty(a,third),y2=await duty(b,third);
     await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(y2,c.id,now).run();
+    await fixture.db.prepare('UPDATE duty_ops_shifts SET participant_count=2 WHERE id=?').bind(y2).run();
     const secondIntent=await createIntent(fixture.db,a,'DUTY_OPS',x2,[y2],false);
     const secondTarget=(await fixture.db.prepare('SELECT id FROM exchange_v2_targets WHERE intent_id=?')
       .bind(secondIntent.id).first<{id:string}>())!;
@@ -283,6 +325,7 @@ describe('Exchange v2 guarded outcomes',()=>{
     const a=await student('retarget-a'),b=await student('retarget-b'),c=await student('retarget-c'),d=await student('retarget-d');
     const x=await duty(a),y=await duty(b,second),w=await duty(d,third);
     await fixture.db.prepare('INSERT INTO duty_ops_assignments VALUES (?,?,?)').bind(y,c.id,now).run();
+    await fixture.db.prepare('UPDATE duty_ops_shifts SET participant_count=2 WHERE id=?').bind(y).run();
     const firstIntent=await createIntent(fixture.db,a,'DUTY_OPS',x,[y],false);
     const target=(await fixture.db.prepare('SELECT id FROM exchange_v2_targets WHERE intent_id=?')
       .bind(firstIntent.id).first<{id:string}>())!.id;

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DutyOpsPage } from '../src/pages/DutyOpsPage';
 import { MyActivityPage } from '../src/pages/MyActivityPage';
 import { ShiftList } from '../src/features/duty-ops/ShiftList';
+import { dutySections } from '../src/features/duty-ops/presentation';
 import { isDutyOpsData } from '../src/features/duty-ops/api';
 import { loadSwapHistory } from '../src/features/duty-ops/exchange-api';
 import type { DutyShift, DutyOpsData } from '../src/features/duty-ops/types';
@@ -60,6 +61,20 @@ describe('effective Duty Ops presentation', () => {
     expect(host.querySelector('.attention-detail')).toBeNull();
     expect(isDutyOpsData(data)).toBe(true);
     expect(isDutyOpsData({ ...data, shifts: [{ ...shift, flightlogger: { participantCount: -1, participants: [] } }] })).toBe(false);
+    expect(isDutyOpsData({ ...data, shifts: [{ ...shift, participantCount: 1, participants: [me,anna] }] })).toBe(false);
+  });
+  it('preserves a portal receiver during source divergence without rendering an extra raw name', async () => {
+    const conflicted: DutyShift = { ...shift, participants: [me], isCurrentUserAssigned: true,
+      participantIntegrity: { status: 'CONFLICT', reason: 'PORTAL_SOURCE_DIVERGED' },
+      flightlogger: { participantCount: 3, participants: [] } };
+    await render(<ShiftList shifts={[conflicted]} linkToShift />);
+    expect(host.querySelector('.duty-participants')?.textContent).toBe('Simon · 2 others');
+    expect(host.querySelector('.duty-row.is-mine')).not.toBeNull();
+    expect(host.querySelector('a[href="/duty-ops/shifts/received"]')).not.toBeNull();
+    expect(host.querySelector('.attention-detail summary')?.textContent).toContain('FlightLogger assignment differs');
+    expect(host.textContent).not.toContain('Anna');
+    expect(dutySections([conflicted], now).mine).toHaveLength(1);
+    expect(isDutyOpsData({ ...data, shifts: [conflicted] })).toBe(true);
   });
   it('refreshes effective My shifts immediately after a successful give-away claim', async () => {
     let claimed = false;

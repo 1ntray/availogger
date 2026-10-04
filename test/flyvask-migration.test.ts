@@ -1,7 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { createTestDatabase, seedCredential } from './d1-fixture';
-import { createExchange, createProposal, acceptProposal } from '../backend/duty-ops/swaps';
 import { listSwapHistory } from '../backend/duty-ops/swap-history';
 
 it('adds Flyvask to a populated 0006 database without disturbing Duty Ops agreements or raw snapshots', async()=>{
@@ -16,8 +15,21 @@ it('adds Flyvask to a populated 0006 database without disturbing Duty Ops agreem
       old.db.prepare('INSERT INTO duty_ops_assignments VALUES (?, ?, ?)').bind(id,user.id,stamp),
       old.db.prepare("INSERT INTO user_permission_overrides VALUES (?, 'duty_ops.swap', 'ALLOW', ?, ?, NULL)").bind(user.id,stamp,stamp),
     ]);
-    const r=await createExchange(old.db,alice,a,'DIRECT_SWAP',{startsAt:start,endsAt:end});
-    const p=await createProposal(old.db,bob,r.id,b,{startsAt:start,endsAt:end});await acceptProposal(old.db,alice,r.id,p.id);
+    // Seed the old accepted shape directly: the current mutation service requires
+    // the reconciliation view added in 0016, which this upgrade fixture lacks.
+    const requestId=crypto.randomUUID(),proposalId=crypto.randomUUID();
+    await old.db.batch([
+      old.db.prepare(`INSERT INTO duty_ops_swap_requests
+        (id,requester_user_id,requested_shift_id,requested_starts_at,requested_ends_at,type,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,'DIRECT_SWAP','OPEN',?,?)`)
+        .bind(requestId,alice.id,a,start,end,stamp,stamp),
+      old.db.prepare(`INSERT INTO duty_ops_swap_proposals
+        (id,request_id,proposer_user_id,offered_shift_id,offered_starts_at,offered_ends_at,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,'ACCEPTED',?,?)`)
+        .bind(proposalId,requestId,bob.id,b,start,end,stamp,stamp),
+      old.db.prepare(`UPDATE duty_ops_swap_requests SET status='ACCEPTED',accepted_by_user_id=?,
+        accepted_proposal_id=?,accepted_at=? WHERE id=?`).bind(bob.id,proposalId,stamp,requestId),
+    ]);
     const raw=(await old.db.prepare('SELECT * FROM duty_ops_assignments').all()).results;
     const effective=(await old.db.prepare('SELECT * FROM duty_ops_effective_assignments').all()).results;
     const migration=readFileSync(new URL('../migrations/0007_flyvask.sql',import.meta.url),'utf8');expect(migration).not.toContain('\r');

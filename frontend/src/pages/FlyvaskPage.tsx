@@ -4,7 +4,7 @@ import { OnboardingRequiredError } from '../api';
 import { cacheAgeLabel } from '../cache-age';
 import { addDays, osloDate } from '../dates';
 import { loadFlyvask } from '../features/flyvask/api';
-import { dateLabel, flyvaskSections, participantLabel, timeLabel } from '../features/flyvask/presentation';
+import { dateLabel, flyvaskSections, isOwnShift, participantLabel, timeLabel } from '../features/flyvask/presentation';
 import type { FlyvaskData } from '../features/flyvask/types';
 import { ShiftList } from '../features/flyvask/ShiftList';
 import { FlyvaskExchanges, ExchangeShiftActions } from '../features/flyvask/FlyvaskExchanges';
@@ -48,7 +48,7 @@ export function FlyvaskPage({ view = 'schedule' }: { view?: 'schedule' | 'exchan
   }) ?? [];
   const assignments = data?.shifts.map(shift => ({ id: shift.id,
     label: `${dateLabel(shift.startsAt)} · ${timeLabel(shift)}`,
-    ownerNames: participantLabel(shift), own: shift.participants.some(person => person.isCurrentUser) })) ?? [];
+    ownerNames: participantLabel(shift), own: isOwnShift(shift) })) ?? [];
   return <section className="duty-ops">
     {center && <BackLink to="/flyvask">Flyvask</BackLink>}
     <PageHeader title={center ? 'Exchanges' : 'Flyvask'}><RefreshControl label="Flyvask" onRefresh={() => setReload(n => n + 1)} loading={loading} retry={!!error || !!data?.sync.stale} updatedAt={data?.sync.assignments.lastSyncedAt} now={now} /></PageHeader>

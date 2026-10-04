@@ -8,6 +8,8 @@ export interface FlyvaskShift {
   classroomId: string | null; classroomName: string | null;
   flightlogger: { participantCount: number; participants: FlyvaskShift['participants'] };
   assignmentsDiffer: boolean;
+  participantIntegrity?: { status: 'CONSISTENT' | 'PARTIAL' | 'CONFLICT'; reason: null | 'IDENTITIES_INCOMPLETE' | 'RAW_IDENTITY_OVERCOUNT' | 'PORTAL_SOURCE_DIVERGED' | 'PORTAL_LINEAGE_UNVERIFIED' };
+  isCurrentUserAssigned?: boolean;
 }
 export interface FlyvaskData {
   from: string; to: string; timeZone: 'Europe/Oslo'; shifts: FlyvaskShift[];

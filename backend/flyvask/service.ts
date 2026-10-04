@@ -1,4 +1,5 @@
 import { readAssignmentStates, type FlyvaskParticipant } from './effective-assignments';
+import type { ParticipantIntegrity } from '../assignment-reconciliation';
 import { reconcileExchangeV2IfInstalled } from '../exchange-v2/reconciliation';
 import { scheduleNotificationsInstalled, scheduleObservationStatements } from '../notifications/schedule';
 import { ApplicationError } from '../application-error';
@@ -18,7 +19,8 @@ export interface FlyvaskResponse {
   from: string; to: string; timeZone: 'Europe/Oslo';
   shifts: { id: string; startsAt: string; endsAt: string; status: string; participantCount: number; classroomId: string | null; classroomName: string | null;
     participants: FlyvaskParticipant[];
-    flightlogger: { participantCount: number; participants: FlyvaskParticipant[] }; assignmentsDiffer: boolean }[];
+    flightlogger: { participantCount: number; participants: FlyvaskParticipant[] }; assignmentsDiffer: boolean;
+    participantIntegrity: ParticipantIntegrity; isCurrentUserAssigned: boolean }[];
   sync: { stale: boolean; warning: string | null; discovery: SyncMetadata; assignments: SyncMetadata };
 }
 type SyncMetadata = { lastSyncedAt: string; stale: boolean; from: string; to: string };

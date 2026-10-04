@@ -1,6 +1,7 @@
 import { ApplicationError } from '../application-error';
 import type { ExchangeAssignmentSnapshot, ExchangeDomain } from '../../shared/exchange-v2';
 import { osloDay } from '../brakkevakt/week';
+import { assignmentConflict, hasAssignmentConflict } from '../assignment-reconciliation';
 
 export interface AssignmentMember extends ExchangeAssignmentSnapshot { userId: string; identity: string; periodId: string | null }
 
@@ -11,14 +12,14 @@ const memberSql: Record<ExchangeDomain, string> = {
       FROM duty_ops_assignment_effects x JOIN users xu ON xu.id=x.user_id
       WHERE x.shift_id=s.id AND COALESCE(xu.flightlogger_user_id,'portal:'||xu.id)=COALESCE(u.flightlogger_user_id,'portal:'||u.id)
       ORDER BY x.accepted_at DESC,x.exchange_id DESC LIMIT 1),'RAW')) version
-    FROM duty_ops_shifts s JOIN duty_ops_effective_assignments a ON a.shift_id=s.id JOIN users u ON u.id=a.user_id WHERE s.id=?`,
+    FROM duty_ops_shifts s JOIN duty_ops_candidate_assignments a ON a.shift_id=s.id JOIN users u ON u.id=a.user_id WHERE s.id=?`,
   FLYVASK: `SELECT s.id, s.starts_at startsAt, s.ends_at endsAt, s.status, a.user_id userId,
     COALESCE(u.flightlogger_user_id,'portal:'||u.id) identity, NULL periodId,
     json_array(s.starts_at,s.ends_at,s.status,COALESCE((SELECT x.accepted_at||':'||x.exchange_id
       FROM flyvask_assignment_effects x JOIN users xu ON xu.id=x.user_id
       WHERE x.shift_id=s.id AND COALESCE(xu.flightlogger_user_id,'portal:'||xu.id)=COALESCE(u.flightlogger_user_id,'portal:'||u.id)
       ORDER BY x.accepted_at DESC,x.exchange_id DESC LIMIT 1),'RAW')) version
-    FROM flyvask_shifts s JOIN flyvask_effective_assignments a ON a.shift_id=s.id JOIN users u ON u.id=a.user_id WHERE s.id=?`,
+    FROM flyvask_shifts s JOIN flyvask_candidate_assignments a ON a.shift_id=s.id JOIN users u ON u.id=a.user_id WHERE s.id=?`,
   BRAKKEVAKT: `SELECT a.id, w.week_start startsAt, date(w.week_start,'+7 days') endsAt,
     CASE WHEN w.published=1 THEN 'OPEN' ELSE 'DRAFT' END status, a.user_id userId,
     COALESCE(u.flightlogger_user_id,'portal:'||u.id) identity, w.id periodId,
@@ -42,16 +43,19 @@ export async function readExchangeableOwnedIds(db: D1Database, domain: ExchangeD
     ? `SELECT a.id FROM brakkevakt_assignments a JOIN brakkevakt_periods w ON w.id=a.period_id
        WHERE a.user_id=? AND w.published=1 AND date(w.week_start,'+7 days')>?`
     : domain === 'DUTY_OPS'
-      ? `SELECT a.shift_id id FROM duty_ops_effective_assignments a JOIN duty_ops_shifts s ON s.id=a.shift_id
-         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>?`
-      : `SELECT a.shift_id id FROM flyvask_effective_assignments a JOIN flyvask_shifts s ON s.id=a.shift_id
-         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>?`;
+      ? `SELECT a.shift_id id FROM duty_ops_candidate_assignments a JOIN duty_ops_shifts s ON s.id=a.shift_id
+         JOIN assignment_reconciliation r ON r.domain='DUTY_OPS' AND r.shift_id=a.shift_id
+         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>? AND r.status<>'CONFLICT'`
+      : `SELECT a.shift_id id FROM flyvask_candidate_assignments a JOIN flyvask_shifts s ON s.id=a.shift_id
+         JOIN assignment_reconciliation r ON r.domain='FLYVASK' AND r.shift_id=a.shift_id
+         WHERE a.user_id=? AND s.status='OPEN' AND s.starts_at>? AND r.status<>'CONFLICT'`;
   const cutoff = domain === 'BRAKKEVAKT' ? osloDay(now) : now.toISOString();
   return (await db.prepare(query).bind(userId,cutoff).all<{ id: string }>()).results.map(row => row.id);
 }
 
 export async function readOwned(db: D1Database, domain: ExchangeDomain, assignmentId: string, userId: string,
   now = new Date()): Promise<AssignmentMember> {
+  if (domain !== 'BRAKKEVAKT' && await hasAssignmentConflict(db, domain, [assignmentId])) throw assignmentConflict();
   const member = (await readMembers(db, domain, assignmentId)).find(row => row.userId === userId);
   if (!member || !isExchangeable(domain, member, now))
     throw new ApplicationError('This assignment is no longer available for exchange.', 409, 'EXCHANGE_ASSIGNMENT_CHANGED');
@@ -67,7 +71,9 @@ export function snapshot(member: AssignmentMember): ExchangeAssignmentSnapshot {
 export function currentMemberPredicate(domain: ExchangeDomain): string {
   return `EXISTS (SELECT 1 FROM (${memberSql[domain]}) current
     WHERE current.userId=? AND current.version=? AND current.status='OPEN'
-    AND ${domain === 'BRAKKEVAKT' ? "current.endsAt>?" : 'current.startsAt>?'})`;
+    AND ${domain === 'BRAKKEVAKT' ? "current.endsAt>?" : 'current.startsAt>?' }
+    ${domain === 'BRAKKEVAKT' ? '' : `AND EXISTS (SELECT 1 FROM assignment_reconciliation integrity
+      WHERE integrity.domain='${domain}' AND integrity.shift_id=current.id AND integrity.status<>'CONFLICT')`})`;
 }
 
 export function memberPredicateValues(assignmentId: string, userId: string, version: string, domain: ExchangeDomain, now: Date): string[] {

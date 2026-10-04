@@ -18,18 +18,20 @@ Synchronization preserves local shift IDs, guards against older concurrent snaps
 
 ## Raw and effective assignments
 
+See [assignment reconciliation](assignment-reconciliation.md) for the shared base/portal/FlightLogger three-way model and integrity metadata.
+
 `flyvask_assignments` contains only synchronized FlightLogger memberships. Swaps never insert or delete these rows or alter the source participant count.
 
-Studentportal uses `flyvask_effective_assignments` as its operational authority. Each accepted direct swap produces four effects:
+Studentportal uses `flyvask_effective_assignments` as its operational authority. Each accepted direct swap has two slot transfers:
 
-| Shift | Removal | Addition |
+| Shift | Replaced holder | Portal receiver |
 | --- | --- | --- |
 | Requested | Requester | Accepted proposer |
 | Offered | Accepted proposer | Requester |
 
-The latest effect for each touched membership wins, ordered by acceptance timestamp then request ID. Acceptance allocates a strictly increasing timestamp within the D1 transaction. Untouched memberships follow the raw snapshot. Known aliases of the same FlightLogger identity are deduplicated, and former-holder aliases are suppressed.
+Migration 0016 backfills and records these transfer relationships with one durable sequence shared by v1 and v2. The final receiver in a transfer chain occupies one slot. Untouched raw memberships follow the FlightLogger snapshot only when they can be reconciled safely. Known aliases of the same FlightLogger identity are deduplicated.
 
-This is the same idempotent reconciliation rule as Duty Ops v2. Original, intermediate and final FlightLogger catch-up snapshots yield the same effective state without double application or resurrecting earlier holders. Acquired assignments may immediately be requested or proposed in another swap, including swapping back to a previous holder. Every accepted agreement remains a separate history entry.
+This is the same reconciliation rule as Duty Ops. Original, intermediate and final FlightLogger catch-up snapshots yield one portal receiver per transferred slot without double application. If FlightLogger diverges to an unrelated identity, the portal receiver stays assigned, other cached names are withheld and new exchanges on the shift pause until the conflict clears. Every accepted agreement remains a separate history entry.
 
 For touched memberships, the latest portal agreement remains authoritative until a future explicit audited reconciliation policy. Later unrelated administrative changes are not interpreted as revoking portal consent.
 
@@ -69,7 +71,7 @@ Lists have 30-item pages and return `nextCursor`; proposals are bounded to 50 pe
 
 ## UI and history
 
-`/flyvask` provides My upcoming, This week, a compact Exchange summary and the full date-grouped Schedule. Effective Studentportal participants are primary. Differing FlightLogger source assignments are available through an attention disclosure. Known participant names plus remaining source slots preserve the privacy-safe “others” presentation. New Exchange actions consume canonical v2 assignment state; active v1 exchanges retain their original controls. After acceptance, the schedule reloads and the received assignment can be exchanged again.
+`/flyvask` provides My upcoming, This week, a compact Exchange summary and the full date-grouped Schedule. Effective Studentportal participants are primary. Differing FlightLogger source assignments are available through an attention disclosure when identities are safe; a conflict instead withholds ambiguous names. Known safe names plus remaining source slots preserve the privacy-safe “others” presentation. New Exchange actions consume canonical v2 assignment state; active v1 exchanges retain their original controls. After acceptance, the schedule reloads and the received assignment can be exchanged again when its source snapshot remains safe.
 
 `/flyvask/swap-history` is a bookmarkable secondary tab. It shows only accepted agreements involving the authenticated requester or accepted proposer, from that viewer's perspective: counterparty, You gave, You received, and acceptance date/time. Unselected proposers cannot read the accepted agreement as their history. There is no user selector or email exposure. Stored consent times keep history displayable after source bookings are removed and foreign keys become NULL. View permission is sufficient even if swap permission was later revoked. Cancelled/withdrawn/not-selected activity stays in audit storage.
 

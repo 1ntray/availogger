@@ -6,7 +6,7 @@
 
 **Studentportal effective assignments** are the primary operational view for Today, Schedule, My shifts, Home personal relevance and all exchange eligibility checks. Accepted portal agreements transfer individual `(student, shift)` memberships, not whole shifts. Other students on the same shift are unaffected.
 
-Unchanged participant lists show one compact list with a FlightLogger source label. Changed lists show Studentportal first and FlightLogger beneath it. Unknown/masked participants retain the existing count/others presentation; identities and emails are never inferred from masked slots. Portal transfers do not alter the FlightLogger participant count or schedule entry.
+Unchanged participant lists show one compact list with a FlightLogger source label. Changed lists show Studentportal first and FlightLogger beneath it when identities are safe to present. During a source conflict, cached raw names are withheld and a concise reconciliation message is shown. Unknown/masked participants retain the count/others presentation; identities and emails are never inferred from masked slots. Portal transfers do not alter the FlightLogger participant count or schedule entry.
 
 ## Give away and direct swap
 
@@ -18,30 +18,30 @@ Unchanged participant lists show one compact list with a FlightLogger source lab
 
 Only future, OPEN shifts with unchanged consent times can be exchanged. Lost effective membership, cancellation, completion, a started shift or rescheduling invalidates consent. The backend rechecks these rules inside the write transaction.
 
-An acquired membership is immediately available for another give-away, request or proposal. For example, `Simon -> Erik -> Lisa` leaves Lisa effectively assigned while preserving two separate accepted agreements. Direct and mixed chains work the same way, including transfer back to a previous holder.
+An acquired membership is available for another give-away, request or proposal while its source snapshot reconciles safely. For example, `Simon -> Erik -> Lisa` leaves Lisa effectively assigned while preserving two separate accepted agreements. Direct and mixed chains work the same way, including transfer back to a previous holder. A later FlightLogger source conflict pauses new exchanges without revoking the accepted assignment.
 
 ## One authoritative overlay
 
-Additive migration `0006_duty_ops_effective_assignments.sql` defines:
+Migration `0006_duty_ops_effective_assignments.sql` introduced the original overlay. Migration `0016_assignment_reconciliation.sql` replaces its effective view with shared slot reconciliation:
 
 | View/index | Purpose |
 | --- | --- |
-| `duty_ops_assignment_effects` | Removal/addition effects of accepted give-aways and both legs of direct swaps |
-| `duty_ops_effective_assignments` | Raw memberships untouched by agreements plus the latest accepted effect for each touched membership |
+| `duty_ops_assignment_effects` | Factual legacy history of accepted give-aways and both legs of direct swaps |
+| `duty_ops_effective_assignments` | Reconciled slot holders, not independent effect additions |
 | `duty_ops_active_swap_reservations` | Reservations for OPEN requests and OPEN proposals only |
 | Accepted request index | Acceptance ordering and history lookup |
 
-Effects are ordered by `(accepted_at, request_id)`. The last effect on a membership wins. New acceptances allocate a strictly increasing millisecond timestamp inside the same D1 transaction; this preserves actual chain order even for simultaneous requests and one clock tick. Existing historical ties use stable request IDs.
+Migration 0016 backfills semantic transfers from accepted v1/v2 history and records future acceptances in one durable order. Chained transfers have one final holder per original slot. See [assignment reconciliation](assignment-reconciliation.md).
 
 The SQL view is shared by mutation guards and the central `backend/duty-ops/effective-assignments.ts` read service. The frontend receives effective participants/count as the primary fields, a separate `flightlogger` participant snapshot and `assignmentsDiffer`. It never reconstructs swaps independently. Raw and effective participant lists are read together in a transactional D1 batch. Multiple Access subjects sharing a known FlightLogger identity count as one participant; transfer effects suppress raw aliases of a former holder.
 
 ### FlightLogger catch-up and reconciliation
 
-Replaying effects is **idempotent**: accepted removals remain absent and accepted additions remain present. Replaying a complete chain over its original, intermediate or final FlightLogger snapshot therefore produces the same final portal memberships. Direct swaps follow the same rule. A synchronized unrelated participant continues to follow the raw snapshot.
+Reconciliation is **idempotent**: a complete chain has the same final portal holder over its original, intermediate or converged FlightLogger snapshot. An unrelated raw identity is shown only when its slot can be reconciled safely.
 
 For memberships touched by accepted agreements, the latest portal effect remains authoritative even if a later FlightLogger edit disagrees. There is no automatic inference that an external change revokes student consent, and no automatic reconciliation/APPLIED workflow in this phase. This deliberate policy avoids double application, resurrected previous holders and broken chains. Future external-write/reconciliation work must introduce an explicit audited policy rather than deleting history.
 
-The count remains based on source participant slots (at least the number of known effective participants). Partial cross-account sync may still give an incomplete source list; unknown slots are never mapped to guessed identities.
+The count is exactly the global FlightLogger participant count. A raw overcount or source divergence is a conflict; it never increases the displayed slot total. Partial cross-account sync may still give an incomplete source list, without blocking otherwise safe exchanges.
 
 ### Upgrade and reservations
 
